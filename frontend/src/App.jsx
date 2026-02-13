@@ -48,19 +48,15 @@ const metalLabelMap = {
   XAG: "Silver",
   XPT: "Platinum",
   XPD: "Palladium",
-  HG: "Copper",
-  ETH: "Etherium",
-  BTC: "Bitcoin"
+  HG: "Copper"
 };
 
 const metalThemes = {
-  XAU: { primary: "#d46f2d", secondary: "#f5a559", light: "rgba(212, 111, 45, 0.15)", name: "Gold" },
-  XAG: { primary: "#8b92a9", secondary: "#c0c9dd", light: "rgba(139, 146, 169, 0.15)", name: "Silver" },
-  XPT: { primary: "#6b7280", secondary: "#a1a8b8", light: "rgba(107, 114, 128, 0.15)", name: "Platinum" },
-  XPD: { primary: "#78a18f", secondary: "#a8cfc0", light: "rgba(120, 161, 143, 0.15)", name: "Palladium" },
-  HG: { primary: "#c85a3a", secondary: "#e8915a", light: "rgba(200, 90, 58, 0.15)", name: "Copper" },
-  ETH: { primary: "#627eea", secondary: "#8da5f5", light: "rgba(98, 126, 234, 0.15)", name: "Etherium" },
-  BTC: { primary: "#f7931a", secondary: "#f9b14f", light: "rgba(247, 147, 26, 0.15)", name: "Bitcoin" }
+  XAU: { primary: "#B8860B", secondary: "#FFD700", light: "rgba(184, 134, 11, 0.12)", name: "Gold" },
+  XAG: { primary: "#6B7280", secondary: "#A0AEC0", light: "rgba(107, 114, 128, 0.12)", name: "Silver" },
+  XPT: { primary: "#5B5B5B", secondary: "#8B8B8B", light: "rgba(91, 91, 91, 0.12)", name: "Platinum" },
+  XPD: { primary: "#7B8B7A", secondary: "#A8B8A7", light: "rgba(123, 139, 122, 0.12)", name: "Palladium" },
+  HG: { primary: "#B87333", secondary: "#E89B6B", light: "rgba(184, 115, 51, 0.12)", name: "Copper" }
 };
 
 const getMetalTheme = (metal) => {
@@ -163,9 +159,10 @@ export default function App() {
         const response = await fetch(`${API_BASE}/get-latest-price`);
         if (!response.ok) throw new Error("Unable to fetch latest prices");
         const data = await response.json();
-        setMetals(data.metals || []);
-        if (data.metals?.length) {
-          setSelectedMetal((prev) => prev || data.metals[0].metal_name);
+        const filteredMetals = (data.metals || []).filter(m => !['BTC', 'ETH'].includes(m.metal_name));
+        setMetals(filteredMetals);
+        if (filteredMetals?.length) {
+          setSelectedMetal((prev) => prev || filteredMetals[0].metal_name);
         }
       } catch (error) {
         setStatus({ loading: false, error: error.message });
@@ -193,13 +190,13 @@ export default function App() {
         const compareData = await compareRes.json();
         const weeklyData = await weeklyRes.json();
         const monthlyData = await monthlyRes.json();
+        setStatus({ loading: false, error: "" });
         setLatest(latestData.latest || null);
         setComparison(compareData.comparison || null);
         setWeekly(weeklyData.history || []);
         setMonthly(monthlyData.history || []);
         setAvailableMonths(monthlyData.availableMonths || []);
         setSelectedMonth(monthlyData.selectedMonth || "");
-        setStatus({ loading: false, error: "" });
       } catch (error) {
         setStatus({ loading: false, error: error.message });
       }
@@ -267,16 +264,73 @@ export default function App() {
     : null;
 
   const badgeClass = unitComparison?.direction || "neutral";
+  const priceClass = unitComparison?.direction ? `stat-value ${unitComparison.direction}` : "stat-value";
 
   return (
     <div className="app">
-      <div className="container">
-        <header>
-          <h1>Daily Metal Price Tracker</h1>
-          <p>
-            Track gold, silver, and other metals with daily INR conversion, duties, and GST applied. Updates
-            are stored for historical trends and comparisons.
-          </p>
+      <div className="shell">
+        <header className="hero">
+          <div className="hero__title">
+            <span className="eyebrow">Auric Ledger</span>
+            <h1>Metal Price Observatory</h1>
+            <p>
+              A refined view of daily precious metal prices with INR conversion, duties, and GST baked in.
+              Compare shifts, inspect purity bands, and follow weekly and monthly momentum.
+            </p>
+          </div>
+          <div className="hero__panel">
+            <div className="control-grid">
+              <label>
+                Metal
+                <select value={selectedMetal} onChange={(event) => setSelectedMetal(event.target.value)}>
+                  {metals.map((metal) => (
+                    <option key={`${metal.metal_name}-${metal.carat || "na"}`} value={metal.metal_name}>
+                      {formatMetalLabel(metal)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {isGold ? (
+                <label>
+                  Purity
+                  <select value={carat} onChange={(event) => setCarat(event.target.value)}>
+                    {goldCarats.map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              <label>
+                Unit
+                <select value={unit} onChange={(event) => setUnit(event.target.value)}>
+                  {unitOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Month
+                <select
+                  value={selectedMonth}
+                  onChange={(event) => setSelectedMonth(event.target.value)}
+                  disabled={!availableMonths.length}
+                >
+                  {availableMonths.map((month) => (
+                    <option key={month} value={month}>
+                      {dayjs(`${month}-01`).format("MMMM YYYY")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
         </header>
 
         {status.error ? (
@@ -286,62 +340,10 @@ export default function App() {
           </div>
         ) : null}
 
-        <div className="controls">
-          <label>
-            Metal
-            <select value={selectedMetal} onChange={(event) => setSelectedMetal(event.target.value)}>
-              {metals.map((metal) => (
-                <option key={`${metal.metal_name}-${metal.carat || "na"}`} value={metal.metal_name}>
-                  {formatMetalLabel(metal)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {isGold ? (
-            <label>
-              Purity
-              <select value={carat} onChange={(event) => setCarat(event.target.value)}>
-                {goldCarats.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          <label>
-            Unit
-            <select value={unit} onChange={(event) => setUnit(event.target.value)}>
-              {unitOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Month
-            <select
-              value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
-              disabled={!availableMonths.length}
-            >
-              {availableMonths.map((month) => (
-                <option key={month} value={month}>
-                  {dayjs(`${month}-01`).format("MMMM YYYY")}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="grid">
-          <div className="card" style={{ borderLeft: `6px solid ${metalTheme.primary}` }}>
-            <h3>Latest Price ({unit})</h3>
-            <div className="price" style={{ color: unitComparison?.direction === "up" ? "#c23b22" : unitComparison?.direction === "down" ? "#1f7a3b" : "#6c6c6c" }}>
+        <section className="stat-grid">
+          <div className="stat-card" style={{ "--accent": metalTheme.primary }}>
+            <h3 className="stat-label">Latest Price ({unit})</h3>
+            <div className={priceClass}>
               {formatMoney(priceValue)}
             </div>
             {unitComparison ? (
@@ -353,46 +355,55 @@ export default function App() {
           </div>
 
           {isGold ? (
-            <div className="card" style={{ borderLeft: `6px solid ${metalTheme.secondary}` }}>
-              <h3>Gold Purities</h3>
-              <div className="chart-block">
+            <div className="stat-card" style={{ "--accent": metalTheme.secondary }}>
+              <h3 className="stat-label">Gold Purities</h3>
+              <div className="purity-list">
                 {goldCarats.map((item) => (
                   <div key={item.value}>
                     <strong>{item.label}</strong>
-                    <div>{formatMoney(latest?.carat_prices?.[item.value] || 0)} per 1g</div>
+                    <div className="stat-sub">
+                      {formatMoney(latest?.carat_prices?.[item.value] || 0)} per 1g
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="card" style={{ borderLeft: `6px solid ${metalTheme.secondary}` }}>
-              <h3>Per Kg</h3>
-              <div className="price">{formatMoney(latest?.price_per_kg || 0)}</div>
+            <div className="stat-card" style={{ "--accent": metalTheme.secondary }}>
+              <h3 className="stat-label">Per Kg</h3>
+              <div className="stat-value">{formatMoney(latest?.price_per_kg || 0)}</div>
             </div>
           )}
 
-          <div className="card" style={{ borderLeft: `6px solid ${metalTheme.primary}` }}>
-            <h3>Update Date</h3>
-            <div className="price">{latest ? dayjs(latest.date).format("DD MMM YYYY") : "-"}</div>
+          <div className="stat-card" style={{ "--accent": metalTheme.primary }}>
+            <h3 className="stat-label">Update Date</h3>
+            <div className="stat-value">{latest ? dayjs(latest.date).format("DD MMM YYYY") : "-"}</div>
           </div>
-        </div>
+        </section>
 
-        <div className="grid" style={{ marginTop: 20 }}>
-          <div className="card chart-block">
+        <section className="chart-grid">
+          <div className="chart-panel">
             <div className="chart-title">
-              <h3>Weekly Trend ({unit}{isGold ? ` - ${carat} Carat` : ""})</h3>
+              <h2>Weekly Range {isGold && `• ${carat}K`}</h2>
+              <span className="chart-meta">{unit}</span>
             </div>
             <Line data={buildChartData(weekly, chartSeries)} options={buildChartOptions(chartRange)} />
           </div>
-          <div className="card chart-block">
+          <div className="chart-panel">
             <div className="chart-title">
-              <h3>Monthly Trend ({unit}{isGold ? ` - ${carat} Carat` : ""})</h3>
+              <h2>Monthly Range {isGold && `• ${carat}K`}</h2>
+              <span className="chart-meta">{unit}</span>
             </div>
             <Line data={buildChartData(monthly, chartSeries)} options={buildChartOptions(chartRange)} />
           </div>
-        </div>
+        </section>
 
-        {status.loading ? <div style={{ marginTop: 16 }}>Loading data...</div> : null}
+        {status.loading ? (
+          <div className="loader-wrap">
+            <div className="loader"></div>
+            <p>Fetching precious metal prices...</p>
+          </div>
+        ) : null}
       </div>
     </div>
   );
