@@ -38,6 +38,13 @@ const GOLD_CARATS = [
   { carat: "24", purity: 1 }
 ];
 
+const fetchCache = {
+  lastRunAt: null,
+  lastResult: null
+};
+
+const MIN_FETCH_INTERVAL_MINUTES = 15;
+
 const symbolCache = {
   symbols: [],
   updatedAt: null
@@ -210,6 +217,24 @@ const fetchAndStoreToday = async () => {
   return { rows: data || [], usdToInr, date: today };
 };
 
+const fetchWithGuard = async () => {
+  if (fetchCache.lastRunAt) {
+    const minutesSince = dayjs().diff(fetchCache.lastRunAt, "minute");
+    if (minutesSince < MIN_FETCH_INTERVAL_MINUTES && fetchCache.lastResult) {
+      return {
+        result: fetchCache.lastResult,
+        cached: true,
+        retry_after_minutes: MIN_FETCH_INTERVAL_MINUTES - minutesSince
+      };
+    }
+  }
+
+  const result = await fetchAndStoreToday();
+  fetchCache.lastRunAt = dayjs();
+  fetchCache.lastResult = result;
+  return { result, cached: false, retry_after_minutes: 0 };
+};
+
 const getLatestDate = async () => {
   const { data, error } = await supabase.from("metal_prices").select("date").order("date", { ascending: false }).limit(1);
   if (error) throw error;
@@ -254,18 +279,31 @@ const getComparison = async ({ metal, carat }) => {
     .select("date, price_1g, price_8g, price_per_kg")
     .eq("metal_name", metal)
     .order("date", { ascending: false })
-    .limit(2);
+    .limit(10);  // Get more rows to ensure we have at least 2 unique dates
 
   if (carat) query = query.eq("carat", carat);
   if (!carat) query = query.is("carat", null);
 
   const { data, error } = await query;
   if (error) throw error;
-  if (!data || data.length < 2) return null;
+  
+  // Deduplicate by date
+  const uniqueData = [];
+  const seenDates = new Set();
+  for (const row of data || []) {
+    if (!seenDates.has(row.date)) {
+      seenDates.add(row.date);
+      uniqueData.push(row);
+      if (uniqueData.length === 2) break;  // We only need 2 unique dates
+    }
+  }
+  
+  if (uniqueData.length < 2) return null;
 
-  const [today, yesterday] = data;
+  const [today, yesterday] = uniqueData;
 
   return {
+    metal_name: metal,
     today_date: today.date,
     yesterday_date: yesterday.date,
     today_prices: {
@@ -295,7 +333,17 @@ const getWeeklyHistory = async ({ metal, carat }) => {
   const { data, error } = await query;
   if (error) throw error;
 
-  return (data || []).reverse();
+  // Deduplicate by date (in case of duplicate entries)
+  const uniqueData = [];
+  const seenDates = new Set();
+  for (const row of data || []) {
+    if (!seenDates.has(row.date)) {
+      seenDates.add(row.date);
+      uniqueData.push(row);
+    }
+  }
+
+  return uniqueData.reverse();
 };
 
 const getMonthlyHistory = async ({ metal, carat, month }) => {
@@ -316,7 +364,17 @@ const getMonthlyHistory = async ({ metal, carat, month }) => {
   const { data, error } = await query;
   if (error) throw error;
 
-  return data || [];
+  // Deduplicate by date (in case of duplicate entries)
+  const uniqueData = [];
+  const seenDates = new Set();
+  for (const row of data || []) {
+    if (!seenDates.has(row.date)) {
+      seenDates.add(row.date);
+      uniqueData.push(row);
+    }
+  }
+
+  return uniqueData;
 };
 
 const getAvailableMonths = async ({ metal, carat }) => {
@@ -347,8 +405,8 @@ app.get("/health", (req, res) => {
 
 app.post("/fetch-today-prices", async (req, res) => {
   try {
-    const result = await fetchAndStoreToday();
-    res.json({ status: "ok", ...result });
+    const { result, cached, retry_after_minutes } = await fetchWithGuard();
+    res.json({ status: "ok", cached, retry_after_minutes, ...result });
   } catch (error) {
     res.status(500).json({ status: "error", message: error.message });
   }
@@ -357,8 +415,8 @@ app.post("/fetch-today-prices", async (req, res) => {
 // GET version for external cron services
 app.get("/fetch-today-prices", async (req, res) => {
   try {
-    const result = await fetchAndStoreToday();
-    res.json({ status: "ok", ...result });
+    const { result, cached, retry_after_minutes } = await fetchWithGuard();
+    res.json({ status: "ok", cached, retry_after_minutes, ...result });
   } catch (error) {
     res.status(500).json({ status: "error", message: error.message });
   }
