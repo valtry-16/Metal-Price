@@ -16,41 +16,11 @@ let bot = null;
 let botInitialized = false;
 
 if (TELEGRAM_BOT_TOKEN && !botInitialized) {
-  // Create bot in WEBHOOK mode only - no polling, no cleanup logic
+  // Create bot in WEBHOOK mode only - no polling
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
   botInitialized = true;
-  
-  // Automatically set webhook on startup
-  const setupWebhook = async () => {
-    try {
-      const webhookUrl = "https://metal-price.onrender.com/telegram/webhook";
-      console.log(`🔗 Setting Telegram webhook to: ${webhookUrl}`);
-      
-      // Delete old webhook first
-      await bot.deleteWebhook();
-      console.log("🧹 Cleared old webhook");
-      
-      // Set new webhook
-      await bot.setWebhook(webhookUrl);
-      console.log("✅ Webhook set successfully");
-      
-      // Verify it was set
-      const info = await bot.getWebhookInfo();
-      if (info.url === webhookUrl) {
-        console.log(`✅ Telegram bot initialized (Webhook mode)`);
-        console.log(`🔗 Webhook URL: ${info.url}`);
-      } else {
-        console.warn(`⚠️ Webhook URL mismatch. Expected: ${webhookUrl}, Got: ${info.url}`);
-      }
-    } catch (error) {
-      console.error(`❌ Failed to setup webhook:`, error.message);
-    }
-  };
-  
-  // Setup webhook after a short delay
-  setTimeout(() => {
-    setupWebhook();
-  }, 2000);
+  console.log("✅ Telegram bot initialized (Webhook mode)");
+  console.log("💡 Webhook must be set manually via Telegram API");
 }
 
 // Helper function to format price data for Telegram
