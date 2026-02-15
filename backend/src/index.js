@@ -685,25 +685,13 @@ app.post("/subscribe-email", async (req, res) => {
 
     // Send immediate welcome email with today's prices (only for new subscriptions)
     if (isNewSubscription) {
-      console.log(`📧 Attempting to send welcome email to ${email}`);
-      if (!emailTransporter) {
-        console.warn(`⚠️ Email transporter not initialized. Check EMAIL_USER and EMAIL_PASSWORD in .env`);
-      } else {
-        try {
-          console.log(`📥 Fetching today's data for welcome email...`);
-          const todayData = await fetchAndStoreToday();
-          console.log(`📧 Sending welcome email...`);
-          await sendWelcomeEmail(email, todayData);
-          console.log(`✅ Welcome email sent to ${email}`);
-        } catch (emailError) {
-          console.error(`❌ Failed to send welcome email to ${email}:`, emailError);
-        }
-      }
+      console.log(`📧 New subscription from ${email}`);
+      console.log(`💡 Welcome email will be sent at 9 AM IST via cron job with daily prices`);
+      res.json({ status: "success", message: "✅ Subscribed! You'll receive your welcome email at 9 AM IST along with daily price updates." });
     } else {
       console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`);
+      res.json({ status: "success", message: "✅ Email already subscribed. Continue receiving daily price updates!" });
     }
-
-    res.json({ status: "success", message: "Email subscribed successfully" });
   } catch (error) {
     console.error("Email subscription error:", error);
     res.status(500).json({ status: "error", message: error.message });
@@ -1080,10 +1068,10 @@ const sendDailyPriceEmails = async (priceData) => {
   }
 
   try {
-    // Fetch all subscribed emails
+    // Fetch all subscribed emails with their subscription dates
     const { data: subscriptions, error } = await supabase
       .from("price_email_subscriptions")
-      .select("email")
+      .select("email, subscribed_at")
       .gt("subscribed_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Only recent subscriptions
 
     if (error) throw error;
@@ -1231,8 +1219,27 @@ const sendDailyPriceEmails = async (priceData) => {
     // Send email to all subscribers
     console.log(`📧 Sending emails to ${subscriptions.length} subscriber(s)...`);
     let successCount = 0;
+    let welcomeCount = 0;
+    
     for (const subscription of subscriptions) {
       try {
+        // Check if this subscriber just joined today (send welcome email once)
+        const subscribedDate = dayjs(subscription.subscribed_at).format("YYYY-MM-DD");
+        const today = dayjs().format("YYYY-MM-DD");
+        const isNewSubscriber = subscribedDate === today;
+        
+        // Send welcome email for new subscribers
+        if (isNewSubscriber) {
+          try {
+            await sendWelcomeEmail(subscription.email, priceData);
+            console.log(`🎉 Welcome email sent to ${subscription.email}`);
+            welcomeCount++;
+          } catch (welcomeError) {
+            console.error(`⚠️ Failed to send welcome email to ${subscription.email}:`, welcomeError.message);
+          }
+        }
+        
+        // Send daily price email to all subscribers
         await emailTransporter.sendMail({
           from: EMAIL_FROM,
           to: subscription.email,
@@ -1245,7 +1252,7 @@ const sendDailyPriceEmails = async (priceData) => {
         console.error(`❌ Failed to send email to ${subscription.email}:`, sendError.message);
       }
     }
-    console.log(`📊 Email Summary: ${successCount}/${subscriptions.length} sent successfully`);
+    console.log(`📊 Email Summary: ${successCount}/${subscriptions.length} daily sent successfully, ${welcomeCount} welcome emails sent`);
   } catch (error) {
     console.error("❌ Error in sendDailyPriceEmails:", error.message);
   }
