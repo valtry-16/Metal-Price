@@ -45,15 +45,24 @@ npm install
 ```
 
 ## Run
-```bash
-cd backend
-npm run dev
-```
+
+**Development Mode (Auto-detects local backend):**
+
+Frontend automatically detects if backend is running on `localhost:4000`:
+- ✅ If backend is running locally → Uses `http://localhost:4000`
+- ⚠️ If backend is not running → Falls back to production backend URL
 
 ```bash
+# Terminal 1: Start backend
+cd backend
+npm run dev
+
+# Terminal 2: Start frontend
 cd frontend
 npm run dev
 ```
+
+The frontend will check localhost:4000 on startup and use it if available. Perfect for development!
 
 ## API Endpoints
 - `POST /fetch-today-prices` - Fetch and store today's prices
@@ -61,6 +70,23 @@ npm run dev
 - `GET /compare-yesterday` - Compare today vs yesterday prices
 - `GET /weekly-history` - Get weekly price history
 - `GET /monthly-history` - Get monthly price history
+
+## Production Deployment
+
+### Frontend (Vercel/Netlify)
+1. Deploy frontend to Vercel or Netlify
+2. Set environment variable:
+   ```
+   VITE_API_BASE_URL=https://your-backend.onrender.com
+   ```
+3. Frontend will use this URL instead of localhost
+
+### Backend (Render.com)
+1. Deploy backend to Render
+2. Get your deployed URL (e.g., `https://auric-ledger-api.onrender.com`)
+3. Update frontend's `VITE_API_BASE_URL` with this URL
+
+**Note**: Frontend auto-detects `localhost:4000` in development, but uses `VITE_API_BASE_URL` in production.
 
 ## Data Source
 The backend fetches metal prices from **apised.com Metals API**:

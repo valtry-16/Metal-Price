@@ -20,7 +20,34 @@ const runAutoTable = (doc, options) => {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+// Auto-detect API backend (localhost dev or production)
+const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || "https://your-backend.onrender.com";
+const DEV_API_URL = "http://localhost:4000";
+
+// Helper to detect if localhost:4000 is available
+const detectApiBase = async () => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+    
+    const response = await fetch(`${DEV_API_URL}/get-latest-price`, {
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    // If we get any response (even error), server is running
+    if (response) {
+      console.log("✅ Using local dev server:", DEV_API_URL);
+      return DEV_API_URL;
+    }
+  } catch (error) {
+    // Localhost not available (network error or timeout)
+    console.log("⚠️ Local dev server not available, using production:", PROD_API_URL);
+  }
+  
+  return PROD_API_URL;
+};
 
 const formatMoney = (value) =>
   new Intl.NumberFormat("en-IN", {
@@ -171,6 +198,9 @@ const buildChartOptions = (range) => ({
 });
 
 export default function App() {
+  // API Backend detection
+  const [apiBase, setApiBase] = useState(DEV_API_URL); // Start with dev, will detect on mount
+  
   const [metals, setMetals] = useState([]);
   const [selectedMetal, setSelectedMetal] = useState("");
   const [carat, setCarat] = useState("22");
@@ -211,6 +241,15 @@ export default function App() {
     }
   }, []);
 
+  // Detect API backend on mount
+  useEffect(() => {
+    const detectBackend = async () => {
+      const detectedUrl = await detectApiBase();
+      setApiBase(detectedUrl);
+    };
+    detectBackend();
+  }, []);
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newMode = !darkMode;
@@ -244,7 +283,40 @@ export default function App() {
     if ("Notification" in window && Notification.permission !== "denied") {
       setNotificationPermission(Notification.permission);
     }
+
+    // Check if daily notification has been shown today (only if browser notifications enabled)
+    checkDailyNotification();
   }, []);
+
+  // Check and show daily price notification (only once per day)
+  const checkDailyNotification = async () => {
+    if (notificationPermission !== "granted") return;
+
+    const lastNotificationDate = localStorage.getItem("auric-last-daily-notification");
+    const today = dayjs().format("YYYY-MM-DD");
+
+    if (lastNotificationDate === today) {
+      return; // Already shown today
+    }
+
+    try {
+      const response = await fetch(`${apiBase}/daily-price-summary`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (data.status === "success" && data.summary?.length > 0) {
+        // Show single notification with gold price
+        const goldPrice = data.summary.find(m => m.metal === "XAU");
+        if (goldPrice) {
+          const message = `Today's Gold (22K): ₹${goldPrice.price.toFixed(2)}/g | ${data.summary.length} metals updated`;
+          showNotification("Auric Ledger - Daily Update", { body: message });
+          localStorage.setItem("auric-last-daily-notification", today);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch daily notification:", error);
+    }
+  };
 
   // Save alerts to localStorage
   const saveAlerts = (updatedAlerts) => {
@@ -261,7 +333,7 @@ export default function App() {
 
     setEmailLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/subscribe-email`, {
+      const response = await fetch(`${apiBase}/subscribe-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -352,18 +424,18 @@ export default function App() {
   };
 
   // Check if alert should trigger
-  const checkAlerts = (metalName, currentPrice) => {
+  const checkAlerts = async (metalName, currentPrice) => {
     if (!currentPrice || !alerts.length) return;
 
-    alerts.forEach((alert) => {
-      if (!alert.enabled || alert.metal !== metalName) return;
+    for (const alert of alerts) {
+      if (!alert.enabled || alert.metal !== metalName) continue;
 
       const now = new Date();
       const lastTriggered = alert.lastTriggeredAt ? new Date(alert.lastTriggeredAt) : null;
       const timeSinceLastTrigger = lastTriggered ? (now - lastTriggered) / (1000 * 60) : Infinity;
 
       // Prevent duplicate alerts within 60 minutes
-      if (timeSinceLastTrigger < 60) return;
+      if (timeSinceLastTrigger < 60) continue;
 
       let shouldTrigger = false;
       let message = "";
@@ -389,8 +461,32 @@ export default function App() {
       }
 
       if (shouldTrigger) {
-        showToast(message);
-        showNotification("Auric Ledger - Price Alert", { body: message });
+        // Show notification (browser notification if enabled, otherwise toast)
+        if (notificationPermission === "granted") {
+          showNotification("Auric Ledger - Price Alert", { body: message });
+        } else {
+          showToast(message);
+        }
+
+        // Send email notification if user has subscribed
+        if (userEmail) {
+          try {
+            await fetch(`${apiBase}/trigger-price-alert`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: userEmail,
+                metalName: alert.metal,
+                currentPrice: currentPrice,
+                alertType: alert.type,
+                targetValue: alert.value,
+                browserNotificationEnabled: notificationPermission === "granted"
+              })
+            });
+          } catch (error) {
+            console.error("Failed to send email alert:", error);
+          }
+        }
 
         // Update last triggered time
         const updated = alerts.map((a) =>
@@ -398,7 +494,7 @@ export default function App() {
         );
         saveAlerts(updated);
       }
-    });
+    }
   };
 
   // Close mobile menu when clicking outside
@@ -455,7 +551,7 @@ export default function App() {
       setUnit(savedUnit);
       try {
         setStatus({ loading: true, error: "", message: "Connecting to market data..." });
-        const response = await fetch(`${API_BASE}/get-latest-price`);
+        const response = await fetch(`${apiBase}/get-latest-price`);
         setStatus({ loading: true, error: "", message: "Loading available metals..." });
         if (!response.ok) throw new Error("Unable to fetch available metals. Please check your internet connection.");
         const data = await response.json();
@@ -475,7 +571,7 @@ export default function App() {
           const goldMetal = filteredMetals.find(m => m.metal_name === "XAU");
           if (goldMetal) {
             try {
-              const goldPriceRes = await fetch(`${API_BASE}/get-latest-price?metal=XAU&carat=22`);
+              const goldPriceRes = await fetch(`${apiBase}/get-latest-price?metal=XAU&carat=22`);
               if (goldPriceRes.ok) {
                 const goldData = await goldPriceRes.json();
                 if (goldData.latest?.price_1g) {
@@ -507,10 +603,10 @@ export default function App() {
         setDownloadLink(null);
         const caratParam = isGold ? `&carat=${carat}` : "";
         const [latestRes, compareRes, weeklyRes, monthlyRes] = await Promise.all([
-          fetch(`${API_BASE}/get-latest-price?metal=${encodeURIComponent(selectedMetal)}${caratParam}`),
-          fetch(`${API_BASE}/compare-yesterday?metal=${encodeURIComponent(selectedMetal)}${caratParam}`),
-          fetch(`${API_BASE}/weekly-history?metal=${encodeURIComponent(selectedMetal)}${caratParam}`),
-          fetch(`${API_BASE}/monthly-history?metal=${encodeURIComponent(selectedMetal)}${caratParam}`)
+          fetch(`${apiBase}/get-latest-price?metal=${encodeURIComponent(selectedMetal)}${caratParam}`),
+          fetch(`${apiBase}/compare-yesterday?metal=${encodeURIComponent(selectedMetal)}${caratParam}`),
+          fetch(`${apiBase}/weekly-history?metal=${encodeURIComponent(selectedMetal)}${caratParam}`),
+          fetch(`${apiBase}/monthly-history?metal=${encodeURIComponent(selectedMetal)}${caratParam}`)
         ]);
         if (!latestRes.ok || !compareRes.ok || !weeklyRes.ok || !monthlyRes.ok) {
           throw new Error("Unable to load price data. Please check your connection and try again.");
@@ -538,7 +634,7 @@ export default function App() {
                 // Always use 22K for gold in ticker, no carat param for other metals
                 const metalCaratParam = metal.metal_name.toLowerCase().includes("gold") || metal.metal_name.toLowerCase().includes("xau") ? "&carat=22" : "";
                 const res = await fetch(
-                  `${API_BASE}/compare-yesterday?metal=${encodeURIComponent(metal.metal_name)}${metalCaratParam}`
+                  `${apiBase}/compare-yesterday?metal=${encodeURIComponent(metal.metal_name)}${metalCaratParam}`
                 );
                 if (res.ok) {
                   const data = await res.json();
@@ -571,7 +667,7 @@ export default function App() {
       try {
         const caratParam = isGold ? `&carat=${carat}` : "";
         const response = await fetch(
-          `${API_BASE}/monthly-history?metal=${encodeURIComponent(selectedMetal)}${caratParam}&month=${selectedMonth}`
+          `${apiBase}/monthly-history?metal=${encodeURIComponent(selectedMetal)}${caratParam}&month=${selectedMonth}`
         );
         if (!response.ok) throw new Error("Unable to load month data");
         const data = await response.json();
@@ -917,7 +1013,7 @@ if (downloadLink?.url) {
               {darkMode ? "Light" : "Dark"}
             </button>
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowAlertsModal(true); }}>
-              🔔 Alerts {alerts.filter(a => a.enabled).length > 0 && `(${alerts.filter(a => a.enabled).length})`}
+              Alerts {alerts.filter(a => a.enabled).length > 0 && `(${alerts.filter(a => a.enabled).length})`}
             </button>
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowFaq(true); }}>
               About
@@ -1208,10 +1304,23 @@ if (downloadLink?.url) {
                     <strong style={{ color: "var(--accent)" }}>📊 Real-Time Pricing:</strong> Live prices for Gold, Silver, Platinum, Palladium, 
                     Copper, Nickel, Zinc, Aluminium, and Lead converted to INR with duty (6%) and GST (3%)<br/>
                     <strong style={{ color: "var(--accent)" }}>📱 PWA App:</strong> Install as native app on desktop, Android, and iOS. Works offline with automatic sync<br/>
+                    <strong style={{ color: "var(--accent)" }}>🤖 Telegram Bot:</strong> Get prices, charts, and daily updates via Telegram bot with 7 powerful commands<br/>
                     <strong style={{ color: "var(--accent)" }}>📈 Analytics:</strong> 7-day weekly trends and monthly historical data with interactive charts<br/>
                     <strong style={{ color: "var(--accent)" }}>💾 Export:</strong> Download CSV data or premium PDF reports with price breakdowns<br/>
                     <strong style={{ color: "var(--accent)" }}>🌙 Dark Mode:</strong> Eye-friendly dark theme with persistent preferences<br/>
                     <strong style={{ color: "var(--accent)" }}>⚡ Automated:</strong> Daily cron job at 9:00 AM IST for price updates
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>🤖 Telegram Bot Features</h3>
+                  <p>
+                    <strong style={{ color: "var(--accent)" }}>📱 Instant Prices:</strong> Get current and yesterday's prices for all 9 metals on demand<br/>
+                    <strong style={{ color: "var(--accent)" }}>📊 Smart Charts:</strong> View 7-day, 30-day, or custom month charts for any metal<br/>
+                    <strong style={{ color: "var(--accent)" }}>🔔 Daily Updates:</strong> Subscribe to automatic 9 AM price updates with change indicators (↑↓)<br/>
+                    <strong style={{ color: "var(--accent)" }}>🎨 Color-Coded:</strong> Each metal has unique color emoji for quick visual identification<br/>
+                    <strong style={{ color: "var(--accent)" }}>💹 Price Changes:</strong> Daily updates show exact price changes and percentages from yesterday<br/><br/>
+                    <strong>Bot Link:</strong> <a href="https://t.me/AuricLedgerBot" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>t.me/AuricLedgerBot</a>
                   </p>
                 </div>
 
@@ -1238,7 +1347,10 @@ if (downloadLink?.url) {
                     ✅ Added dark/light theme toggle with localStorage persistence<br/>
                     ✅ Built comprehensive PDF & CSV export functionality<br/>
                     ✅ Implemented responsive mobile design with hamburger menu<br/>
-                    ✅ Added detailed About page with feature documentation
+                    ✅ Added detailed About page with feature documentation<br/>
+                    ✅ Integrated Telegram bot with 7 commands and daily price updates<br/>
+                    ✅ Built interactive chart system (7-day, 30-day, custom month)<br/>
+                    ✅ Added price change tracking with color-coded indicators
                   </p>
                 </div>
 
@@ -1513,6 +1625,42 @@ if (downloadLink?.url) {
                         </button>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                <div className="faq-item">
+                  <h3>🤖 Telegram Bot Notifications</h3>
+                  <p style={{ marginBottom: "12px" }}>Get instant updates and interactive charts via Telegram</p>
+                  <div style={{
+                    padding: "12px",
+                    background: "rgba(42, 107, 95, 0.1)",
+                    border: "2px solid var(--accent-2)",
+                    borderRadius: "8px"
+                  }}>
+                    <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "var(--panel-ink)" }}>
+                      💬 Chat with our bot for prices, charts, and daily updates
+                    </p>
+                    <a 
+                      href="https://t.me/AuricLedgerBot" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{
+                        display: "inline-block",
+                        padding: "8px 16px",
+                        background: "#0088cc",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        textDecoration: "none",
+                        fontWeight: "600",
+                        fontSize: "14px"
+                      }}
+                    >
+                      📱 Open Telegram Bot
+                    </a>
+                    <p style={{ margin: "10px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                      Commands: /prices, /yesterday, /chart, /subscribe
+                    </p>
                   </div>
                 </div>
 
