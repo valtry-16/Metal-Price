@@ -9,7 +9,9 @@ Production-ready full-stack app for tracking daily prices of gold, silver, and o
 
 ## Setup
 1. Create a Supabase project and run the SQL in `backend/sql/metal_prices.sql`.
-2. Copy `.env.example` to `.env` and fill in Supabase credentials.
+2. Copy `.env.example` to `.env` and fill in:
+   - Supabase credentials
+   - `METALS_API_KEY` from [apised.com](https://apised.com/apis/metals/documentation)
 
 ## Install
 ```bash
@@ -39,4 +41,4 @@ npm run dev
 - `GET /monthly-history`
 
 ## Metal Symbols
-The backend pulls symbols from `https://api.gold-api.com/symbols` and then fetches each symbol price from `https://api.gold-api.com/price/{symbol}` so newly added symbols are picked up automatically.
+The backend pulls symbols from `https://metals.g.apised.com/v1/supported-metals` and fetches all prices in a single request from `https://metals.g.apised.com/v1/latest?symbols=XAU,XAG,XPD,XPT,XCU,NI,ZNC,ALU,LEAD&base_currency=USD` using the apised.com API. Supported metals include gold, silver, platinum, palladium, copper, nickel, zinc, aluminum, and lead.

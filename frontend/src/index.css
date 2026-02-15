@@ -146,12 +146,15 @@ body {
   margin-bottom: 28px;
   gap: 16px;
   position: relative;
+  pointer-events: auto !important;
 }
 
 .header-actions {
   display: flex;
   gap: 12px;
   align-items: center;
+  position: relative;
+  pointer-events: auto !important;
 }
 
 .mobile-menu-toggle {
@@ -164,7 +167,8 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-  isolation: isolate;
+  z-index: 1;
+  pointer-events: auto;
 }
 
 .mobile-menu-toggle::before {
@@ -180,7 +184,7 @@ body {
   mask-composite: exclude;
   animation: shimmer 3s linear infinite;
   z-index: -1;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .mobile-menu-toggle:hover {
@@ -189,7 +193,7 @@ body {
 }
 
 .mobile-menu-dropdown {
-  display: none;
+  display: flex;
   position: absolute;
   top: 100%;
   right: 0;
@@ -203,19 +207,8 @@ body {
   flex-direction: column;
   min-width: 150px;
   z-index: 1000;
-  isolation: isolate;
   animation: slideDown 0.2s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  pointer-events: auto !important;
 }
 
 .mobile-menu-dropdown::before {
@@ -237,6 +230,21 @@ body {
 .mobile-menu-dropdown .theme-toggle {
   width: 100%;
   text-align: center;
+  position: relative;
+  z-index: 2;
+  border: 2px solid transparent;
+  pointer-events: auto !important;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .theme-toggle {
@@ -252,7 +260,11 @@ body {
   letter-spacing: 1.2px;
   transition: all 0.2s ease;
   position: relative;
-  isolation: isolate;
+  z-index: 1;
+  pointer-events: auto !important;
+  touch-action: auto;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .theme-toggle::before {
@@ -268,13 +280,17 @@ body {
   mask-composite: exclude;
   animation: shimmer 3s linear infinite;
   z-index: -1;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .theme-toggle:hover {
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+}
+
+.desktop-only {
+  display: block;
 }
 
 .search-metals {
@@ -575,7 +591,7 @@ select {
   mask-composite: exclude;
   animation: shimmer 3s linear infinite;
   z-index: -1;
-  pointer-events: none;
+  pointer-events: none !important;
 }
 
 .download-copy {
@@ -792,34 +808,25 @@ select {
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: var(--shadow);
-  border: 2px solid transparent;
+  border: 2px solid;
+  border-color: var(--accent);
   position: relative;
-  isolation: isolate;
 }
 
 .modal-content::before {
   content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 2px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  animation: shimmer 3s linear infinite;
-  z-index: -1;
-  pointer-events: none;
+  position: fixed;
+  pointer-events: none !important;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 2px solid var(--line);
+  position: relative;
 }
 
 .modal-header h2 {
@@ -844,6 +851,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .modal-close:hover {
@@ -1079,11 +1087,13 @@ select {
 
   .mobile-menu-dropdown {
     display: flex;
+    pointer-events: auto;
   }
 
   .theme-toggle {
     padding: 6px 12px;
     font-size: 12px;
+    pointer-events: auto !important;
   }
 
   .control-grid {
@@ -1250,10 +1260,20 @@ select {
   }
 
   .modal-header {
-    flex-direction: column;
+    flex-direction: row;
     gap: 10px;
     margin-bottom: 12px;
     padding-bottom: 12px;
+    align-items: flex-start;
+    position: relative;
+    padding-right: 40px;
+  }
+
+  .modal-header .modal-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
   }
 
   .modal-header h2 {

@@ -16,11 +16,16 @@ const {
   PORT = 4000,
   SUPABASE_URL,
   SUPABASE_SERVICE_KEY,
-  GOLD_API_URL = "https://api.gold-api.com/price/",
-  SYMBOLS_URL = "https://api.gold-api.com/symbols",
+  METALS_API_KEY,
+  METALS_API_URL = "https://metals.g.apised.com/v1/latest",
+  METALS_SYMBOLS_URL = "https://metals.g.apised.com/v1/supported-metals",
   USD_INR_OVERRIDE,
   CRON_SCHEDULE = "0 6 * * *"
 } = process.env;
+
+if (!METALS_API_KEY) {
+  console.warn("Missing METALS_API_KEY. Metal price fetching will fail.");
+}
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   console.warn("Missing Supabase credentials. API routes will fail until configured.");
@@ -52,13 +57,23 @@ const symbolCache = {
 
 const normalizeSymbolsResponse = (data) => {
   if (!data) return [];
+  
+  // apised.com format: { status: "success", data: [{ metal_code, metal_name, ... }] }
+  if (data.data && Array.isArray(data.data)) {
+    return data.data.map((item) => ({
+      symbol: item.metal_code || item.symbol,
+      name: item.metal_name || item.name || item.metal_code || item.symbol
+    })).filter(item => item.symbol);
+  }
+  
+  // Fallback for other formats
   const fromArray = (items) =>
     items
       .map((item) => {
         if (typeof item === "string") return { symbol: item, name: null };
         if (typeof item === "object" && item) {
           return {
-            symbol: item.symbol || item.code || item.metal || item.name,
+            symbol: item.symbol || item.code || item.metal || item.metal_code || item.name,
             name: item.name || item.metal_name || null
           };
         }
@@ -67,7 +82,6 @@ const normalizeSymbolsResponse = (data) => {
       .filter((item) => item && item.symbol);
 
   if (Array.isArray(data.symbols)) return fromArray(data.symbols);
-  if (Array.isArray(data.data)) return fromArray(data.data);
   if (Array.isArray(data)) return fromArray(data);
   if (data.symbols && typeof data.symbols === "object") {
     return Object.entries(data.symbols).map(([symbol, name]) => ({ symbol, name }));
@@ -75,8 +89,16 @@ const normalizeSymbolsResponse = (data) => {
   return [];
 };
 
-const normalizePriceResponse = (data) => {
+const normalizePriceResponse = (data, symbol) => {
   if (!data) return null;
+  
+  // apised.com format: { data: { rates: { XAU: 2000.50, ... } } }
+  if (data.data && data.data.rates && symbol) {
+    const value = Number(data.data.rates[symbol]);
+    if (Number.isFinite(value)) return value;
+  }
+  
+  // Fallback for other formats
   const candidate =
     data.price ??
     data.price_usd ??
@@ -94,10 +116,14 @@ const getMetalSymbols = async () => {
     if (ageHours < 24) return symbolCache.symbols;
   }
 
-  const response = await axios.get(SYMBOLS_URL);
+  const response = await axios.get(METALS_SYMBOLS_URL, {
+    headers: { "x-api-key": METALS_API_KEY },
+    params: { search: "" }
+  });
+  
   const symbols = normalizeSymbolsResponse(response.data);
   if (!symbols.length) {
-    throw new Error("No symbols returned from gold API");
+    throw new Error("No symbols returned from metals API");
   }
 
   symbolCache.symbols = symbols;
@@ -179,17 +205,27 @@ const fetchAndStoreToday = async () => {
   const today = dayjs().format("YYYY-MM-DD");
   const [symbols, usdToInr] = await Promise.all([getMetalSymbols(), getUsdToInrRate()]);
 
-  const baseUrl = GOLD_API_URL.endsWith("/") ? GOLD_API_URL : `${GOLD_API_URL}/`;
-  const results = await Promise.allSettled(
-    symbols.map(async (item) => {
-      const response = await axios.get(`${baseUrl}${item.symbol}`);
-      const price = normalizePriceResponse(response.data);
+  // Fetch all metal prices in a single request
+  const symbolsList = symbols.map(s => s.symbol).join(",");
+  const response = await axios.get(METALS_API_URL, {
+    headers: { "x-api-key": METALS_API_KEY },
+    params: {
+      symbols: symbolsList,
+      base_currency: "USD"
+    }
+  });
+
+  const results = symbols.map((item) => {
+    try {
+      const price = normalizePriceResponse(response.data, item.symbol);
       if (!Number.isFinite(price)) {
         throw new Error(`Invalid price for ${item.symbol}`);
       }
-      return { symbol: item.symbol, price };
-    })
-  );
+      return { status: "fulfilled", value: { symbol: item.symbol, price } };
+    } catch (error) {
+      return { status: "rejected", reason: error };
+    }
+  });
 
   const rows = results.flatMap((result) => {
     if (result.status !== "fulfilled") return [];
@@ -233,6 +269,18 @@ const fetchWithGuard = async () => {
   fetchCache.lastRunAt = dayjs();
   fetchCache.lastResult = result;
   return { result, cached: false, retry_after_minutes: 0 };
+};
+
+const summarizeFetchResult = (result) => {
+  if (!result) return null;
+  const rows = Array.isArray(result.rows) ? result.rows : [];
+  const metals = Array.from(new Set(rows.map((row) => row.metal_name))).sort();
+  return {
+    date: result.date,
+    usdToInr: result.usdToInr,
+    rows_count: rows.length,
+    metals
+  };
 };
 
 const getLatestDate = async () => {
@@ -406,8 +454,45 @@ app.get("/health", (req, res) => {
 app.post("/fetch-today-prices", async (req, res) => {
   try {
     const { result, cached, retry_after_minutes } = await fetchWithGuard();
+    
+    // Log detailed information similar to cron job
+    if (!cached && result.rows && result.rows.length > 0) {
+      const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss");
+      console.log(`\n${"=".repeat(60)}`);
+      console.log(`[${timestamp}] Manual fetch completed`);
+      console.log(`${"=".repeat(60)}`);
+      console.log(`\n✅ SUCCESS`);
+      console.log(`📅 Date: ${result.date}`);
+      console.log(`💱 USD to INR: ${result.usdToInr}`);
+      console.log(`📊 Total rows: ${result.rows.length}`);
+      console.log(`\n🏷️  Metals processed:`);
+      
+      const metalGroups = {};
+      result.rows.forEach(row => {
+        if (!metalGroups[row.metal_name]) {
+          metalGroups[row.metal_name] = [];
+        }
+        metalGroups[row.metal_name].push(row);
+      });
+      
+      Object.keys(metalGroups).forEach(metal => {
+        const rows = metalGroups[metal];
+        console.log(`   • ${metal}: ${rows.length} row(s)`);
+        rows.forEach(row => {
+          const caratInfo = row.carat ? ` (${row.carat}K)` : '';
+          console.log(`     - ₹${row.price_1g?.toFixed(2) || 'N/A'}/g${caratInfo}`);
+        });
+      });
+      
+      console.log(`\n${"=".repeat(60)}\n`);
+    }
+    
     res.json({ status: "ok", cached, retry_after_minutes, ...result });
   } catch (error) {
+    console.error(`\n❌ FAILED - Fetch error: ${error.message}`);
+    if (error.stack) {
+      console.error(`📋 Stack:\n${error.stack}\n`);
+    }
     res.status(500).json({ status: "error", message: error.message });
   }
 });
@@ -416,7 +501,9 @@ app.post("/fetch-today-prices", async (req, res) => {
 app.get("/fetch-today-prices", async (req, res) => {
   try {
     const { result, cached, retry_after_minutes } = await fetchWithGuard();
-    res.json({ status: "ok", cached, retry_after_minutes, ...result });
+    const verbose = req.query.verbose === "1" || req.query.verbose === "true";
+    const payload = verbose ? result : summarizeFetchResult(result);
+    res.json({ status: "ok", cached, retry_after_minutes, ...payload });
   } catch (error) {
     res.status(500).json({ status: "error", message: error.message });
   }
@@ -509,11 +596,46 @@ app.get("/monthly-history", async (req, res) => {
 });
 
 cron.schedule(CRON_SCHEDULE, async () => {
+  const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`[${timestamp}] Starting daily price fetch...`);
+  console.log(`${"=".repeat(60)}`);
+  
   try {
-    await fetchAndStoreToday();
-    console.log(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] Daily price fetched and stored.`);
+    const result = await fetchAndStoreToday();
+    
+    console.log(`\n✅ SUCCESS - Daily price fetch completed`);
+    console.log(`📅 Date: ${result.date}`);
+    console.log(`💱 USD to INR: ${result.usdToInr}`);
+    console.log(`📊 Total rows stored: ${result.rows.length}`);
+    console.log(`\n🏷️  Metals processed:`);
+    
+    const metalGroups = {};
+    result.rows.forEach(row => {
+      if (!metalGroups[row.metal_name]) {
+        metalGroups[row.metal_name] = [];
+      }
+      metalGroups[row.metal_name].push(row);
+    });
+    
+    Object.keys(metalGroups).forEach(metal => {
+      const rows = metalGroups[metal];
+      console.log(`   • ${metal}: ${rows.length} row(s)`);
+      rows.forEach(row => {
+        const caratInfo = row.carat ? ` (${row.carat}K)` : '';
+        console.log(`     - ₹${row.price_1g?.toFixed(2) || 'N/A'}/g${caratInfo}`);
+      });
+    });
+    
+    console.log(`\n${"=".repeat(60)}\n`);
   } catch (error) {
-    console.error(`[${dayjs().format("YYYY-MM-DD HH:mm:ss")}] Daily price fetch failed:`, error.message);
+    console.error(`\n❌ FAILED - Daily price fetch failed`);
+    console.error(`📅 Time: ${timestamp}`);
+    console.error(`⚠️  Error: ${error.message}`);
+    if (error.stack) {
+      console.error(`\n📋 Stack trace:\n${error.stack}`);
+    }
+    console.error(`${"=".repeat(60)}\n`);
   }
 });
 

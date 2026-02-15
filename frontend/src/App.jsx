@@ -63,7 +63,11 @@ const metalLabelMap = {
   XAG: "Silver",
   XPT: "Platinum",
   XPD: "Palladium",
-  HG: "Copper"
+  XCU: "Copper",
+  NI: "Nickel",
+  ZNC: "Zinc",
+  ALU: "Aluminium",
+  LEAD: "Lead"
 };
 
 const metalThemes = {
@@ -71,7 +75,11 @@ const metalThemes = {
   XAG: { primary: "#6B7280", secondary: "#A0AEC0", light: "rgba(107, 114, 128, 0.12)", name: "Silver" },
   XPT: { primary: "#5B5B5B", secondary: "#8B8B8B", light: "rgba(91, 91, 91, 0.12)", name: "Platinum" },
   XPD: { primary: "#7B8B7A", secondary: "#A8B8A7", light: "rgba(123, 139, 122, 0.12)", name: "Palladium" },
-  HG: { primary: "#B87333", secondary: "#E89B6B", light: "rgba(184, 115, 51, 0.12)", name: "Copper" }
+  XCU: { primary: "#B87333", secondary: "#E89B6B", light: "rgba(184, 115, 51, 0.12)", name: "Copper" },
+  NI: { primary: "#8C92AC", secondary: "#B8BFD8", light: "rgba(140, 146, 172, 0.12)", name: "Nickel" },
+  ZNC: { primary: "#6C7A89", secondary: "#95A5A6", light: "rgba(108, 122, 137, 0.12)", name: "Zinc" },
+  ALU: { primary: "#848482", secondary: "#B5B5B3", light: "rgba(132, 132, 130, 0.12)", name: "Aluminium" },
+  LEAD: { primary: "#5F6A6A", secondary: "#85929E", light: "rgba(95, 106, 106, 0.12)", name: "Lead" }
 };
 
 const getMetalTheme = (metal) => {
@@ -80,6 +88,18 @@ const getMetalTheme = (metal) => {
     if (symbol.includes(key.toLowerCase())) return theme;
   }
   return metalThemes.XAU;
+};
+
+const sortMetals = (metals) => {
+  const order = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
+  return [...metals].sort((a, b) => {
+    const aIndex = order.indexOf(a.metal_name);
+    const bIndex = order.indexOf(b.metal_name);
+    if (aIndex === -1 && bIndex === -1) return 0;
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
+    return aIndex - bIndex;
+  });
 };
 
 const calculateChartRange = (allValues) => {
@@ -197,13 +217,17 @@ export default function App() {
   // Close mobile menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (mobileMenuOpen && !event.target.closest('.header-actions')) {
+      // Don't close if clicking on any button or if clicking inside header-actions
+      const isButton = event.target.closest('button');
+      const isInHeader = event.target.closest('.header-actions');
+      
+      if (mobileMenuOpen && !isInHeader && !isButton) {
         setMobileMenuOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, [mobileMenuOpen]);
 
   // Load filters from localStorage
@@ -248,7 +272,7 @@ export default function App() {
         setStatus({ loading: true, error: "", message: "Loading available metals..." });
         if (!response.ok) throw new Error("Unable to fetch available metals. Please check your internet connection.");
         const data = await response.json();
-        const filteredMetals = (data.metals || []).filter(m => !['BTC', 'ETH'].includes(m.metal_name));
+        const filteredMetals = sortMetals((data.metals || []).filter(m => !['BTC', 'ETH', 'HG'].includes(m.metal_name)));
         setMetals(filteredMetals);
         if (filteredMetals?.length) {
           const defaultGold = filteredMetals.find((metal) => {
@@ -300,7 +324,7 @@ export default function App() {
           setStatus({ loading: true, error: "", message: "Loading all metal comparisons..." });
           const allComparisons = {};
           const comparePromises = metals
-            .filter(m => !['BTC', 'ETH'].includes(m.metal_name))
+            .filter(m => !['BTC', 'ETH', 'HG'].includes(m.metal_name))
             .map(async (metal) => {
               try {
                 // Always use 22K for gold in ticker, no carat param for other metals
@@ -546,40 +570,63 @@ if (downloadLink?.url) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(...textColor);
-    doc.text("Metal Price Report", 40, 118);
+    doc.text("Metal Price Report", 40, 115);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...mutedColor);
-    doc.text("https://auric-ledger.vercel.app/", 40, 133);
+    doc.text("https://auric-ledger.vercel.app/", 40, 130);
+    
+    // Content section with better spacing
+    const contentY = 150;
+    doc.setFontSize(11);
+    doc.setTextColor(...textColor);
+    doc.setFont("helvetica", "normal");
+    
+    const infoLines = [
+      `Metal: ${formatMetalLabel({ metal_name: selectedMetal, display_name: metalLabelMap[selectedMetal] || null })}${isGold ? ` (${carat}K)` : ""}`,
+      `Unit: ${unit}`,
+      `Date Range: ${dateRange.start} to ${dateRange.end}`,
+      `Last Updated: ${lastUpdated}`,
+      `Generated: ${dayjs().format("DD MMM YYYY, HH:mm")}`
+    ];
+    
+    let currentY = contentY;
+    infoLines.forEach((line) => {
+      doc.text(line, 40, currentY);
+      currentY += 16;
+    });
+
+    // 7-Day Summary Section
+    currentY += 8;
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(...textColor);
-    doc.text(
-      `Metal: ${formatMetalLabel({ metal_name: selectedMetal, display_name: metalLabelMap[selectedMetal] || null })}${
-        isGold ? ` (${carat}K)` : ""
-      }`,
-      40,
-      153
-    );
-    doc.text(`Unit: ${unit}`, 40, 173);
-    doc.text(`Range: ${dateRange.start} to ${dateRange.end}`, 40, 193);
-    doc.text(`Last updated: ${lastUpdated}`, 40, 213);
-    doc.text(`Generated: ${dayjs().format("DD MMM YYYY, HH:mm")}`, 40, 233);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("7-Day Summary", 40, 261);
+    doc.text("7-Day Summary", 40, currentY);
+    
+    currentY += 18;
     doc.setFont("helvetica", "normal");
-    doc.text(`Low: ${formatNumberPlain(stats.min)}`, 40, 281);
-    doc.text(`High: ${formatNumberPlain(stats.max)}`, 220, 281);
-    doc.text(`Average: ${formatNumberPlain(stats.avg)}`, 400, 281);
+    doc.setFontSize(11);
+    const summaryLines = [
+      `Low: ${formatNumberPlain(stats.min)}`,
+      `High: ${formatNumberPlain(stats.max)}`,
+      `Average: ${formatNumberPlain(stats.avg)}`
+    ];
+    
+    summaryLines.forEach((line) => {
+      doc.text(line, 40, currentY);
+      currentY += 16;
+    });
 
     if (unitComparison) {
       doc.text(
-        `Change vs yesterday: ${formatNumberPlain(unitComparison.difference)} (${unitComparison.percentage_change.toFixed(2)}%)`,
+        `Change vs Yesterday: ${formatNumberPlain(unitComparison.difference)} (${unitComparison.percentage_change.toFixed(2)}%)`,
         40,
-        303
+        currentY
       );
+      currentY += 16;
     }
 
+    currentY += 8;
     const pdfRows = weekly.map((entry) => [
       dayjs(entry.date).format("DD MMM YYYY"),
       `${formatMetalLabel({ metal_name: selectedMetal, display_name: metalLabelMap[selectedMetal] || null })}${
@@ -590,7 +637,7 @@ if (downloadLink?.url) {
     ]);
 
     runAutoTable(doc, {
-      startY: unitComparison ? 323 : 313,
+      startY: currentY,
       head: [["Date", "Metal", "Unit", "Price (Rs.)"]],
       body: pdfRows,
       theme: "grid",
@@ -598,20 +645,25 @@ if (downloadLink?.url) {
         fillColor: tableHeadBg,
         textColor: [255, 255, 255],
         fontStyle: "bold",
-        halign: "left"
+        halign: "left",
+        fontSize: 11
       },
       styles: {
         font: "helvetica",
         fontSize: 10,
-        cellPadding: 6,
+        cellPadding: 8,
         textColor: tableTextColor,
-        fillColor: bgColor
+        fillColor: bgColor,
+        lineColor: 180
       },
       columnStyles: {
+        0: { halign: "left" },
+        1: { halign: "left" },
         2: { halign: "center" },
         3: { halign: "right" }
       },
-      alternateRowStyles: { fillColor: tableAltRowBg }
+      alternateRowStyles: { fillColor: tableAltRowBg },
+      margin: { left: 40, right: 40 }
     });
 
     const pageCount = doc.getNumberOfPages();
@@ -648,15 +700,16 @@ if (downloadLink?.url) {
             <span className="eyebrow">Auric Ledger</span>
           </div>
           <div className="header-actions">
-            <button className="theme-toggle desktop-only" onClick={toggleDarkMode}>
+            <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); toggleDarkMode(); }}>
               {darkMode ? "Light" : "Dark"}
             </button>
-            <button className="theme-toggle desktop-only" onClick={() => setShowFaq(true)}>
+            <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowFaq(true); }}>
               About
             </button>
             <button 
+              type="button"
               className="mobile-menu-toggle" 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={(e) => { e.stopPropagation(); setMobileMenuOpen(!mobileMenuOpen); }}
               aria-label="Menu"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -668,10 +721,10 @@ if (downloadLink?.url) {
           </div>
           {mobileMenuOpen && (
             <div className="mobile-menu-dropdown">
-              <button className="theme-toggle" onClick={() => { toggleDarkMode(); setMobileMenuOpen(false); }}>
+              <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); toggleDarkMode(); setMobileMenuOpen(false); }}>
                 {darkMode ? "Light" : "Dark"}
               </button>
-              <button className="theme-toggle" onClick={() => { setShowFaq(true); setMobileMenuOpen(false); }}>
+              <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowFaq(true); setMobileMenuOpen(false); }}>
                 About
               </button>
             </div>
@@ -754,8 +807,7 @@ if (downloadLink?.url) {
           <div className="live-ticker">
             <div className="ticker-wrapper">
               <div className="ticker-content">
-                {metals
-                  .filter(m => !['BTC', 'ETH'].includes(m.metal_name))
+                {sortMetals(metals.filter(m => !['BTC', 'ETH', 'HG'].includes(m.metal_name)))
                   .map((metal) => {
                     const metalComparison = comparisons[metal.metal_name];
                     const theme = getMetalTheme(metal.metal_name);
