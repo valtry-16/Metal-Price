@@ -14,6 +14,8 @@ const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_KEY || "");
 
 let bot = null;
 let botInitialized = false;
+let pollingRetries = 0;
+const MAX_POLLING_RETRIES = 5;
 
 if (TELEGRAM_BOT_TOKEN && !botInitialized) {
   // Create bot WITHOUT auto-polling
@@ -24,13 +26,27 @@ if (TELEGRAM_BOT_TOKEN && !botInitialized) {
   bot.on('polling_error', (error) => {
     if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
       console.error('❌ Telegram bot polling conflict (409): Another bot instance is running');
-      console.log('⚠️ Stopping this bot instance to prevent conflict...');
-      try {
-        bot.stopPolling();
-      } catch (e) {
-        // Already stopped
+      
+      if (pollingRetries < MAX_POLLING_RETRIES) {
+        pollingRetries++;
+        console.log(`⏳ Retrying in 5 seconds... (Attempt ${pollingRetries}/${MAX_POLLING_RETRIES})`);
+        
+        // Stop current polling and retry after delay
+        try {
+          bot.stopPolling();
+        } catch (e) {
+          // Ignore
+        }
+        
+        setTimeout(() => {
+          console.log('🔄 Retrying polling...');
+          bot.startPolling().catch((err) => {
+            console.error('❌ Polling retry failed:', err.message);
+          });
+        }, 5000);
+      } else {
+        console.error('❌ Max polling retries exceeded. Please manually restart the service.');
       }
-      process.exit(1); // Exit gracefully so Render can restart fresh
     } else {
       console.error('❌ Telegram bot polling error:', error.message);
     }
@@ -41,10 +57,11 @@ if (TELEGRAM_BOT_TOKEN && !botInitialized) {
   bot.startPolling()
     .then(() => {
       console.log("✅ Telegram bot started successfully");
+      pollingRetries = 0; // Reset on success
     })
     .catch((error) => {
       console.error('❌ Failed to start Telegram bot polling:', error.message);
-      process.exit(1);
+      // Don't exit - let the polling_error handler manage retries
     });
 }
 
