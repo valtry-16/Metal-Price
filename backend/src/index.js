@@ -47,17 +47,17 @@ let emailTransporter = null;
 if (EMAIL_USER && EMAIL_PASSWORD) {
   emailTransporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // true for 465, false for other ports
+    port: 465,
+    secure: true, // Use SSL/TLS
     auth: {
       user: EMAIL_USER,
       pass: EMAIL_PASSWORD
     },
-    tls: {
-      rejectUnauthorized: false
-    }
+    connectionTimeout: 30000, // 30 second timeout
+    socketTimeout: 30000, // 30 second socket timeout
+    greetingTimeout: 30000 // 30 second greeting timeout
   });
-  console.log(`✅ Email transporter initialized for ${EMAIL_USER}`);
+  console.log(`✅ Email transporter initialized for ${EMAIL_USER} (Port 465 - SSL)`);
 } else {
   console.warn("⚠️  Email credentials not configured. Daily price emails will not be sent.");
   console.warn("Set EMAIL_USER and EMAIL_PASSWORD in .env to enable email notifications.");
