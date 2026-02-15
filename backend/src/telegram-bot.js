@@ -19,6 +19,18 @@ if (TELEGRAM_BOT_TOKEN && !botInitialized) {
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
   botInitialized = true;
   console.log("✅ Telegram bot started successfully");
+  
+  // Handle bot errors (especially 409 conflict when multiple instances run)
+  bot.on('polling_error', (error) => {
+    if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
+      console.error('❌ Telegram bot polling conflict (409): Another bot instance is running');
+      console.log('⚠️ Stopping this bot instance to prevent conflict...');
+      bot.stopPolling();
+      process.exit(1); // Exit gracefully so Render can restart fresh
+    } else {
+      console.error('❌ Telegram bot polling error:', error.message);
+    }
+  });
 }
 
 // Helper function to format price data for Telegram

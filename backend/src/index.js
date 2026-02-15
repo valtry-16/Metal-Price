@@ -46,10 +46,15 @@ const {
 let emailTransporter = null;
 if (EMAIL_USER && EMAIL_PASSWORD) {
   emailTransporter = nodemailer.createTransport({
-    service: EMAIL_SERVICE,
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false, // true for 465, false for other ports
     auth: {
       user: EMAIL_USER,
       pass: EMAIL_PASSWORD
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   });
   console.log(`✅ Email transporter initialized for ${EMAIL_USER}`);
