@@ -26,6 +26,26 @@ const DEV_API_URL = "http://localhost:4000";
 
 // Helper to detect if localhost:4000 is available
 const detectApiBase = async () => {
+  // Check if on mobile device - always use production for mobile
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    console.log("📱 Mobile device detected - Using production API:", PROD_API_URL);
+    return PROD_API_URL;
+  }
+  
+  // Skip localhost detection if:
+  // 1. Not on localhost (production deployment)
+  // 2. VITE_API_BASE_URL is explicitly set
+  const isLocalhost = window.location.hostname === "localhost" || 
+                      window.location.hostname === "127.0.0.1";
+  
+  if (!isLocalhost || import.meta.env.VITE_API_BASE_URL) {
+    console.log("🌐 Using production API:", PROD_API_URL);
+    return PROD_API_URL;
+  }
+
+  // Only try to detect local dev server when on localhost desktop
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
