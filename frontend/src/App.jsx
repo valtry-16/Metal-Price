@@ -21,7 +21,7 @@ const runAutoTable = (doc, options) => {
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
 // Always use production backend URL
-const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || "https://your-backend.onrender.com";
+const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || "https://metal-price.onrender.com";
 
 // Helper to detect API backend - always returns production URL
 const detectApiBase = async () => {
@@ -188,8 +188,8 @@ const buildChartOptions = (range) => ({
 });
 
 export default function App() {
-  // API Backend detection
-  const [apiBase, setApiBase] = useState(DEV_API_URL); // Start with dev, will detect on mount
+  // API Backend - always uses production
+  const [apiBase, setApiBase] = useState(PROD_API_URL);
   
   const [metals, setMetals] = useState([]);
   const [selectedMetal, setSelectedMetal] = useState("");
