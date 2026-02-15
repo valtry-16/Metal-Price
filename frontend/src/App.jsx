@@ -20,50 +20,20 @@ const runAutoTable = (doc, options) => {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
-// Auto-detect API backend (localhost dev or production)
+// Always use production backend URL
 const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || "https://your-backend.onrender.com";
-const DEV_API_URL = "http://localhost:4000";
 
-// Helper to detect if localhost:4000 is available
+// Helper to detect API backend - always returns production URL
 const detectApiBase = async () => {
-  // Check if on mobile device - always use production for mobile
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  // Detect if on mobile device (by user agent or screen size)
+  const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobileScreen = window.innerWidth <= 768 || window.screen.width <= 768;
+  const isMobile = isMobileUserAgent || isMobileScreen;
   
   if (isMobile) {
     console.log("📱 Mobile device detected - Using production API:", PROD_API_URL);
-    return PROD_API_URL;
-  }
-  
-  // Skip localhost detection if:
-  // 1. Not on localhost (production deployment)
-  // 2. VITE_API_BASE_URL is explicitly set
-  const isLocalhost = window.location.hostname === "localhost" || 
-                      window.location.hostname === "127.0.0.1";
-  
-  if (!isLocalhost || import.meta.env.VITE_API_BASE_URL) {
-    console.log("🌐 Using production API:", PROD_API_URL);
-    return PROD_API_URL;
-  }
-
-  // Only try to detect local dev server when on localhost desktop
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
-    
-    const response = await fetch(`${DEV_API_URL}/get-latest-price`, {
-      signal: controller.signal
-    });
-    
-    clearTimeout(timeoutId);
-    
-    // If we get any response (even error), server is running
-    if (response) {
-      console.log("✅ Using local dev server:", DEV_API_URL);
-      return DEV_API_URL;
-    }
-  } catch (error) {
-    // Localhost not available (network error or timeout)
-    console.log("⚠️ Local dev server not available, using production:", PROD_API_URL);
+  } else {
+    console.log("💻 Desktop device - Using production API:", PROD_API_URL);
   }
   
   return PROD_API_URL;
