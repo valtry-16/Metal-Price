@@ -52,6 +52,7 @@ if (EMAIL_USER && EMAIL_PASSWORD) {
       pass: EMAIL_PASSWORD
     }
   });
+  console.log(`✅ Email transporter initialized for ${EMAIL_USER}`);
 } else {
   console.warn("⚠️  Email credentials not configured. Daily price emails will not be sent.");
   console.warn("Set EMAIL_USER and EMAIL_PASSWORD in .env to enable email notifications.");
@@ -660,14 +661,23 @@ app.post("/subscribe-email", async (req, res) => {
     }
 
     // Send immediate welcome email with today's prices (only for new subscriptions)
-    if (isNewSubscription && emailTransporter) {
-      try {
-        const todayData = await fetchAndStoreToday();
-        await sendWelcomeEmail(email, todayData);
-        console.log(`✅ Welcome email sent to ${email}`);
-      } catch (emailError) {
-        console.error(`⚠️ Failed to send welcome email to ${email}:`, emailError.message);
+    if (isNewSubscription) {
+      console.log(`📧 Attempting to send welcome email to ${email}`);
+      if (!emailTransporter) {
+        console.warn(`⚠️ Email transporter not initialized. Check EMAIL_USER and EMAIL_PASSWORD in .env`);
+      } else {
+        try {
+          console.log(`📥 Fetching today's data for welcome email...`);
+          const todayData = await fetchAndStoreToday();
+          console.log(`📧 Sending welcome email...`);
+          await sendWelcomeEmail(email, todayData);
+          console.log(`✅ Welcome email sent to ${email}`);
+        } catch (emailError) {
+          console.error(`❌ Failed to send welcome email to ${email}:`, emailError);
+        }
       }
+    } else {
+      console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`);
     }
 
     res.json({ status: "success", message: "Email subscribed successfully" });
