@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline - Metal Price Tracker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: linear-gradient(135deg, #0F1B2D 0%, #1A2D47 100%);
+      color: #E8E8E8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .offline-container {
+      text-align: center;
+      max-width: 500px;
+    }
+
+    .offline-icon {
+      font-size: 80px;
+      margin-bottom: 30px;
+      animation: pulse 2s infinite;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 15px;
+      color: #FFD700;
+    }
+
+    p {
+      font-size: 1.1rem;
+      margin-bottom: 30px;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+
+    .offline-info {
+      background: rgba(184, 134, 11, 0.1);
+      border: 2px solid #B8860B;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+
+    .offline-info h2 {
+      font-size: 1.2rem;
+      color: #FFD700;
+      margin-bottom: 10px;
+    }
+
+    .offline-info ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .offline-info li {
+      margin: 8px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .offline-info li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #FFD700;
+      font-weight: bold;
+    }
+
+    .action-button {
+      display: inline-block;
+      background: #B8860B;
+      color: white;
+      padding: 12px 30px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: 600;
+      margin: 10px 5px;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    .action-button:hover {
+      background: #DAA520;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(184, 134, 11, 0.3);
+    }
+
+    .action-button.secondary {
+      background: transparent;
+      border: 2px solid #B8860B;
+      color: #FFD700;
+    }
+
+    .action-button.secondary:hover {
+      background: rgba(184, 134, 11, 0.1);
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    .connection-status {
+      margin-top: 30px;
+      font-size: 0.9rem;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="offline-icon">📡</div>
+    
+    <h1>You're Offline</h1>
+    
+    <p>Metal Price Tracker requires an internet connection to fetch the latest prices.</p>
+    
+    <div class="offline-info">
+      <h2>What you can do:</h2>
+      <ul>
+        <li>Check your internet connection</li>
+        <li>Try refreshing the page</li>
+        <li>View cached price data once connected</li>
+        <li>The app will auto-sync when back online</li>
+      </ul>
+    </div>
+
+    <button class="action-button" onclick="location.reload()">
+      Retry Connection
+    </button>
+    
+    <button class="action-button secondary" onclick="window.history.back()">
+      Go Back
+    </button>
+
+    <div class="connection-status">
+      <p id="status">Waiting for connection...</p>
+    </div>
+  </div>
+
+  <script>
+    // Update status when connection is restored
+    window.addEventListener('online', () => {
+      const status = document.getElementById('status');
+      status.textContent = '✓ Back online! Reloading...';
+      status.style.color = '#90EE90';
+      setTimeout(() => location.reload(), 1500);
+    });
+
+    // Check current connection status
+    if (navigator.onLine) {
+      const status = document.getElementById('status');
+      status.textContent = '✓ Connection restored';
+      status.style.color = '#90EE90';
+      setTimeout(() => location.reload(), 1000);
+    }
+  </script>
+</body>
+</html>

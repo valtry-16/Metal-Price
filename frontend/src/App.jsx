@@ -188,6 +188,15 @@ export default function App() {
   const [metalSearch, setMetalSearch] = useState("");
   const [showFaq, setShowFaq] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Alert system states
+  const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [alerts, setAlerts] = useState([]);
+  const [toasts, setToasts] = useState([]);
+  const [newAlert, setNewAlert] = useState({ metal: "", type: "target_price", value: "", enabled: true });
+  const [notificationPermission, setNotificationPermission] = useState("default");
+  const [userEmail, setUserEmail] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
 
   const isGold = useMemo(() => {
     return selectedMetal.toLowerCase().includes("gold") || selectedMetal.toLowerCase().includes("xau");
@@ -212,6 +221,184 @@ export default function App() {
     } else {
       document.documentElement.removeAttribute("data-theme");
     }
+  };
+
+  // Load alerts from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("auric-alerts");
+    if (saved) {
+      try {
+        setAlerts(JSON.parse(saved));
+      } catch (err) {
+        console.error("Failed to load alerts:", err);
+      }
+    }
+
+    // Load email subscription
+    const savedEmail = localStorage.getItem("auric-email");
+    if (savedEmail) {
+      setUserEmail(savedEmail);
+    }
+
+    // Request notification permission
+    if ("Notification" in window && Notification.permission !== "denied") {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  // Save alerts to localStorage
+  const saveAlerts = (updatedAlerts) => {
+    setAlerts(updatedAlerts);
+    localStorage.setItem("auric-alerts", JSON.stringify(updatedAlerts));
+  };
+
+  // Save email and send to backend
+  const saveEmail = async (email) => {
+    if (!email || !email.includes("@")) {
+      showToast("❌ Please enter a valid email");
+      return;
+    }
+
+    setEmailLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/subscribe-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to subscribe email");
+      }
+
+      const data = await response.json();
+      setUserEmail(email);
+      localStorage.setItem("auric-email", email);
+      showToast("✅ Daily price emails enabled for " + email);
+    } catch (error) {
+      console.error("Email subscription error:", error);
+      showToast("❌ Failed to subscribe email: " + error.message);
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      return permission === "granted";
+    }
+    return false;
+  };
+
+  // Show toast notification
+  const showToast = (message, duration = 4000) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
+  };
+
+  // Show browser notification
+  const showNotification = (title, options = {}) => {
+    if (notificationPermission === "granted" && "Notification" in window) {
+      new Notification(title, {
+        icon: "/metal-price-icon.svg",
+        badge: "/metal-price-icon.svg",
+        ...options
+      });
+    }
+  };
+
+  // Add new alert
+  const addAlert = () => {
+    if (!newAlert.metal || !newAlert.value) {
+      showToast("Please select a metal and enter a value");
+      return;
+    }
+
+    const alert = {
+      id: Date.now(),
+      metal: newAlert.metal,
+      type: newAlert.type,
+      value: parseFloat(newAlert.value),
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      lastTriggeredAt: null
+    };
+
+    const updated = [...alerts, alert];
+    saveAlerts(updated);
+    setNewAlert({ metal: "", type: "target_price", value: "", enabled: true });
+    showToast(`✅ Alert created for ${formatMetalLabel({ metal_name: newAlert.metal })}`);
+  };
+
+  // Delete alert
+  const deleteAlert = (id) => {
+    const updated = alerts.filter((a) => a.id !== id);
+    saveAlerts(updated);
+    showToast("🗑️ Alert deleted");
+  };
+
+  // Toggle alert
+  const toggleAlert = (id) => {
+    const updated = alerts.map((a) =>
+      a.id === id ? { ...a, enabled: !a.enabled } : a
+    );
+    saveAlerts(updated);
+  };
+
+  // Check if alert should trigger
+  const checkAlerts = (metalName, currentPrice) => {
+    if (!currentPrice || !alerts.length) return;
+
+    alerts.forEach((alert) => {
+      if (!alert.enabled || alert.metal !== metalName) return;
+
+      const now = new Date();
+      const lastTriggered = alert.lastTriggeredAt ? new Date(alert.lastTriggeredAt) : null;
+      const timeSinceLastTrigger = lastTriggered ? (now - lastTriggered) / (1000 * 60) : Infinity;
+
+      // Prevent duplicate alerts within 60 minutes
+      if (timeSinceLastTrigger < 60) return;
+
+      let shouldTrigger = false;
+      let message = "";
+
+      if (alert.type === "target_price") {
+        if (currentPrice >= alert.value * 0.99 && currentPrice <= alert.value * 1.01) {
+          shouldTrigger = true;
+          message = `🎯 ${formatMetalLabel({ metal_name: alert.metal })} reached ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}`;
+        }
+      } else if (alert.type === "percentage_change") {
+        const comparison = comparisons[metalName];
+        if (comparison) {
+          const oldPrice = comparison.yesterday_prices?.price_1g || 0;
+          if (oldPrice > 0) {
+            const pctChange = ((currentPrice - oldPrice) / oldPrice) * 100;
+            if (Math.abs(pctChange) >= alert.value) {
+              shouldTrigger = true;
+              const direction = pctChange > 0 ? "📈 Up" : "📉 Down";
+              message = `${direction} ${Math.abs(pctChange).toFixed(2)}%! ${formatMetalLabel({ metal_name: alert.metal })} ${pctChange > 0 ? "increased" : "decreased"} by ${Math.abs(pctChange).toFixed(2)}%`;
+            }
+          }
+        }
+      }
+
+      if (shouldTrigger) {
+        showToast(message);
+        showNotification("Auric Ledger - Price Alert", { body: message });
+
+        // Update last triggered time
+        const updated = alerts.map((a) =>
+          a.id === alert.id ? { ...a, lastTriggeredAt: now.toISOString() } : a
+        );
+        saveAlerts(updated);
+      }
+    });
   };
 
   // Close mobile menu when clicking outside
@@ -283,6 +470,27 @@ export default function App() {
           });
           const metalToSet = savedMetal || defaultGold?.metal_name || filteredMetals[0].metal_name;
           setSelectedMetal(metalToSet);
+
+          // Show notification with today's gold price
+          const goldMetal = filteredMetals.find(m => m.metal_name === "XAU");
+          if (goldMetal) {
+            try {
+              const goldPriceRes = await fetch(`${API_BASE}/get-latest-price?metal=XAU&carat=22`);
+              if (goldPriceRes.ok) {
+                const goldData = await goldPriceRes.json();
+                if (goldData.latest?.price_1g) {
+                  const priceFormatted = new Intl.NumberFormat("en-IN", {
+                    style: "currency",
+                    currency: "INR",
+                    maximumFractionDigits: 0
+                  }).format(goldData.latest.price_1g);
+                  showToast(`🏆 Today's Gold Price (22K, 1g) - ${priceFormatted}`);
+                }
+              }
+            } catch (err) {
+              // Silent fail - notification is optional
+            }
+          }
         }
       } catch (error) {
         setStatus({ loading: false, error: error.message, message: "" });
@@ -344,6 +552,11 @@ export default function App() {
           setComparisons(allComparisons);
         }
         setStatus({ loading: false, error: "", message: "" });
+
+        // Check alerts after all data is loaded
+        if (latestData?.latest?.price_1g) {
+          checkAlerts(selectedMetal, latestData.latest.price_1g);
+        }
       } catch (error) {
         setStatus({ loading: false, error: error.message, message: "" });
       }
@@ -570,7 +783,7 @@ if (downloadLink?.url) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.setTextColor(...textColor);
-    doc.text("Metal Price Report", 40, 115);
+    doc.text("Auric Ledger Report", 40, 115);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(...mutedColor);
@@ -703,6 +916,9 @@ if (downloadLink?.url) {
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); toggleDarkMode(); }}>
               {darkMode ? "Light" : "Dark"}
             </button>
+            <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowAlertsModal(true); }}>
+              🔔 Alerts {alerts.filter(a => a.enabled).length > 0 && `(${alerts.filter(a => a.enabled).length})`}
+            </button>
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowFaq(true); }}>
               About
             </button>
@@ -724,6 +940,9 @@ if (downloadLink?.url) {
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); toggleDarkMode(); setMobileMenuOpen(false); }}>
                 {darkMode ? "Light" : "Dark"}
               </button>
+              <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowAlertsModal(true); setMobileMenuOpen(false); }}>
+                🔔 Alerts {alerts.filter(a => a.enabled).length > 0 && `(${alerts.filter(a => a.enabled).length})`}
+              </button>
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowFaq(true); setMobileMenuOpen(false); }}>
                 About
               </button>
@@ -732,10 +951,9 @@ if (downloadLink?.url) {
         </div>
         <header className="hero">
           <div className="hero__title">
-            <h1>Metal Price Observatory</h1>
+            <h1>Auric Ledger</h1>
             <p>
-              A refined view of daily precious metal prices with INR conversion, duties, and GST baked in.
-              Compare shifts, inspect purity bands, and follow weekly and monthly momentum.
+              Track real-time prices of precious metals and commodities with INR conversion. View daily trends, historical data, and detailed price breakdowns with duties and GST included.
             </p>
           </div>
           <div className="hero__panel">
@@ -843,7 +1061,7 @@ if (downloadLink?.url) {
                     }
 
                     return (
-                      <span key={metal.metal_name} className={`ticker-item ${direction}`} style={{ color: theme.primary }}>
+                      <span key={metal.metal_name} className={`ticker-item ${direction}`} style={{ color: direction === "up" ? "var(--up)" : direction === "down" ? "var(--down)" : theme.primary }}>
                         {message}
                       </span>
                     );
@@ -904,7 +1122,7 @@ if (downloadLink?.url) {
         <section className="export-bar">
           <div className="export-meta">
             <span>Last updated: {lastUpdated}</span>
-            <span>Source: gold-api.com</span>
+            <span>Source: apised.com</span>
             {downloadLink ? (
               <div className="download-fallback">
                 <span>Download link for {downloadLink.label} (use if download did not start)</span>
@@ -968,7 +1186,7 @@ if (downloadLink?.url) {
               <div className="modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
                   <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
-                  <h2>Auric Ledger</h2>
+                  <h2>About Auric Ledger</h2>
                 </div>
                 <button className="modal-close" onClick={() => setShowFaq(false)}>
                   ✕
@@ -976,67 +1194,404 @@ if (downloadLink?.url) {
               </div>
               <div className="faq-section">
                 <div className="faq-item">
-                  <h3>What is Auric Ledger?</h3>
+                  <h3>🚀 Auric Ledger v1.0.0</h3>
                   <p>
-                    A premium precious metals price tracker providing live market data with INR conversion,
-                    duty calculations, and GST applied. Track gold, silver, platinum, palladium, and copper with precision
-                    and confidence. Real-time updates, historical trends, and downloadable reports.
+                    <strong>Premium Precious Metals Price Tracker</strong><br/>
+                    A production-ready full-stack application for tracking real-time prices of 9 precious metals and commodities 
+                    with transparent INR conversion, duty calculations, and GST applied. Built for serious traders and investors.
                   </p>
                 </div>
+                
                 <div className="faq-item">
-                  <h3>What are Gold Purities (Carats)?</h3>
+                  <h3>✨ Key Features</h3>
                   <p>
-                    <strong style={{ color: "var(--accent)" }}>18 Carat:</strong> 75% pure gold (18/24), ideal for jeweled items.
-                    <br />
-                    <strong style={{ color: "var(--accent)" }}>22 Carat:</strong> 91.6% pure gold (22/24), primary choice in India.
-                    <br />
-                    <strong style={{ color: "var(--accent)" }}>24 Carat:</strong> 99.9% pure gold, investment-grade bullion.
+                    <strong style={{ color: "var(--accent)" }}>📊 Real-Time Pricing:</strong> Live prices for Gold, Silver, Platinum, Palladium, 
+                    Copper, Nickel, Zinc, Aluminium, and Lead converted to INR with duty (6%) and GST (3%)<br/>
+                    <strong style={{ color: "var(--accent)" }}>📱 PWA App:</strong> Install as native app on desktop, Android, and iOS. Works offline with automatic sync<br/>
+                    <strong style={{ color: "var(--accent)" }}>📈 Analytics:</strong> 7-day weekly trends and monthly historical data with interactive charts<br/>
+                    <strong style={{ color: "var(--accent)" }}>💾 Export:</strong> Download CSV data or premium PDF reports with price breakdowns<br/>
+                    <strong style={{ color: "var(--accent)" }}>🌙 Dark Mode:</strong> Eye-friendly dark theme with persistent preferences<br/>
+                    <strong style={{ color: "var(--accent)" }}>⚡ Automated:</strong> Daily cron job at 9:00 AM IST for price updates
                   </p>
                 </div>
+
                 <div className="faq-item">
-                  <h3>How are prices calculated?</h3>
+                  <h3>🏗️ Technical Stack</h3>
                   <p>
-                    Base prices sourced from gold-api.com (USD/troy oz). Converted to INR via frankfurter.app rates.
-                    Ounce-to-gram conversion applied (1 oz = 31.1035g). Gold purity multipliers reduce rates by carat.
-                    Duty and GST (5%) included in all displayed prices. Fully transparent methodology.
+                    <strong>Frontend:</strong> React 19 + Vite with jsPDF for report generation, Chart.js for analytics<br/>
+                    <strong>Backend:</strong> Node.js + Express with cron scheduling and rate limiting<br/>
+                    <strong>Database:</strong> Supabase (PostgreSQL) for reliable data persistence<br/>
+                    <strong>API:</strong> apised.com Metals API for 9 metal prices + frankfurter.app for USD↔INR conversion<br/>
+                    <strong>PWA:</strong> Service Workers for offline caching and app installation capability
                   </p>
                 </div>
+
                 <div className="faq-item">
-                  <h3>How often are prices updated?</h3>
+                  <h3>🎯 What We've Accomplished</h3>
                   <p>
-                    Daily sync at 09:00 AM IST with cron automation. Manual API updates available on demand.
-                    Historical records: last 7 days (weekly) and monthly breakdowns. Zero data loss with Supabase.
+                    ✅ Migrated from gold-api.com to apised.com for broader metal coverage<br/>
+                    ✅ Implemented all 9 metal symbols with proper naming and color themes<br/>
+                    ✅ Built cron job with detailed logging showing all processed metals and prices<br/>
+                    ✅ Created PWA with service worker for offline functionality and installable app<br/>
+                    ✅ Generated 8 app icons (72px to 512px) for all device types<br/>
+                    ✅ Fixed notification ticker with proper metal ordering and comparisons<br/>
+                    ✅ Added dark/light theme toggle with localStorage persistence<br/>
+                    ✅ Built comprehensive PDF & CSV export functionality<br/>
+                    ✅ Implemented responsive mobile design with hamburger menu<br/>
+                    ✅ Added detailed About page with feature documentation
                   </p>
                 </div>
+
                 <div className="faq-item">
-                  <h3>What do the color badges mean?</h3>
+                  <h3>💰 Price Calculation Formula</h3>
                   <p>
-                    <strong style={{ color: "var(--up)" }}>Red ▲</strong>: Price surged vs yesterday.
-                    <br />
-                    <strong style={{ color: "var(--down)" }}>Green ▼</strong>: Price dipped vs yesterday.
-                    <br />
-                    Alerts trigger for &gt;1% swings. Premium notifications for all metals.
+                    <strong>Base Formula:</strong><br/>
+                    Final Price = (USD Price ÷ 31.1035g/oz) × USD→INR Rate × 1.06 (Duty) × 1.03 (GST)<br/><br/>
+                    <strong>Gold Purity Multipliers:</strong><br/>
+                    18 Carat: ×0.75 | 22 Carat: ×0.916 | 24 Carat: ×1.0<br/><br/>
+                    <strong>Data Sources:</strong><br/>
+                    Metal Prices: apised.com | Exchange Rate: frankfurter.app | Storage: Supabase PostgreSQL
                   </p>
                 </div>
+
                 <div className="faq-item">
-                  <h3>Can I export the data?</h3>
+                  <h3>📊 Supported Metals</h3>
                   <p>
-                    Download 7-day price history as CSV or premium PDF reports with charts and branding.
-                    Mobile-friendly fallback links ensure exports work everywhere. Save for records and analysis.
+                    <strong style={{ color: "var(--accent)" }}>XAU</strong> - Gold (18K, 22K, 24K carats)<br/>
+                    <strong style={{ color: "var(--accent)" }}>XAG</strong> - Silver<br/>
+                    <strong style={{ color: "var(--accent)" }}>XPT</strong> - Platinum<br/>
+                    <strong style={{ color: "var(--accent)" }}>XPD</strong> - Palladium<br/>
+                    <strong style={{ color: "var(--accent)" }}>XCU</strong> - Copper<br/>
+                    <strong style={{ color: "var(--accent)" }}>NI</strong> - Nickel<br/>
+                    <strong style={{ color: "var(--accent)" }}>ZNC</strong> - Zinc<br/>
+                    <strong style={{ color: "var(--accent)" }}>ALU</strong> - Aluminium<br/>
+                    <strong style={{ color: "var(--accent)" }}>LEAD</strong> - Lead
                   </p>
                 </div>
+
                 <div className="faq-item">
-                  <h3>Dark Mode & Privacy</h3>
+                  <h3>⏰ Update Schedule</h3>
                   <p>
-                    Dark mode saves eye strain during after-hours trading. Your theme and filter preferences persist
-                    locally via localStorage—no servers involved. Complete privacy with no tracking.
+                    <strong>Daily Fetch:</strong> 9:00 AM IST via automated cron job<br/>
+                    <strong>Manual Update:</strong> Fetch latest prices on demand via /fetch-today-prices endpoint<br/>
+                    <strong>Update Interval:</strong> Minimum 15 minutes between sequential fetches to prevent API rate limiting<br/>
+                    <strong>Logging:</strong> Detailed logs show all processed metals, prices, and any errors
                   </p>
                 </div>
+
                 <div className="faq-item">
-                  <h3>Meet the Team</h3>
+                  <h3>🔒 Privacy & Security</h3>
                   <p>
-                    Built with precision for serious precious metals traders and investors. Powered by React, Node.js, 
-                    Supabase, and automated cron scheduling. Deployed globally on Vercel (frontend) and Render (backend).
+                    Your preferences (theme, selected metal, units) are stored locally in your browser via localStorage<br/>
+                    Zero tracking or analytics on user behavior<br/>
+                    HTTPS-only for all sensitive data transmission<br/>
+                    Service worker ensures offline data access without external requests<br/>
+                    Supabase provides enterprise-grade database security
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>📱 Installation Guide</h3>
+                  <p>
+                    <strong>Desktop (Chrome/Edge/Firefox):</strong> Click install button in address bar<br/>
+                    <strong>Android Chrome:</strong> Menu → "Add to Home screen"<br/>
+                    <strong>iOS Safari:</strong> Share → "Add to Home Screen"<br/>
+                    Once installed, open app in standalone window with no browser UI
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>👨‍💻 Developer</h3>
+                  <p>
+                    <strong>Built by: Sabithulla</strong><br/>
+                    A full-stack developer passionate about financial technology and data visualization<br/>
+                    Version 1.0.0 | Released: February 15, 2026<br/>
+                    <em style={{ color: "var(--muted)" }}>Built with precision for serious precious metals traders and investors</em>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Toast Notifications */}
+        <div className="toast-container">
+          {toasts.map((toast) => (
+            <div key={toast.id} className="toast">
+              {toast.message}
+            </div>
+          ))}
+        </div>
+
+        {/* Alerts Modal */}
+        {showAlertsModal ? (
+          <div className="modal-overlay" onClick={() => setShowAlertsModal(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+                  <span style={{ fontSize: "24px" }}>🔔</span>
+                  <h2>Price Alerts</h2>
+                </div>
+                <button className="modal-close" onClick={() => setShowAlertsModal(false)}>
+                  ✕
+                </button>
+              </div>
+              <div className="faq-section">
+                <div className="faq-item">
+                  <h3>📌 Create New Alert</h3>
+                  <div style={{ display: "grid", gap: "10px", marginTop: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Select Metal</label>
+                      <select
+                        value={newAlert.metal}
+                        onChange={(e) => setNewAlert({ ...newAlert, metal: e.target.value })}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid var(--line)",
+                          borderRadius: "8px",
+                          background: "var(--panel)",
+                          color: "var(--panel-ink)",
+                          fontSize: "14px"
+                        }}
+                      >
+                        <option value="">Choose a metal...</option>
+                        {metals
+                          .filter(m => !['BTC', 'ETH', 'HG'].includes(m.metal_name))
+                          .map((metal) => (
+                            <option key={metal.metal_name} value={metal.metal_name}>
+                              {formatMetalLabel(metal)}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Alert Type</label>
+                      <select
+                        value={newAlert.type}
+                        onChange={(e) => setNewAlert({ ...newAlert, type: e.target.value })}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid var(--line)",
+                          borderRadius: "8px",
+                          background: "var(--panel)",
+                          color: "var(--panel-ink)",
+                          fontSize: "14px"
+                        }}
+                      >
+                        <option value="target_price">🎯 Target Price (₹/g)</option>
+                        <option value="percentage_change">📊 Price Change (%)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>
+                        {newAlert.type === "target_price" ? "Price in ₹/g" : "Percentage Change (%)"}
+                      </label>
+                      <input
+                        type="number"
+                        placeholder={newAlert.type === "target_price" ? "e.g., 7500" : "e.g., 2.5"}
+                        value={newAlert.value}
+                        onChange={(e) => setNewAlert({ ...newAlert, value: e.target.value })}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid var(--line)",
+                          borderRadius: "8px",
+                          background: "var(--panel)",
+                          color: "var(--panel-ink)",
+                          fontSize: "14px"
+                        }}
+                      />
+                    </div>
+                    <button
+                      onClick={addAlert}
+                      style={{
+                        padding: "10px 16px",
+                        background: "var(--accent)",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "8px",
+                        cursor: "pointer",
+                        fontWeight: "600",
+                        fontSize: "14px"
+                      }}
+                    >
+                      ➕ Create Alert
+                    </button>
+                    {notificationPermission !== "granted" && (
+                      <button
+                        onClick={requestNotificationPermission}
+                        style={{
+                          padding: "10px 16px",
+                          background: "var(--accent-2)",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontWeight: "600",
+                          fontSize: "14px"
+                        }}
+                      >
+                        🔔 Enable Notifications
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="faq-item">
+                  <h3>📧 Daily Email Notifications</h3>
+                  <p style={{ marginBottom: "12px" }}>Get daily price updates for all metals at your email</p>
+                  <div style={{ display: "grid", gap: "10px" }}>
+                    {userEmail ? (
+                      <div style={{
+                        padding: "12px",
+                        background: "rgba(42, 107, 95, 0.1)",
+                        border: "2px solid var(--accent-2)",
+                        borderRadius: "8px",
+                        color: "var(--panel-ink)"
+                      }}>
+                        <p style={{ margin: 0, fontSize: "14px" }}>
+                          ✅ Emails enabled for: <strong>{userEmail}</strong>
+                        </p>
+                        <button
+                          onClick={() => {
+                            setUserEmail("");
+                            localStorage.removeItem("auric-email");
+                            showToast("📧 Email notifications disabled");
+                          }}
+                          style={{
+                            marginTop: "8px",
+                            padding: "6px 12px",
+                            background: "#b02b2b",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                            fontSize: "12px",
+                            fontWeight: "600"
+                          }}
+                        >
+                          Remove Email
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gap: "8px" }}>
+                        <input
+                          type="email"
+                          placeholder="your.email@example.com"
+                          defaultValue=""
+                          id="email-input"
+                          style={{
+                            width: "100%",
+                            padding: "8px 12px",
+                            border: "1px solid var(--line)",
+                            borderRadius: "8px",
+                            background: "var(--panel)",
+                            color: "var(--panel-ink)",
+                            fontSize: "14px"
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            const email = document.getElementById("email-input").value;
+                            saveEmail(email);
+                          }}
+                          disabled={emailLoading}
+                          style={{
+                            padding: "8px 16px",
+                            background: emailLoading ? "var(--muted)" : "var(--accent-2)",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "8px",
+                            cursor: emailLoading ? "not-allowed" : "pointer",
+                            fontWeight: "600",
+                            fontSize: "14px"
+                          }}
+                        >
+                          {emailLoading ? "⏳ Subscribing..." : "📧 Subscribe to Daily Emails"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {alerts.length === 0 ? (
+                  <div className="faq-item" style={{ textAlign: "center", color: "var(--muted)" }}>
+                    <p>No alerts yet. Create one to get started!</p>
+                  </div>
+                ) : (
+                  <div className="faq-item">
+                    <h3>📋 Your Alerts ({alerts.length})</h3>
+                    <div style={{ display: "grid", gap: "10px", marginTop: "12px" }}>
+                      {alerts.map((alert) => (
+                        <div
+                          key={alert.id}
+                          style={{
+                            padding: "12px",
+                            border: `2px solid ${alert.enabled ? "var(--accent)" : "var(--line)"}`,
+                            borderRadius: "8px",
+                            background: alert.enabled ? "rgba(196, 154, 60, 0.08)" : "rgba(0, 0, 0, 0.02)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center"
+                          }}
+                        >
+                          <div>
+                            <strong style={{ color: "var(--panel-ink)" }}>
+                              {formatMetalLabel({ metal_name: alert.metal })}
+                            </strong>
+                            <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0 0" }}>
+                              {alert.type === "target_price"
+                                ? `When price reaches ₹${alert.value.toFixed(2)}/g`
+                                : `When price changes by ${alert.value.toFixed(2)}%`}
+                            </p>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <button
+                              onClick={() => toggleAlert(alert.id)}
+                              style={{
+                                padding: "6px 12px",
+                                background: alert.enabled ? "var(--accent)" : "var(--line)",
+                                color: alert.enabled ? "#fff" : "var(--muted)",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                fontWeight: "600"
+                              }}
+                            >
+                              {alert.enabled ? "✓ On" : "Off"}
+                            </button>
+                            <button
+                              onClick={() => deleteAlert(alert.id)}
+                              style={{
+                                padding: "6px 12px",
+                                background: "#b02b2b",
+                                color: "#fff",
+                                border: "none",
+                                borderRadius: "6px",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                fontWeight: "600"
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="faq-item">
+                  <h3>ℹ️ How Alerts Work</h3>
+                  <p>
+                    <strong style={{ color: "var(--accent)" }}>Target Price:</strong> Get notified when a metal reaches your target price<br/>
+                    <strong style={{ color: "var(--accent)" }}>Price Change:</strong> Get notified when a metal increases or decreases by your chosen percentage<br/>
+                    <strong style={{ color: "var(--accent)" }}>Cooldown:</strong> Each alert waits 60 minutes before triggering again to avoid duplicates<br/>
+                    <strong style={{ color: "var(--accent)" }}>Notifications:</strong> Browser notifications require your permission (enable via button above)
                   </p>
                 </div>
               </div>

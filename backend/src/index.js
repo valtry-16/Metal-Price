@@ -5,6 +5,7 @@ import cron from "node-cron";
 import dayjs from "dayjs";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -32,6 +33,28 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_KEY || "");
+
+// Email configuration
+const {
+  EMAIL_SERVICE = "gmail",
+  EMAIL_USER,
+  EMAIL_PASSWORD,
+  EMAIL_FROM = EMAIL_USER
+} = process.env;
+
+let emailTransporter = null;
+if (EMAIL_USER && EMAIL_PASSWORD) {
+  emailTransporter = nodemailer.createTransport({
+    service: EMAIL_SERVICE,
+    auth: {
+      user: EMAIL_USER,
+      pass: EMAIL_PASSWORD
+    }
+  });
+} else {
+  console.warn("⚠️  Email credentials not configured. Daily price emails will not be sent.");
+  console.warn("Set EMAIL_USER and EMAIL_PASSWORD in .env to enable email notifications.");
+}
 
 const OUNCE_TO_GRAM = 31.1035;
 const DUTY = 1.06;
@@ -595,6 +618,112 @@ app.get("/monthly-history", async (req, res) => {
   }
 });
 
+// Email subscription endpoint
+app.post("/subscribe-email", async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ status: "error", message: "Invalid email" });
+    }
+
+    // Ensure table exists
+    const { data: existing, error: fetchError } = await supabase
+      .from("price_email_subscriptions")
+      .select("id")
+      .eq("email", email)
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") {
+      throw new Error(`Query error: ${fetchError.message}`);
+    }
+
+    let result;
+    if (existing) {
+      // Update existing subscription
+      result = await supabase
+        .from("price_email_subscriptions")
+        .update({ subscribed_at: new Date().toISOString() })
+        .eq("email", email);
+    } else {
+      // Create new subscription
+      result = await supabase
+        .from("price_email_subscriptions")
+        .insert([{ email, subscribed_at: new Date().toISOString() }]);
+    }
+
+    if (result.error) {
+      throw new Error(`Database error: ${result.error.message}`);
+    }
+
+    res.json({ status: "success", message: "Email subscribed successfully" });
+  } catch (error) {
+    console.error("Email subscription error:", error);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// Function to send daily price emails
+const sendDailyPriceEmails = async (priceData) => {
+  if (!emailTransporter) {
+    console.log("📧 Email sending not configured. Skipping email notifications.");
+    return;
+  }
+
+  try {
+    // Fetch all subscribed emails
+    const { data: subscriptions, error } = await supabase
+      .from("price_email_subscriptions")
+      .select("email")
+      .gt("subscribed_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Only recent subscriptions
+
+    if (error) throw error;
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log("📧 No email subscribers found.");
+      return;
+    }
+
+    // Format email content with prices
+    let priceContent = "<h2>Today's Precious Metals Prices</h2><table border='1' cellpadding='10' style='border-collapse:collapse'>";
+    priceContent += "<tr style='background-color:#f0f0f0'><th>Metal</th><th>Price (₹/g)</th></tr>";
+    
+    priceData.rows.forEach(row => {
+      if (row.unit === "per_gram" && row.metal_name !== "HG") {
+        priceContent += `<tr><td><strong>${row.metal_name}</strong></td><td>₹${row.price_1g?.toFixed(2) || "N/A"}</td></tr>`;
+      }
+    });
+    priceContent += "</table>";
+
+    const emailContent = `
+      <h1>🏆 Auric Ledger - Daily Price Update</h1>
+      <p>📅 Date: ${dayjs().format("DD MMM YYYY")}</p>
+      <p>💱 USD to INR Rate: ₹${priceData.usdToInr.toFixed(2)}</p>
+      ${priceContent}
+      <p style="margin-top: 20px; color: #666; font-size: 12px;">
+        You received this email because you're subscribed to daily price updates on Auric Ledger.
+        To manage your preferences, visit the app and go to Alerts settings.
+      </p>
+    `;
+
+    // Send email to all subscribers
+    for (const subscription of subscriptions) {
+      try {
+        await emailTransporter.sendMail({
+          from: EMAIL_FROM,
+          to: subscription.email,
+          subject: `Daily Metals Prices - ${dayjs().format("DD MMM YYYY")}`,
+          html: emailContent
+        });
+        console.log(`✅ Email sent to ${subscription.email}`);
+      } catch (sendError) {
+        console.error(`❌ Failed to send email to ${subscription.email}:`, sendError.message);
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error in sendDailyPriceEmails:", error.message);
+  }
+};
+
 cron.schedule(CRON_SCHEDULE, async () => {
   const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss");
   console.log(`\n${"=".repeat(60)}`);
@@ -626,6 +755,10 @@ cron.schedule(CRON_SCHEDULE, async () => {
         console.log(`     - ₹${row.price_1g?.toFixed(2) || 'N/A'}/g${caratInfo}`);
       });
     });
+    
+    // Send daily price emails to subscribers
+    console.log(`\n📧 Sending daily price emails...`);
+    await sendDailyPriceEmails(result);
     
     console.log(`\n${"=".repeat(60)}\n`);
   } catch (error) {
