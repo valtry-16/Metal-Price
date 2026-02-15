@@ -14,95 +14,12 @@ const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_KEY || "");
 
 let bot = null;
 let botInitialized = false;
-let pollingRetries = 0;
-const MAX_POLLING_RETRIES = 3;
 
 if (TELEGRAM_BOT_TOKEN && !botInitialized) {
-  // Create bot WITHOUT auto-polling
+  // Create bot in WEBHOOK mode only - no polling, no cleanup logic
   bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
   botInitialized = true;
-  
-  // Handle bot errors 
-  bot.on('polling_error', (error) => {
-    if (error.code === 'ETELEGRAM' && error.message.includes('409')) {
-      console.error('❌ Telegram bot polling conflict (409): Another bot instance is running');
-      
-      if (pollingRetries < MAX_POLLING_RETRIES) {
-        pollingRetries++;
-        console.log(`⏳ Retrying in 10 seconds... (Attempt ${pollingRetries}/${MAX_POLLING_RETRIES})`);
-        
-        // Stop current polling and retry after delay
-        try {
-          bot.stopPolling();
-        } catch (e) {
-          // Ignore
-        }
-        
-        // Wait longer before retry to let Telegram clean up
-        setTimeout(() => {
-          console.log('🔄 Retrying polling...');
-          bot.startPolling().catch((err) => {
-            console.error('❌ Polling retry failed:', err.message);
-          });
-        }, 10000);
-      } else {
-        console.error('❌ Max polling retries exceeded.');
-        console.error('💡 Fix: Go to BotFather, send /mybots → select @AuricLedgerBot → edit default administrator → turn off polling if webhook is active');
-      }
-    } else {
-      console.error('❌ Telegram bot polling error:', error.message);
-    }
-  });
-  
-  // Cleanup function to close any existing connections
-  const cleanupBotConnection = async () => {
-    try {
-      console.log('🧹 Cleaning up any existing bot connections...');
-      
-      // Delete webhook (closes webhook-based connections if any exist)
-      await bot.deleteWebhook();
-      console.log('✅ Webhook deleted');
-      
-      // Wait a moment for cleanup
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Verify bot is accessible
-      const me = await bot.getMe();
-      console.log(`✅ Bot verified: @${me.username}`);
-      
-      return true;
-    } catch (error) {
-      console.error('⚠️ Cleanup error (non-fatal):', error.message);
-      return false;
-    }
-  };
-  
-  // Main startup sequence
-  const startBotPolling = async () => {
-    try {
-      console.log('🔄 Starting Telegram bot polling...');
-      
-      // First cleanup any existing connections
-      await cleanupBotConnection();
-      
-      // Then start polling
-      await bot.startPolling();
-      console.log("✅ Telegram bot started successfully");
-      pollingRetries = 0; // Reset on success
-    } catch (error) {
-      console.error('❌ Failed to start Telegram bot polling:', error.message);
-      
-      // Trigger polling_error event to use retry logic
-      if (error.message.includes('409')) {
-        bot.emit('polling_error', error);
-      }
-    }
-  };
-  
-  // Start bot after a short delay to ensure everything is initialized
-  setTimeout(() => {
-    startBotPolling();
-  }, 1000);
+  console.log("✅ Telegram bot initialized (Webhook mode)");
 }
 
 // Helper function to format price data for Telegram

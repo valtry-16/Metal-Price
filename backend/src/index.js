@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
 import { sendDailyPricesToTelegram } from "./telegram-bot.js";
+import bot from "./telegram-bot.js";
 
 dotenv.config();
 
@@ -479,6 +480,23 @@ const getAvailableMonths = async ({ metal, carat }) => {
 
 app.get("/health", (req, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
+});
+
+// Telegram webhook endpoint - receives updates from Telegram servers
+app.post("/telegram/webhook", async (req, res) => {
+  try {
+    if (!bot) {
+      console.warn("⚠️ Bot not initialized");
+      return res.status(400).json({ status: "error", message: "Bot not initialized" });
+    }
+    
+    // Pass the update to the bot
+    await bot.processUpdate(req.body);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("❌ Telegram webhook error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
 });
 
 app.post("/fetch-today-prices", async (req, res) => {
