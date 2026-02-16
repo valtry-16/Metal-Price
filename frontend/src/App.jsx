@@ -1027,7 +1027,7 @@ if (downloadLink?.url) {
                 {darkMode ? "Light" : "Dark"}
               </button>
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowAlertsModal(true); setMobileMenuOpen(false); }}>
-                🔔 Alerts {alerts.filter(a => a.enabled).length > 0 && `(${alerts.filter(a => a.enabled).length})`}
+                Alerts {alerts.filter(a => a.enabled).length > 0 && `(${alerts.filter(a => a.enabled).length})`}
               </button>
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowFaq(true); setMobileMenuOpen(false); }}>
                 About
@@ -1535,7 +1535,7 @@ if (downloadLink?.url) {
                           fontSize: "14px"
                         }}
                       >
-                        🔔 Enable Notifications
+                        Enable Notifications
                       </button>
                     )}
                   </div>

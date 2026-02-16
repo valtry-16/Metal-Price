@@ -23,7 +23,8 @@ const {
   METALS_API_URL = "https://metals.g.apised.com/v1/latest",
   METALS_SYMBOLS_URL = "https://metals.g.apised.com/v1/supported-metals",
   USD_INR_OVERRIDE,
-  CRON_SCHEDULE = "0 6 * * *"
+  CRON_SCHEDULE = "0 6 * * *",
+  CRON_VERBOSE = "false"
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -1067,6 +1068,8 @@ const sendDailyPriceEmails = async (priceData) => {
     return;
   }
 
+  const verboseEmailLogs = CRON_VERBOSE === "true";
+
   try {
     // Fetch all subscribed emails with their subscription dates
     const { data: subscriptions, error } = await supabase
@@ -1246,7 +1249,9 @@ const sendDailyPriceEmails = async (priceData) => {
           subject: `💎 Daily Metals Update - ${dayjs().format("DD MMM YYYY")} | Auric Ledger`,
           html: emailContent
         });
-        console.log(`✅ Email sent to ${subscription.email}`);
+        if (verboseEmailLogs) {
+          console.log(`✅ Email sent to ${subscription.email}`);
+        }
         successCount++;
       } catch (sendError) {
         console.error(`❌ Failed to send email to ${subscription.email}:`, sendError.message);
@@ -1260,6 +1265,7 @@ const sendDailyPriceEmails = async (priceData) => {
 
 cron.schedule(CRON_SCHEDULE, async () => {
   const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const verboseCronLogs = CRON_VERBOSE === "true";
   console.log(`\n${"=".repeat(60)}`);
   console.log(`[${timestamp}] Starting daily price fetch...`);
   console.log(`${"=".repeat(60)}`);
@@ -1272,23 +1278,19 @@ cron.schedule(CRON_SCHEDULE, async () => {
     console.log(`💱 USD to INR: ${result.usdToInr}`);
     console.log(`📊 Total rows stored: ${result.rows.length}`);
     console.log(`\n🏷️  Metals processed:`);
-    
-    const metalGroups = {};
-    result.rows.forEach(row => {
-      if (!metalGroups[row.metal_name]) {
-        metalGroups[row.metal_name] = [];
-      }
-      metalGroups[row.metal_name].push(row);
+    const metalCounts = result.rows.reduce((acc, row) => {
+      acc[row.metal_name] = (acc[row.metal_name] || 0) + 1;
+      return acc;
+    }, {});
+    Object.entries(metalCounts).forEach(([metal, count]) => {
+      console.log(`   • ${metal}: ${count} row(s)`);
     });
-    
-    Object.keys(metalGroups).forEach(metal => {
-      const rows = metalGroups[metal];
-      console.log(`   • ${metal}: ${rows.length} row(s)`);
-      rows.forEach(row => {
-        const caratInfo = row.carat ? ` (${row.carat}K)` : '';
-        console.log(`     - ₹${row.price_1g?.toFixed(2) || 'N/A'}/g${caratInfo}`);
+    if (verboseCronLogs) {
+      result.rows.forEach(row => {
+        const caratInfo = row.carat ? ` (${row.carat}K)` : "";
+        console.log(`     - ${row.metal_name}: ₹${row.price_1g?.toFixed(2) || "N/A"}/g${caratInfo}`);
       });
-    });
+    }
     
     // Send daily price emails to subscribers
     console.log(`\n📧 Sending daily price emails...`);
