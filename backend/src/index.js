@@ -55,9 +55,9 @@ const {
 let emailTransporter = null;
 if (EMAIL_USER && EMAIL_PASSWORD) {
   emailTransporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false, // Use TLS (not SSL)
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // Use SSL/TLS
     auth: {
       user: EMAIL_USER,
       pass: EMAIL_PASSWORD
@@ -66,7 +66,7 @@ if (EMAIL_USER && EMAIL_PASSWORD) {
     socketTimeout: 30000, // 30 second socket timeout
     greetingTimeout: 30000 // 30 second greeting timeout
   });
-  console.log(`✅ Email transporter initialized for ${EMAIL_USER} (Brevo SMTP Port 587)`);
+  console.log(`✅ Email transporter initialized for ${EMAIL_USER} (Port 465 - SSL)`);
 } else {
   console.warn("⚠️  Email credentials not configured. Daily price emails will not be sent.");
   console.warn("Set EMAIL_USER and EMAIL_PASSWORD in .env to enable email notifications.");
@@ -1374,6 +1374,14 @@ const runDailyPipeline = async (sourceLabel = "cron") => {
   }
 };
 
+// Endpoint to keep Render service awake (prevent sleep on free tier)
+// Called by cron-job.org every 1 minute
+app.get("/wake-up", (req, res) => {
+  const timestamp = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+  console.log(`⏰ Wake-up ping received at ${timestamp}`);
+  res.json({ status: "awake", timestamp });
+});
+
 app.post("/run-daily", async (req, res) => {
   try {
     if (!RUN_DAILY_SECRET) {
@@ -1439,8 +1447,9 @@ const startServer = (ports, index = 0) => {
     .on('listening', () => {
       console.log(`\n✅ API listening on port ${port}`);
       console.log(`📱 Telegram bot started successfully`);
-      console.log(`⏰ Daily cron job scheduled: ${CRON_SCHEDULE} (9 AM Asia/Kolkata)`);
-      console.log(`📧 Welcome email endpoint: POST /send-welcome-emails (use cron-job.org every 5 min)`);
+      console.log(`⏰ Wake-up ping: GET /wake-up (cron-job.org every 1 min - keeps service awake)`);
+      console.log(`⏰ Daily cron job: POST /run-daily (9 AM Asia/Kolkata)`);
+      console.log(`📧 Welcome emails: POST /send-welcome-emails (cron-job.org every 5 min)`);
     })
     .on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
