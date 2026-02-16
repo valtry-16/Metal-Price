@@ -55,9 +55,9 @@ const {
 let emailTransporter = null;
 if (EMAIL_USER && EMAIL_PASSWORD) {
   emailTransporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // Use SSL/TLS
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false, // Use TLS (not SSL)
     auth: {
       user: EMAIL_USER,
       pass: EMAIL_PASSWORD
@@ -66,7 +66,7 @@ if (EMAIL_USER && EMAIL_PASSWORD) {
     socketTimeout: 30000, // 30 second socket timeout
     greetingTimeout: 30000 // 30 second greeting timeout
   });
-  console.log(`✅ Email transporter initialized for ${EMAIL_USER} (Port 465 - SSL)`);
+  console.log(`✅ Email transporter initialized for ${EMAIL_USER} (Brevo SMTP Port 587)`);
 } else {
   console.warn("⚠️  Email credentials not configured. Daily price emails will not be sent.");
   console.warn("Set EMAIL_USER and EMAIL_PASSWORD in .env to enable email notifications.");
