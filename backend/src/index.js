@@ -6,8 +6,10 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import { body, validationResult } from "express-validator";
 import { createClient } from "@supabase/supabase-js";
-import nodemailer from "nodemailer";
+import rateLimit from "express-rate-limit";
 import { sendDailyPricesToTelegram } from "./telegram-bot.js";
 import bot from "./telegram-bot.js";
 
@@ -16,8 +18,185 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.set("trust proxy", 1);
+
+// ============================================
+// SECURITY: Helmet - Protect HTTP Headers
+// ============================================
+// Helmet helps secure Express.js apps by setting various HTTP headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,          // Prevent MIME type sniffing
+  xssFilter: true,         // Enable XSS filter
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  frameguard: { action: "deny" }, // Prevent clickjacking
+}));
+
+// ============================================
+// SECURITY: Request Sanitization & Logging
+// ============================================
+// Utility function to mask sensitive data in logs
+const maskSensitiveData = (text) => {
+  if (!text) return text;
+  
+  // Mask API keys (don't show full keys)
+  text = String(text).replace(/xkeysib-[a-zA-Z0-9-]+/g, "xkeysib-***");
+  text = text.replace(/sk_[a-zA-Z0-9]+/g, "sk_***");
+  text = text.replace(/[a-zA-Z0-9]+_[a-zA-Z0-9]{40,}/g, "***SECRET***");
+  
+  // Keep first 3 and last 3 chars of email for logging
+  text = text.replace(/([a-zA-Z0-9]{3})[a-zA-Z0-9._%+-]*@([a-zA-Z0-9.-]+)/g, "$1***@$2");
+  
+  return text;
+};
+
+// Middleware: Log requests securely (without sensitive data)
+app.use((req, res, next) => {
+  const startTime = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    const safeBody = maskSensitiveData(JSON.stringify(req.body));
+    console.log(`[${req.method}] ${req.path} - ${res.statusCode} - ${duration}ms`);
+  });
+  
+  next();
+});
+
+// ============================================
+// SECURITY: CORS - Restrict to only your domain
+// ============================================
+const ALLOWED_ORIGINS = [
+  "https://metal-price.onrender.com",
+  "http://localhost:3000", // For local development
+  "http://localhost:5173"  // For Vite dev server
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("CORS not allowed"), false);
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-run-daily-secret", "x-send-welcome-emails-secret"]
+}));
+
+// ============================================
+// SECURITY: Request Body Size Limits
+// ============================================
+// Prevent huge payloads that could crash server or be used in DoS attacks
+app.use(express.json({ 
+  limit: "10kb"  // Max 10KB per request body
+}));
+app.use(express.urlencoded({ 
+  limit: "10kb",
+  extended: true 
+}));
+
+// Timeout for slow clients (prevent slowloris attacks)
+app.use((req, res, next) => {
+  req.setTimeout(30000); // 30 second timeout per request
+  next();
+});
+
+// ============================================
+// SECURITY: Rate Limiting - Prevent spam
+// ============================================
+
+// General rate limiter (all requests)
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Max 100 requests per IP per window
+  message: "Too many requests, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Don't rate limit internal cron calls (they should have secret headers)
+    return req.headers["x-run-daily-secret"] || req.headers["x-send-welcome-emails-secret"];
+  }
+});
+
+// Stricter limiter for email endpoints
+const emailLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5, // Max 5 email requests per IP per minute
+  message: "Too many email requests, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Stricter limiter for auth-like endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Max 20 requests per IP per window
+  message: "Too many attempts, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Apply general rate limiter to all routes
+app.use(generalLimiter);
+
+// ============================================
+// SECURITY: Remove Sensitive Response Headers
+// ============================================
+// Hide technology stack from attackers
+app.use((req, res, next) => {
+  // Remove headers that expose server technology
+  res.removeHeader("X-Powered-By");
+  res.removeHeader("Server");
+  res.removeHeader("X-AspNet-Version");
+  res.removeHeader("X-Runtime");
+  
+  // Add security headers
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  
+  next();
+});
+
+// ============================================
+// SECURITY: Email Validation Function
+// ============================================
+const isValidEmail = (email) => {
+  // RFC 5322 simplified email regex
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 254;
+};
+
+// ============================================
+// SECURITY: Error Response Handler
+// ============================================
+// Generic error response (doesn't expose system details)
+const sendErrorResponse = (res, statusCode, message = "An error occurred") => {
+  console.error(`[ERROR ${statusCode}] ${message}`);
+  res.status(statusCode).json({
+    status: "error",
+    message: message
+  });
+};
+
+// Success response wrapper
+const sendSuccessResponse = (res, data) => {
+  res.json({ status: "success", ...data });
+};
 
 const {
   PORT = 4000,
@@ -46,11 +225,9 @@ const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_KEY || "");
 
 // Email configuration
 const {
-  EMAIL_SERVICE = "brevo",
   EMAIL_USER,
-  EMAIL_PASSWORD,
-  BREVO_API_KEY,
-  EMAIL_FROM = EMAIL_USER
+  EMAIL_FROM = EMAIL_USER,
+  BREVO_API_KEY
 } = process.env;
 
 // Brevo API email sender function
@@ -63,7 +240,7 @@ const sendEmailViaBrevo = async (to, subject, htmlContent) => {
   try {
     const response = await axios.post("https://api.brevo.com/v3/smtp/email", {
       to: [{ email: to }],
-      sender: { email: EMAIL_USER, name: "Auric Ledger" },
+      sender: { email: EMAIL_FROM, name: "Auric Ledger" },
       subject: subject,
       htmlContent: htmlContent
     }, {
@@ -675,12 +852,42 @@ app.get("/monthly-history", async (req, res) => {
 });
 
 // Email subscription endpoint
-app.post("/subscribe-email", async (req, res) => {
+app.post("/subscribe-email", emailLimiter, [
+  // Input validation and sanitization
+  body("email")
+    .trim()                    // Remove leading/trailing whitespace
+    .toLowerCase()             // Convert to lowercase
+    .isEmail()                 // Validate email format
+    .normalizeEmail()          // Normalize email
+    .withMessage("Invalid email format"),
+  
+  body("*")                    // Reject any unexpected fields
+    .custom((value, { req }) => {
+      const allowedFields = ["email"];
+      const requestFields = Object.keys(req.body);
+      const hasUnexpectedFields = requestFields.some(f => !allowedFields.includes(f));
+      
+      if (hasUnexpectedFields) {
+        throw new Error("Unexpected fields in request");
+      }
+      return true;
+    })
+], async (req, res) => {
   try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        status: "error", 
+        message: "Invalid email format" 
+      });
+    }
+
     const { email } = req.body;
     
-    if (!email || !email.includes("@")) {
-      return res.status(400).json({ status: "error", message: "Invalid email" });
+    // Additional email validation (RFC 5322)
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ status: "error", message: "Invalid email format" });
     }
 
     // Ensure table exists
@@ -691,7 +898,8 @@ app.post("/subscribe-email", async (req, res) => {
       .single();
 
     if (fetchError && fetchError.code !== "PGRST116") {
-      throw new Error(`Query error: ${fetchError.message}`);
+      console.error("Database query error:", fetchError.message);
+      return sendErrorResponse(res, 500, "An error occurred. Please try again later.");
     }
 
     let result;
@@ -711,7 +919,8 @@ app.post("/subscribe-email", async (req, res) => {
     }
 
     if (result.error) {
-      throw new Error(`Database error: ${result.error.message}`);
+      console.error("Database insert/update error:", result.error.message);
+      return sendErrorResponse(res, 500, "An error occurred. Please try again later.");
     }
 
     // Just insert subscription, don't send welcome immediately (avoid timeout)
@@ -720,7 +929,7 @@ app.post("/subscribe-email", async (req, res) => {
       console.log(`💡 Welcome email will be sent shortly by background cron job`);
       res.json({ status: "success", message: "✅ Subscribed! Your welcome email is coming shortly." });
     } else {
-      console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`);
+      console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`));
       res.json({ status: "success", message: "✅ Email already subscribed. Continue receiving daily price updates!" });
     }
   } catch (error) {
@@ -1405,41 +1614,47 @@ app.get("/wake-up", (req, res) => {
   res.json({ status: "awake", timestamp });
 });
 
-app.post("/run-daily", async (req, res) => {
+app.post("/run-daily", authLimiter, async (req, res) => {
   try {
     if (!RUN_DAILY_SECRET) {
-      return res.status(500).json({ status: "error", message: "RUN_DAILY_SECRET is not configured" });
+      console.error("❌ RUN_DAILY_SECRET is not configured");
+      return sendErrorResponse(res, 500, "Service not properly configured");
     }
 
     const providedSecret = req.header("x-run-daily-secret");
-    if (providedSecret !== RUN_DAILY_SECRET) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+    if (!providedSecret || providedSecret !== RUN_DAILY_SECRET) {
+      console.warn("⚠️ Unauthorized /run-daily access attempt");
+      return sendErrorResponse(res, 401, "Unauthorized");
     }
 
     const result = await runDailyPipeline("cron-job.org");
     res.json({ status: "ok", ...result });
   } catch (error) {
-    res.status(500).json({ status: "error", message: "Daily job failed" });
+    console.error("❌ Daily job error:", error.message);
+    return sendErrorResponse(res, 500, "Daily job failed");
   }
 });
 
 // Background cron: Send pending welcome emails every 5 minutes
 // (Triggered by external cron-job.org, not internal)
-app.post("/send-welcome-emails", async (req, res) => {
+app.post("/send-welcome-emails", authLimiter, async (req, res) => {
   try {
     if (!RUN_WELCOME_EMAIL_SECRET) {
-      return res.status(500).json({ status: "error", message: "RUN_WELCOME_EMAIL_SECRET is not configured" });
+      console.error("❌ RUN_WELCOME_EMAIL_SECRET is not configured");
+      return sendErrorResponse(res, 500, "Service not properly configured");
     }
 
     const providedSecret = req.header("x-send-welcome-emails-secret");
-    if (providedSecret !== RUN_WELCOME_EMAIL_SECRET) {
-      return res.status(401).json({ status: "error", message: "Unauthorized" });
+    if (!providedSecret || providedSecret !== RUN_WELCOME_EMAIL_SECRET) {
+      console.warn("⚠️ Unauthorized /send-welcome-emails access attempt");
+      return sendErrorResponse(res, 401, "Unauthorized");
     }
 
     const result = await sendPendingWelcomeEmails();
     res.json({ status: "ok", ...result });
   } catch (error) {
-    res.status(500).json({ status: "error", message: "Welcome email job failed" });
+    console.error("❌ Welcome email job error:", error.message);
+    return sendErrorResponse(res, 500, "Welcome email job failed");
   }
 });
 
@@ -1485,5 +1700,44 @@ const startServer = (ports, index = 0) => {
       }
     });
 };
+
+// ============================================
+// SECURITY: Global Error Handler
+// ============================================
+// Must be last middleware to catch all errors
+app.use((err, req, res, next) => {
+  // Log error securely (mask sensitive data)
+  const safeMessage = maskSensitiveData(err.message);
+  console.error(`[ERROR] ${safeMessage}`);
+  
+  // Don't expose stack trace or internal details to client
+  const statusCode = err.statusCode || 500;
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  if (isProduction) {
+    // Production: Generic error message
+    res.status(statusCode).json({
+      status: "error",
+      message: "An error occurred. Please try again later."
+    });
+  } else {
+    // Development: More details for debugging
+    res.status(statusCode).json({
+      status: "error",
+      message: safeMessage
+    });
+  }
+});
+
+// ============================================
+// SECURITY: 404 Handler - Don't expose route structure
+// ============================================
+app.use((req, res) => {
+  console.warn(`⚠️ Unknown route accessed: ${req.method} ${req.path}`);
+  res.status(404).json({
+    status: "error",
+    message: "Endpoint not found"
+  });
+});
 
 startServer(uniquePorts);

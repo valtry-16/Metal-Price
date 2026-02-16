@@ -1,41 +1,30 @@
 # Auric Ledger
 
-Production-ready full-stack app for tracking real-time prices of precious metals with INR conversion, taxes, and historical trends. Built with React, Node.js, and Supabase.
+Premium, production-ready platform for tracking real-time precious metal prices in INR, with daily updates, charts, alerts, and exports.
 
-## Features
-- 🥇 Track 9 precious metals (Gold, Silver, Platinum, Palladium, Copper, Nickel, Zinc, Aluminium, Lead)
-- 📊 Real-time price updates in INR with transparent calculations
-- 📱 Progressive Web App (PWA) - installable on desktop & mobile
-- 📈 Weekly and monthly historical trends
-- 🌙 Dark/Light theme support
-- 🔄 Automatic daily price fetching via cron job
-- 📥 PDF report generation & CSV export
-- 🔔 Price Alerts (target price, percentage change)
-- 📧 Daily Email Notifications with all metal prices
-- 🌐 Browser Notifications for instant alerts
+Live site: https://metal-price.onrender.com
 
-## Stack
-- Frontend: React + Vite (with PWA support)
+Developer: Sabithulla
+
+## Highlights
+- 9 metals: Gold, Silver, Platinum, Palladium, Copper, Nickel, Zinc, Aluminium, Lead
+- Real-time INR pricing with duty and GST included
+- Weekly + monthly historical charts
+- PWA installable experience (desktop and mobile)
+- Alerts system (target price or percentage change)
+- Daily email notifications with welcome email delivery
+- Telegram bot updates and charts
+- CSV and PDF exports
+
+## Tech Stack
+- Frontend: React + Vite + PWA
 - Backend: Node.js + Express
 - Database: Supabase (PostgreSQL)
-- API: apised.com Metals API
+- Data API: apised.com metals API
+- Email: Brevo API
 
-## Setup
-1. Create a Supabase project and run the SQL in `backend/sql/metal_prices.sql`.
-2. Copy `.env.example` to `.env` and fill in:
-   - Supabase credentials
-   - `METALS_API_KEY` from [apised.com](https://apised.com/apis/metals/documentation)
-   - (Optional) Email credentials for daily email notifications (see ALERTS_SETUP.md)
-
-## Email Notifications
-To enable daily email notifications with all metal prices:
-1. Set `EMAIL_USER` and `EMAIL_PASSWORD` in `.env` (Gmail or any SMTP service)
-2. Create the email subscriptions table in Supabase (see `backend/migrations/01_create_email_subscriptions.sql`)
-3. Users can subscribe via the "🔔 Alerts" modal in the app
-
-**Full setup guide**: See [ALERTS_SETUP.md](ALERTS_SETUP.md)
-
-## Install
+## Local Setup
+### 1) Install dependencies
 ```bash
 cd frontend
 npm install
@@ -44,59 +33,64 @@ cd ../backend
 npm install
 ```
 
-## Run
+### 2) Configure environment variables
+Backend: create backend/.env using backend/.env.example (or your local values).
 
-**Development Mode (Auto-detects local backend):**
+Required (backend):
+- SUPABASE_URL
+- SUPABASE_SERVICE_KEY
+- METALS_API_KEY
+- RUN_DAILY_SECRET
+- RUN_WELCOME_EMAIL_SECRET
+- EMAIL_USER
+- BREVO_API_KEY
 
-Frontend automatically detects if backend is running on `localhost:4000`:
-- ✅ If backend is running locally → Uses `http://localhost:4000`
-- ⚠️ If backend is not running → Falls back to production backend URL
-
+Frontend: set frontend/.env
 ```bash
-# Terminal 1: Start backend
+VITE_API_BASE_URL=https://metal-price.onrender.com
+```
+
+### 3) Run locally
+```bash
+# Terminal 1
 cd backend
 npm run dev
 
-# Terminal 2: Start frontend
+# Terminal 2
 cd frontend
 npm run dev
 ```
 
-The frontend will check localhost:4000 on startup and use it if available. Perfect for development!
+## Production Notes
+### Cron jobs (cron-job.org)
+Create 3 jobs:
+- GET /wake-up every 1 minute
+- POST /send-welcome-emails every 5 minutes (header: x-send-welcome-emails-secret)
+- POST /run-daily at 9:00 AM IST (header: x-run-daily-secret)
 
-## API Endpoints
-- `POST /fetch-today-prices` - Fetch and store today's prices
-- `GET /get-latest-price` - Get latest prices for all metals
-- `GET /compare-yesterday` - Compare today vs yesterday prices
-- `GET /weekly-history` - Get weekly price history
-- `GET /monthly-history` - Get monthly price history
+### Deployment
+Backend: Render
+- Set backend environment variables in Render dashboard
 
-## Production Deployment
+Frontend: Vercel/Netlify/Render
+- Set VITE_API_BASE_URL to your backend URL
 
-### Frontend (Vercel/Netlify)
-1. Deploy frontend to Vercel or Netlify
-2. Set environment variable:
-   ```
-   VITE_API_BASE_URL=https://your-backend.onrender.com
-   ```
-3. Frontend will use this URL instead of localhost
+## Key API Endpoints
+- POST /subscribe-email
+- POST /send-welcome-emails
+- POST /run-daily
+- GET /get-latest-price
+- GET /compare-yesterday
+- GET /weekly-history
+- GET /monthly-history
 
-### Backend (Render.com)
-1. Deploy backend to Render
-2. Get your deployed URL (e.g., `https://auric-ledger-api.onrender.com`)
-3. Update frontend's `VITE_API_BASE_URL` with this URL
+## Security
+- CORS restricted to trusted origins
+- Request size limits and timeouts
+- Rate limiting for abuse protection
+- Input validation and email sanitization
+- Sensitive data masking in logs
+- CSP and security headers
 
-**Note**: Frontend auto-detects `localhost:4000` in development, but uses `VITE_API_BASE_URL` in production.
-
-## Data Source
-The backend fetches metal prices from **apised.com Metals API**:
-- Supported Metals: `https://metals.g.apised.com/v1/supported-metals`
-- Price Data: `https://metals.g.apised.com/v1/latest?symbols=XAU,XAG,XPD,XPT,XCU,NI,ZNC,ALU,LEAD&base_currency=USD`
-
-Supported metals: Gold (XAU), Silver (XAG), Platinum (XPT), Palladium (XPD), Copper (XCU), Nickel (NI), Zinc (ZNC), Aluminium (ALU), Lead (LEAD)
-
-## PWA Installation
-Install Auric Ledger as an app on your device:
-- **Desktop**: Chrome/Edge installer button in address bar
-- **Android**: Tap menu → "Add to Home screen"
-- **iOS**: Safari → Share → "Add to Home Screen"
+## License
+MIT

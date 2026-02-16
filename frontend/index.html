@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#B8860B" />
     <meta name="description" content="Track real-time prices of Gold, Silver, Platinum, Palladium, Copper, Nickel, Zinc, Aluminium, and Lead in INR" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self' https://metal-price.onrender.com http://localhost:4000 http://localhost:5173; manifest-src 'self'" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" />
     
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
@@ -27,33 +30,6 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Register Service Worker for PWA
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("/sw.js")
-            .then((reg) => {
-              console.log("[PWA] Service Worker registered successfully");
-              
-              // Check for updates periodically
-              setInterval(() => {
-                reg.update();
-              }, 60000); // Check every minute
-            })
-            .catch((err) => {
-              console.warn("[PWA] Service Worker registration failed:", err);
-            });
-        });
-
-        // Handle service worker update
-        let refreshing = false;
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (refreshing) return;
-          refreshing = true;
-          window.location.reload();
-        });
-      }
-    </script>
+    <script type="module" src="/src/register-sw.js"></script>
   </body>
 </html>

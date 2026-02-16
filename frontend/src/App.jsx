@@ -10,18 +10,25 @@ import {
   Filler
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-
-const runAutoTable = (doc, options) => {
-  const tableFn = autoTable?.default || autoTable;
-  return tableFn(doc, options);
+let pdfLibPromise = null;
+const loadPdfLibs = () => {
+  if (!pdfLibPromise) {
+    pdfLibPromise = Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable")
+    ]).then(([jspdfModule, autoTableModule]) => ({
+      jsPDF: jspdfModule.jsPDF,
+      autoTable: autoTableModule.default || autoTableModule
+    }));
+  }
+  return pdfLibPromise;
 };
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
 // Always use production backend URL
 const PROD_API_URL = import.meta.env.VITE_API_BASE_URL || "https://metal-price.onrender.com";
+const IS_DEV = import.meta.env?.DEV === true;
 
 // Helper to detect API backend - always returns production URL
 const detectApiBase = async () => {
@@ -30,10 +37,12 @@ const detectApiBase = async () => {
   const isMobileScreen = window.innerWidth <= 768 || window.screen.width <= 768;
   const isMobile = isMobileUserAgent || isMobileScreen;
   
-  if (isMobile) {
-    console.log("📱 Mobile device detected - Using production API:", PROD_API_URL);
-  } else {
-    console.log("💻 Desktop device - Using production API:", PROD_API_URL);
+  if (IS_DEV) {
+    if (isMobile) {
+      console.log("📱 Mobile device detected - Using production API:", PROD_API_URL);
+    } else {
+      console.log("💻 Desktop device - Using production API:", PROD_API_URL);
+    }
   }
   
   return PROD_API_URL;
@@ -136,6 +145,13 @@ const formatMetalLabel = (metal) => {
   return name || symbol;
 };
 
+const maskEmail = (email) => {
+  if (!email || !email.includes("@")) return "";
+  const [localPart, domain] = email.split("@");
+  const visible = localPart.slice(0, 3);
+  return `${visible}***@${domain}`;
+};
+
 const buildChartData = (points, series) => {
   const labels = points.map((point) => dayjs(point.date).format("DD MMM"));
   const datasets = series
@@ -168,6 +184,8 @@ const buildChartData = (points, series) => {
 const buildChartOptions = (range) => ({
   responsive: true,
   maintainAspectRatio: true,
+  animation: false,
+  responsiveAnimationDuration: 0,
   plugins: {
     legend: { 
       display: false
@@ -190,6 +208,7 @@ const buildChartOptions = (range) => ({
 export default function App() {
   // API Backend - always uses production
   const [apiBase, setApiBase] = useState(PROD_API_URL);
+  const currentYear = new Date().getFullYear();
   
   const [metals, setMetals] = useState([]);
   const [selectedMetal, setSelectedMetal] = useState("");
@@ -207,6 +226,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [metalSearch, setMetalSearch] = useState("");
   const [showFaq, setShowFaq] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Alert system states
@@ -216,6 +236,8 @@ export default function App() {
   const [newAlert, setNewAlert] = useState({ metal: "", type: "target_price", value: "", enabled: true });
   const [notificationPermission, setNotificationPermission] = useState("default");
   const [userEmail, setUserEmail] = useState("");
+  const [savedEmailMask, setSavedEmailMask] = useState("");
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
 
   const isGold = useMemo(() => {
@@ -263,10 +285,15 @@ export default function App() {
       }
     }
 
-    // Load email subscription
+    // Load email subscription (masked by default, full only if user opted in)
     const savedEmail = localStorage.getItem("auric-email");
+    const savedMask = localStorage.getItem("auric-email-mask");
     if (savedEmail) {
       setUserEmail(savedEmail);
+      setSavedEmailMask(maskEmail(savedEmail));
+      setRememberEmail(true);
+    } else if (savedMask) {
+      setSavedEmailMask(savedMask);
     }
 
     // Request notification permission
@@ -334,9 +361,16 @@ export default function App() {
       }
 
       const data = await response.json();
-      setUserEmail(email);
-      localStorage.setItem("auric-email", email);
-      showToast("✅ Daily price emails enabled for " + email);
+      const masked = maskEmail(email);
+      if (rememberEmail) {
+        localStorage.setItem("auric-email", email);
+      } else {
+        localStorage.removeItem("auric-email");
+      }
+      localStorage.setItem("auric-email-mask", masked);
+      setUserEmail(rememberEmail ? email : "");
+      setSavedEmailMask(masked);
+      showToast("✅ Daily price emails enabled for " + masked);
     } catch (error) {
       console.error("Email subscription error:", error);
       showToast("❌ Failed to subscribe email: " + error.message);
@@ -613,31 +647,46 @@ export default function App() {
         setAvailableMonths(monthlyData.availableMonths || []);
         setSelectedMonth(monthlyData.selectedMonth || "");
 
-        // Fetch comparisons for ALL metals
+        // Fetch comparisons for ALL metals (defer to idle time for better performance)
         if (metals && metals.length > 0) {
-          setStatus({ loading: true, error: "", message: "Loading all metal comparisons..." });
-          const allComparisons = {};
-          const comparePromises = metals
-            .filter(m => !['BTC', 'ETH', 'HG'].includes(m.metal_name))
-            .map(async (metal) => {
-              try {
-                // Always use 22K for gold in ticker, no carat param for other metals
-                const metalCaratParam = metal.metal_name.toLowerCase().includes("gold") || metal.metal_name.toLowerCase().includes("xau") ? "&carat=22" : "";
-                const res = await fetch(
-                  `${apiBase}/compare-yesterday?metal=${encodeURIComponent(metal.metal_name)}${metalCaratParam}`
-                );
-                if (res.ok) {
-                  const data = await res.json();
-                  allComparisons[metal.metal_name] = data.comparison;
-                }
-              } catch (err) {
-                console.error(`Failed to fetch comparison for ${metal.metal_name}:`, err);
-              }
-            });
-          await Promise.all(comparePromises);
-          setComparisons(allComparisons);
+          const scheduleIdle = (callback) => {
+            if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+              window.requestIdleCallback(callback, { timeout: 1500 });
+            } else {
+              setTimeout(callback, 0);
+            }
+          };
+
+          scheduleIdle(() => {
+            (async () => {
+              setStatus({ loading: true, error: "", message: "Loading all metal comparisons..." });
+              const allComparisons = {};
+              const comparePromises = metals
+                .filter(m => !['BTC', 'ETH', 'HG'].includes(m.metal_name))
+                .map(async (metal) => {
+                  try {
+                    // Always use 22K for gold in ticker, no carat param for other metals
+                    const metalCaratParam = metal.metal_name.toLowerCase().includes("gold") || metal.metal_name.toLowerCase().includes("xau") ? "&carat=22" : "";
+                    const res = await fetch(
+                      `${apiBase}/compare-yesterday?metal=${encodeURIComponent(metal.metal_name)}${metalCaratParam}`
+                    );
+                    if (res.ok) {
+                      const data = await res.json();
+                      allComparisons[metal.metal_name] = data.comparison;
+                    }
+                  } catch (err) {
+                    console.error(`Failed to fetch comparison for ${metal.metal_name}:`, err);
+                  }
+                });
+              await Promise.all(comparePromises);
+              setComparisons(allComparisons);
+              setStatus({ loading: false, error: "", message: "" });
+            })();
+          });
         }
-        setStatus({ loading: false, error: "", message: "" });
+        if (!metals || metals.length === 0) {
+          setStatus({ loading: false, error: "", message: "" });
+        }
 
         // Check alerts after all data is loaded
         if (latestData?.latest?.price_1g) {
@@ -691,19 +740,28 @@ export default function App() {
 
   const metalTheme = getMetalTheme(selectedMetal);
 
-  const chartSeries = [
-    {
-      label: unit,
-      key: selectedPriceKey,
-      color: metalTheme.primary,
-      fillColor: metalTheme.light
-    }
-  ];
+  const chartSeries = useMemo(
+    () => [
+      {
+        label: unit,
+        key: selectedPriceKey,
+        color: metalTheme.primary,
+        fillColor: metalTheme.light
+      }
+    ],
+    [unit, selectedPriceKey, metalTheme.primary, metalTheme.light]
+  );
 
-  const allChartValues = [...weekly, ...monthly]
-    .map((p) => p[selectedPriceKey])
-    .filter(Number.isFinite);
-  const chartRange = calculateChartRange(allChartValues);
+  const allChartValues = useMemo(
+    () => [...weekly, ...monthly]
+      .map((p) => p[selectedPriceKey])
+      .filter(Number.isFinite),
+    [weekly, monthly, selectedPriceKey]
+  );
+  const chartRange = useMemo(() => calculateChartRange(allChartValues), [allChartValues]);
+  const chartOptions = useMemo(() => buildChartOptions(chartRange), [chartRange]);
+  const weeklyChartData = useMemo(() => buildChartData(weekly, chartSeries), [weekly, chartSeries]);
+  const monthlyChartData = useMemo(() => buildChartData(monthly, chartSeries), [monthly, chartSeries]);
 
   const unitComparison = comparison
     ? (() => {
@@ -785,12 +843,11 @@ export default function App() {
     link.download = filename;
     link.click();
   };
-if (downloadLink?.url) {
-      URL.revokeObjectURL(downloadLink.url);
-    }
-    
+
   const handleExportPdf = async () => {
     if (!weekly.length) return;
+    const { jsPDF, autoTable } = await loadPdfLibs();
+    const runAutoTable = (doc, options) => autoTable(doc, options);
     const rows = buildExportRows();
     const stats = getWeeklyStats();
     const dateRange = {
@@ -1008,6 +1065,9 @@ if (downloadLink?.url) {
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowFaq(true); }}>
               About
             </button>
+            <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowPrivacy(true); }}>
+              Privacy
+            </button>
             <button 
               type="button"
               className="mobile-menu-toggle" 
@@ -1032,16 +1092,16 @@ if (downloadLink?.url) {
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowFaq(true); setMobileMenuOpen(false); }}>
                 About
               </button>
+              <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowPrivacy(true); setMobileMenuOpen(false); }}>
+                Privacy
+              </button>
             </div>
           )}
         </div>
         <header className="hero">
-          <div className="hero__title">
-            <h1>Auric Ledger</h1>
-            <p>
-              Track real-time prices of precious metals and commodities with INR conversion. View daily trends, historical data, and detailed price breakdowns with duties and GST included.
-            </p>
-          </div>
+          <p className="hero__tagline">
+            Beautifully simple pricing insights, updated in real time.
+          </p>
           <div className="hero__panel">
             <div className="control-grid">
               <label>
@@ -1241,7 +1301,7 @@ if (downloadLink?.url) {
               </h2>
               <span className="chart-meta">{unit}</span>
             </div>
-            <Line data={buildChartData(weekly, chartSeries)} options={buildChartOptions(chartRange)} />
+            <Line data={weeklyChartData} options={chartOptions} />
           </div>
           <div className="chart-panel">
             <div className="chart-title">
@@ -1250,7 +1310,7 @@ if (downloadLink?.url) {
               </h2>
               <span className="chart-meta">{unit}</span>
             </div>
-            <Line data={buildChartData(monthly, chartSeries)} options={buildChartOptions(chartRange)} />
+            <Line data={monthlyChartData} options={chartOptions} />
           </div>
         </section>
 
@@ -1297,6 +1357,7 @@ if (downloadLink?.url) {
                     <strong style={{ color: "var(--accent)" }}>🤖 Telegram Bot:</strong> Get prices, charts, and daily updates via Telegram bot with 7 powerful commands<br/>
                     <strong style={{ color: "var(--accent)" }}>📈 Analytics:</strong> 7-day weekly trends and monthly historical data with interactive charts<br/>
                     <strong style={{ color: "var(--accent)" }}>💾 Export:</strong> Download CSV data or premium PDF reports with price breakdowns<br/>
+                    <strong style={{ color: "var(--accent)" }}>📧 Email Updates:</strong> Subscribe for daily prices with a welcome email sent within minutes<br/>
                     <strong style={{ color: "var(--accent)" }}>🌙 Dark Mode:</strong> Eye-friendly dark theme with persistent preferences<br/>
                     <strong style={{ color: "var(--accent)" }}>⚡ Automated:</strong> Daily cron job at 9:00 AM IST for price updates
                   </p>
@@ -1330,17 +1391,19 @@ if (downloadLink?.url) {
                   <p>
                     ✅ Migrated from gold-api.com to apised.com for broader metal coverage<br/>
                     ✅ Implemented all 9 metal symbols with proper naming and color themes<br/>
-                    ✅ Built cron job with detailed logging showing all processed metals and prices<br/>
+                    ✅ Built cron pipelines with external scheduling and secure secrets<br/>
                     ✅ Created PWA with service worker for offline functionality and installable app<br/>
                     ✅ Generated 8 app icons (72px to 512px) for all device types<br/>
                     ✅ Fixed notification ticker with proper metal ordering and comparisons<br/>
                     ✅ Added dark/light theme toggle with localStorage persistence<br/>
                     ✅ Built comprehensive PDF & CSV export functionality<br/>
                     ✅ Implemented responsive mobile design with hamburger menu<br/>
-                    ✅ Added detailed About page with feature documentation<br/>
+                    ✅ Added detailed About + Privacy pages with updated policies<br/>
                     ✅ Integrated Telegram bot with 7 commands and daily price updates<br/>
                     ✅ Built interactive chart system (7-day, 30-day, custom month)<br/>
-                    ✅ Added price change tracking with color-coded indicators
+                    ✅ Added price change tracking with color-coded indicators<br/>
+                    ✅ Added welcome emails with retry-safe background delivery<br/>
+                    ✅ Hardened security with CORS, rate limits, CSP, and data masking
                   </p>
                 </div>
 
@@ -1384,11 +1447,11 @@ if (downloadLink?.url) {
                 <div className="faq-item">
                   <h3>🔒 Privacy & Security</h3>
                   <p>
-                    Your preferences (theme, selected metal, units) are stored locally in your browser via localStorage<br/>
+                    Your preferences (theme, selected metal, units, alerts) are stored locally in your browser<br/>
+                    Email subscription status is shown with a masked address unless you opt in to remember it<br/>
                     Zero tracking or analytics on user behavior<br/>
-                    HTTPS-only for all sensitive data transmission<br/>
-                    Service worker ensures offline data access without external requests<br/>
-                    Supabase provides enterprise-grade database security
+                    HTTPS-only for all sensitive data transmission with strict security headers<br/>
+                    Rate limiting and input validation protect against abuse
                   </p>
                 </div>
 
@@ -1415,6 +1478,119 @@ if (downloadLink?.url) {
             </div>
           </div>
         ) : null}
+
+        {showPrivacy ? (
+          <div className="modal-overlay" onClick={() => setShowPrivacy(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+                  <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
+                  <h2>Privacy Policy</h2>
+                </div>
+                <button className="modal-close" onClick={() => setShowPrivacy(false)}>
+                  ✕
+                </button>
+              </div>
+              <div className="faq-section">
+                <div className="faq-item">
+                  <h3>🔐 Overview</h3>
+                  <p>
+                    Auric Ledger respects your privacy. We collect only what is required to deliver price updates and alerts.
+                    We do not sell your data or share it for advertising.
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>📋 Data We Collect</h3>
+                  <p>
+                    <strong>Email (optional):</strong> Only if you subscribe to daily emails. This is stored securely on our server to send updates.<br/>
+                    <strong>Local Preferences:</strong> Theme, selected metal, units, and alert settings stored locally in your browser.<br/>
+                    <strong>Masked Email (local):</strong> Saved locally to show you that emails are enabled. Full email is saved only if you opt in to “Remember my email.”
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>🔒 How We Use Your Data</h3>
+                  <p>
+                    <strong>Daily Emails:</strong> Used only to deliver metal price updates.<br/>
+                    <strong>Alerts:</strong> Stored locally in your browser. Not transmitted to our servers unless you choose to receive email alerts.
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>🧠 Local Storage</h3>
+                  <p>
+                    We use localStorage to save your preferences (theme, filters, alerts). You can clear these at any time by removing site data in your browser.
+                    The masked email display is stored locally to help you remember your subscription status.
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>🌐 Third-Party Services</h3>
+                  <p>
+                    <strong>Metals API:</strong> Price data is fetched from apised.com.<br/>
+                    <strong>Exchange Rates:</strong> USD to INR rates from frankfurter.app.<br/>
+                    <strong>Email Delivery:</strong> Brevo API for sending subscription emails.<br/>
+                    <strong>Database:</strong> Supabase (PostgreSQL) stores subscription emails securely.<br/>
+                    <strong>Telegram:</strong> If you opt in, your Telegram chat ID is used for bot updates.
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>🛡️ Security Practices</h3>
+                  <p>
+                    HTTPS is enforced for all data transmission. We apply rate limiting, input validation, and security headers to prevent abuse.
+                    Sensitive data is masked in logs and never exposed to the frontend.
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>🧹 Data Retention & Deletion</h3>
+                  <p>
+                    You can unsubscribe at any time. When you remove your email in the app, it clears local storage and you can request deletion from our database.
+                    We do not retain unnecessary data beyond service delivery.
+                  </p>
+                </div>
+
+                <div className="faq-item">
+                  <h3>📞 Contact</h3>
+                  <p>
+                    For privacy questions or deletion requests, contact the developer: <strong>Sabithulla</strong>.<br/>
+                    Email: <a href="mailto:auricledger@gmail.com" style={{ color: "var(--accent)", textDecoration: "underline" }}>auricledger@gmail.com</a>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <footer className="site-footer">
+          <div className="footer-brand">
+            <img src="/metal-price-icon.svg" alt="Auric Ledger" />
+            <div>
+              <strong>Auric Ledger</strong>
+              <span>Premium Metal Pricing</span>
+            </div>
+          </div>
+          <div className="footer-links">
+            <button type="button" className="footer-link" onClick={() => setShowFaq(true)}>
+              About
+            </button>
+            <button type="button" className="footer-link" onClick={() => setShowPrivacy(true)}>
+              Privacy Policy
+            </button>
+            <a className="footer-link" href="mailto:auricledger@gmail.com">
+              Contact: auricledger@gmail.com
+            </a>
+            <button type="button" className="footer-link" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+              Back to top
+            </button>
+          </div>
+        </footer>
+        <div className="footer-legal">
+          <div>Developed by Sabithulla</div>
+          © {currentYear} Auric Ledger. All rights reserved.
+        </div>
 
         {/* Toast Notifications */}
         <div className="toast-container">
@@ -1545,7 +1721,7 @@ if (downloadLink?.url) {
                   <h3>📧 Daily Email Notifications</h3>
                   <p style={{ marginBottom: "12px" }}>Get daily price updates for all metals at your email</p>
                   <div style={{ display: "grid", gap: "10px" }}>
-                    {userEmail ? (
+                    {userEmail || savedEmailMask ? (
                       <div style={{
                         padding: "12px",
                         background: "rgba(42, 107, 95, 0.1)",
@@ -1554,13 +1730,21 @@ if (downloadLink?.url) {
                         color: "var(--panel-ink)"
                       }}>
                         <p style={{ margin: 0, fontSize: "14px" }}>
-                          ✅ Emails enabled for: <strong>{userEmail}</strong>
+                          ✅ Emails enabled for: <strong>{userEmail || savedEmailMask}</strong>
                         </p>
+                        {!userEmail && savedEmailMask && (
+                          <p style={{ margin: "6px 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                            Saved as masked email for privacy. Enable remember to store full email on this device.
+                          </p>
+                        )}
                         <button
                           onClick={() => {
                             setUserEmail("");
-                            localStorage.removeItem("auric-email");
+                            setSavedEmailMask("");
+                            setRememberEmail(false);
                             showToast("📧 Email notifications disabled");
+                            localStorage.removeItem("auric-email");
+                            localStorage.removeItem("auric-email-mask");
                           }}
                           style={{
                             marginTop: "8px",
@@ -1613,6 +1797,14 @@ if (downloadLink?.url) {
                         >
                           {emailLoading ? "⏳ Subscribing..." : "📧 Subscribe to Daily Emails"}
                         </button>
+                        <label style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "12px", color: "var(--muted)" }}>
+                          <input
+                            type="checkbox"
+                            checked={rememberEmail}
+                            onChange={(event) => setRememberEmail(event.target.checked)}
+                          />
+                          Remember my email on this device
+                        </label>
                       </div>
                     )}
                   </div>
