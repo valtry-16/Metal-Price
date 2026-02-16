@@ -46,30 +46,53 @@ const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_KEY || "");
 
 // Email configuration
 const {
-  EMAIL_SERVICE = "gmail",
+  EMAIL_SERVICE = "brevo",
   EMAIL_USER,
   EMAIL_PASSWORD,
+  BREVO_API_KEY,
   EMAIL_FROM = EMAIL_USER
 } = process.env;
 
+// Brevo API email sender function
+const sendEmailViaBrevo = async (to, subject, htmlContent) => {
+  if (!BREVO_API_KEY) {
+    console.error("❌ BREVO_API_KEY is not configured");
+    return false;
+  }
+
+  try {
+    const response = await axios.post("https://api.brevo.com/v3/smtp/email", {
+      to: [{ email: to }],
+      sender: { email: EMAIL_USER, name: "Auric Ledger" },
+      subject: subject,
+      htmlContent: htmlContent
+    }, {
+      headers: {
+        "api-key": BREVO_API_KEY,
+        "Content-Type": "application/json"
+      }
+    });
+
+    console.log(`📧 Email sent to ${to} (Message ID: ${response.data.messageId})`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Failed to send email to ${to}:`, error.response?.data?.message || error.message);
+    return false;
+  }
+};
+
 let emailTransporter = null;
-if (EMAIL_USER && EMAIL_PASSWORD) {
-  emailTransporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // Use SSL/TLS
-    auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASSWORD
-    },
-    connectionTimeout: 30000, // 30 second timeout
-    socketTimeout: 30000, // 30 second socket timeout
-    greetingTimeout: 30000 // 30 second greeting timeout
-  });
-  console.log(`✅ Email transporter initialized for ${EMAIL_USER} (Port 465 - SSL)`);
+// For backward compatibility, keep emailTransporter as a simple object with sendMail method
+if (EMAIL_USER) {
+  emailTransporter = {
+    sendMail: async (mailOptions) => {
+      return sendEmailViaBrevo(mailOptions.to, mailOptions.subject, mailOptions.html);
+    }
+  };
+  console.log(`✅ Email service initialized (Brevo API - ${EMAIL_USER})`);
 } else {
   console.warn("⚠️  Email credentials not configured. Daily price emails will not be sent.");
-  console.warn("Set EMAIL_USER and EMAIL_PASSWORD in .env to enable email notifications.");
+  console.warn("Set EMAIL_USER in .env to enable email notifications.");
 }
 
 const OUNCE_TO_GRAM = 31.1035;
@@ -1448,6 +1471,7 @@ const startServer = (ports, index = 0) => {
       console.log(`\n✅ API listening on port ${port}`);
       console.log(`📱 Telegram bot started successfully`);
       console.log(`⏰ Wake-up ping: GET /wake-up (cron-job.org every 1 min - keeps service awake)`);
+      console.log(`📧 Email service: Brevo API (reliable on Render free tier)`);
       console.log(`⏰ Daily cron job: POST /run-daily (9 AM Asia/Kolkata)`);
       console.log(`📧 Welcome emails: POST /send-welcome-emails (cron-job.org every 5 min)`);
     })
