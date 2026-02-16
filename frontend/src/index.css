@@ -611,7 +611,6 @@ select {
   color: var(--muted);
   margin-bottom: 16px;
 }
-}
 
 .export-bar::before {
   content: "";
