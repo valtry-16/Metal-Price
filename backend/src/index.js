@@ -30,7 +30,8 @@ const {
   CRON_SCHEDULE = "0 6 * * *",
   CRON_VERBOSE = "false",
   CRON_ENABLED = "true",
-  RUN_DAILY_SECRET
+  RUN_DAILY_SECRET,
+  RUN_WELCOME_EMAIL_SECRET
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -690,18 +691,11 @@ app.post("/subscribe-email", async (req, res) => {
       throw new Error(`Database error: ${result.error.message}`);
     }
 
-    // Send immediate welcome email with latest prices (only for new subscriptions)
+    // Just insert subscription, don't send welcome immediately (avoid timeout)
     if (isNewSubscription) {
       console.log(`📧 New subscription from ${email}`);
-      try {
-        const { rows, latestDate } = await getLatestRows({});
-        const usdToInr = await getUsdToInrRate();
-        await sendWelcomeEmail(email, { rows, usdToInr, date: latestDate });
-        console.log(`🎉 Welcome email sent to ${email}`);
-      } catch (welcomeError) {
-        console.error(`⚠️ Failed to send welcome email to ${email}:`, welcomeError.message);
-      }
-      res.json({ status: "success", message: "✅ Subscribed! Your welcome email is on the way. Daily updates start at 9 AM." });
+      console.log(`💡 Welcome email will be sent shortly by background cron job`);
+      res.json({ status: "success", message: "✅ Subscribed! Your welcome email is coming shortly." });
     } else {
       console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`);
       res.json({ status: "success", message: "✅ Email already subscribed. Continue receiving daily price updates!" });
@@ -1258,6 +1252,55 @@ const sendDailyPriceEmails = async (priceData) => {
   }
 };
 
+// Function to send pending welcome emails (runs every 5 minutes)
+const sendPendingWelcomeEmails = async () => {
+  if (!emailTransporter) {
+    return;
+  }
+
+  try {
+    // Fetch subscriptions where welcome_sent_at is NULL (not yet sent)
+    const { data: subscriptions, error } = await supabase
+      .from("price_email_subscriptions")
+      .select("email, subscribed_at, welcome_sent_at")
+      .is("welcome_sent_at", null);
+
+    if (error) throw error;
+    if (!subscriptions || subscriptions.length === 0) {
+      return; // No pending welcomes
+    }
+
+    console.log(`📧 Found ${subscriptions.length} pending welcome email(s)`);
+
+    for (const subscription of subscriptions) {
+      try {
+        // Get latest prices for welcome email
+        const { rows, latestDate } = await getLatestRows({});
+        const usdToInr = await getUsdToInrRate();
+        
+        // Send welcome email
+        await sendWelcomeEmail(subscription.email, { rows, usdToInr, date: latestDate });
+        
+        // Mark as sent
+        const { error: updateError } = await supabase
+          .from("price_email_subscriptions")
+          .update({ welcome_sent_at: new Date().toISOString() })
+          .eq("email", subscription.email);
+
+        if (updateError) {
+          console.error(`⚠️ Failed to mark welcome sent for ${subscription.email}:`, updateError.message);
+        } else {
+          console.log(`🎉 Welcome email sent to ${subscription.email}`);
+        }
+      } catch (sendError) {
+        console.error(`❌ Failed to send welcome email to ${subscription.email}:`, sendError.message);
+      }
+    }
+  } catch (error) {
+    console.error("❌ Error in sendPendingWelcomeEmails:", error.message);
+  }
+};
+
 const runDailyPipeline = async (sourceLabel = "cron") => {
   const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss");
   const verboseCronLogs = CRON_VERBOSE === "true";
@@ -1349,6 +1392,26 @@ app.post("/run-daily", async (req, res) => {
   }
 });
 
+// Background cron: Send pending welcome emails every 5 minutes
+// (Triggered by external cron-job.org, not internal)
+app.post("/send-welcome-emails", async (req, res) => {
+  try {
+    if (!RUN_WELCOME_EMAIL_SECRET) {
+      return res.status(500).json({ status: "error", message: "RUN_WELCOME_EMAIL_SECRET is not configured" });
+    }
+
+    const providedSecret = req.header("x-send-welcome-emails-secret");
+    if (providedSecret !== RUN_WELCOME_EMAIL_SECRET) {
+      return res.status(401).json({ status: "error", message: "Unauthorized" });
+    }
+
+    const result = await sendPendingWelcomeEmails();
+    res.json({ status: "ok", ...result });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: "Welcome email job failed" });
+  }
+});
+
 if (CRON_ENABLED === "true") {
   cron.schedule(CRON_SCHEDULE, async () => {
     try {
@@ -1376,7 +1439,8 @@ const startServer = (ports, index = 0) => {
     .on('listening', () => {
       console.log(`\n✅ API listening on port ${port}`);
       console.log(`📱 Telegram bot started successfully`);
-      console.log(`⏰ Cron job scheduled: ${CRON_SCHEDULE} (9 AM daily)`);
+      console.log(`⏰ Daily cron job scheduled: ${CRON_SCHEDULE} (9 AM Asia/Kolkata)`);
+      console.log(`📧 Welcome email endpoint: POST /send-welcome-emails (use cron-job.org every 5 min)`);
     })
     .on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
