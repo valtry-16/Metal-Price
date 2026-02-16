@@ -3,6 +3,8 @@ import cors from "cors";
 import axios from "axios";
 import cron from "node-cron";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
@@ -10,6 +12,8 @@ import { sendDailyPricesToTelegram } from "./telegram-bot.js";
 import bot from "./telegram-bot.js";
 
 dotenv.config();
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const app = express();
 app.use(cors());
@@ -24,7 +28,9 @@ const {
   METALS_SYMBOLS_URL = "https://metals.g.apised.com/v1/supported-metals",
   USD_INR_OVERRIDE,
   CRON_SCHEDULE = "0 6 * * *",
-  CRON_VERBOSE = "false"
+  CRON_VERBOSE = "false",
+  CRON_ENABLED = "true",
+  RUN_DAILY_SECRET
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -684,11 +690,18 @@ app.post("/subscribe-email", async (req, res) => {
       throw new Error(`Database error: ${result.error.message}`);
     }
 
-    // Send immediate welcome email with today's prices (only for new subscriptions)
+    // Send immediate welcome email with latest prices (only for new subscriptions)
     if (isNewSubscription) {
       console.log(`📧 New subscription from ${email}`);
-      console.log(`💡 Welcome email will be sent at 9 AM IST via cron job with daily prices`);
-      res.json({ status: "success", message: "✅ Subscribed! You'll receive your welcome email at 9 AM IST along with daily price updates." });
+      try {
+        const { rows, latestDate } = await getLatestRows({});
+        const usdToInr = await getUsdToInrRate();
+        await sendWelcomeEmail(email, { rows, usdToInr, date: latestDate });
+        console.log(`🎉 Welcome email sent to ${email}`);
+      } catch (welcomeError) {
+        console.error(`⚠️ Failed to send welcome email to ${email}:`, welcomeError.message);
+      }
+      res.json({ status: "success", message: "✅ Subscribed! Your welcome email is on the way. Daily updates start at 9 AM." });
     } else {
       console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`);
       res.json({ status: "success", message: "✅ Email already subscribed. Continue receiving daily price updates!" });
@@ -791,7 +804,7 @@ const sendWelcomeEmail = async (email, priceData) => {
                 <td style="padding: 0 30px;">
                   <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #d4af37;">
                     <p style="margin: 0; color: #666; font-size: 14px;"><strong>Date:</strong> ${dayjs().format("DD MMMM YYYY")}</p>
-                    <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;"><strong>USD to INR:</strong> ₹${priceData.usdToInr.toFixed(2)}</p>
+                    <p style="margin: 8px 0 0 0; color: #666; font-size: 14px;"><strong>USD to INR:</strong> ${priceData.usdToInr ? `₹${priceData.usdToInr.toFixed(2)}` : "N/A"}</p>
                   </div>
                 </td>
               </tr>
@@ -1074,8 +1087,7 @@ const sendDailyPriceEmails = async (priceData) => {
     // Fetch all subscribed emails with their subscription dates
     const { data: subscriptions, error } = await supabase
       .from("price_email_subscriptions")
-      .select("email, subscribed_at")
-      .gt("subscribed_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()); // Only recent subscriptions
+      .select("email, subscribed_at");
 
     if (error) throw error;
     if (!subscriptions || subscriptions.length === 0) {
@@ -1222,26 +1234,9 @@ const sendDailyPriceEmails = async (priceData) => {
     // Send email to all subscribers
     console.log(`📧 Sending emails to ${subscriptions.length} subscriber(s)...`);
     let successCount = 0;
-    let welcomeCount = 0;
     
     for (const subscription of subscriptions) {
       try {
-        // Check if this subscriber just joined today (send welcome email once)
-        const subscribedDate = dayjs(subscription.subscribed_at).format("YYYY-MM-DD");
-        const today = dayjs().format("YYYY-MM-DD");
-        const isNewSubscriber = subscribedDate === today;
-        
-        // Send welcome email for new subscribers
-        if (isNewSubscriber) {
-          try {
-            await sendWelcomeEmail(subscription.email, priceData);
-            console.log(`🎉 Welcome email sent to ${subscription.email}`);
-            welcomeCount++;
-          } catch (welcomeError) {
-            console.error(`⚠️ Failed to send welcome email to ${subscription.email}:`, welcomeError.message);
-          }
-        }
-        
         // Send daily price email to all subscribers
         await emailTransporter.sendMail({
           from: EMAIL_FROM,
@@ -1257,22 +1252,22 @@ const sendDailyPriceEmails = async (priceData) => {
         console.error(`❌ Failed to send email to ${subscription.email}:`, sendError.message);
       }
     }
-    console.log(`📊 Email Summary: ${successCount}/${subscriptions.length} daily sent successfully, ${welcomeCount} welcome emails sent`);
+    console.log(`📊 Email Summary: ${successCount}/${subscriptions.length} daily sent successfully`);
   } catch (error) {
     console.error("❌ Error in sendDailyPriceEmails:", error.message);
   }
 };
 
-cron.schedule(CRON_SCHEDULE, async () => {
+const runDailyPipeline = async (sourceLabel = "cron") => {
   const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss");
   const verboseCronLogs = CRON_VERBOSE === "true";
   console.log(`\n${"=".repeat(60)}`);
-  console.log(`[${timestamp}] Starting daily price fetch...`);
+  console.log(`[${timestamp}] Starting daily price fetch (${sourceLabel})...`);
   console.log(`${"=".repeat(60)}`);
-  
+
   try {
     const result = await fetchAndStoreToday();
-    
+
     console.log(`\n✅ SUCCESS - Daily price fetch completed`);
     console.log(`📅 Date: ${result.date}`);
     console.log(`💱 USD to INR: ${result.usdToInr}`);
@@ -1291,34 +1286,39 @@ cron.schedule(CRON_SCHEDULE, async () => {
         console.log(`     - ${row.metal_name}: ₹${row.price_1g?.toFixed(2) || "N/A"}/g${caratInfo}`);
       });
     }
-    
+
     // Send daily price emails to subscribers
     console.log(`\n📧 Sending daily price emails...`);
     await sendDailyPriceEmails(result);
-    
+
     // Send daily price updates to Telegram subscribers
     console.log(`\n📱 Sending daily price updates to Telegram...`);
     const metalPricesForTelegram = {};
-    const availableMetals = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
-    
+    const availableMetals = ["XAU", "XAG", "XPT", "XPD", "XCU", "LEAD", "NI", "ZNC", "ALU"];
+
     result.rows.forEach(row => {
       if (!availableMetals.includes(row.metal_name)) return;
-      
+
       if (row.metal_name === "XAU") {
         if (row.carat === "22" && row.price_1g) {
-          metalPricesForTelegram['XAU'] = row.price_1g;
+          metalPricesForTelegram.XAU = row.price_1g;
         }
         return;
       }
-      
+
       if (!metalPricesForTelegram[row.metal_name] && row.price_1g) {
         metalPricesForTelegram[row.metal_name] = row.price_1g;
       }
     });
-    
+
     await sendDailyPricesToTelegram(metalPricesForTelegram);
-    
+
     console.log(`\n${"=".repeat(60)}\n`);
+    return {
+      date: result.date,
+      usdToInr: result.usdToInr,
+      totalRows: result.rows.length
+    };
   } catch (error) {
     console.error(`\n❌ FAILED - Daily price fetch failed`);
     console.error(`📅 Time: ${timestamp}`);
@@ -1327,8 +1327,39 @@ cron.schedule(CRON_SCHEDULE, async () => {
       console.error(`\n📋 Stack trace:\n${error.stack}`);
     }
     console.error(`${"=".repeat(60)}\n`);
+    throw error;
+  }
+};
+
+app.post("/run-daily", async (req, res) => {
+  try {
+    if (!RUN_DAILY_SECRET) {
+      return res.status(500).json({ status: "error", message: "RUN_DAILY_SECRET is not configured" });
+    }
+
+    const providedSecret = req.header("x-run-daily-secret");
+    if (providedSecret !== RUN_DAILY_SECRET) {
+      return res.status(401).json({ status: "error", message: "Unauthorized" });
+    }
+
+    const result = await runDailyPipeline("cron-job.org");
+    res.json({ status: "ok", ...result });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: "Daily job failed" });
   }
 });
+
+if (CRON_ENABLED === "true") {
+  cron.schedule(CRON_SCHEDULE, async () => {
+    try {
+      await runDailyPipeline("cron");
+    } catch (error) {
+      // Errors already logged in runDailyPipeline
+    }
+  }, { timezone: "Asia/Kolkata" });
+} else {
+  console.log("⏸️  Cron scheduling disabled (CRON_ENABLED=false)");
+}
 
 // Try multiple ports in order: 4000, PORT from env (Render), 4001, 4002, etc.
 const tryPorts = [4000, PORT, 4001, 4002, 4003, 5000];
