@@ -80,6 +80,7 @@ app.use((req, res, next) => {
 // ============================================
 const ALLOWED_ORIGINS = [
   "https://metal-price.onrender.com",
+  "https://auric--ledger.vercel.app",
   "http://localhost:3000", // For local development
   "http://localhost:5173"  // For Vite dev server
 ];
