@@ -929,7 +929,7 @@ app.post("/subscribe-email", emailLimiter, [
       console.log(`💡 Welcome email will be sent shortly by background cron job`);
       res.json({ status: "success", message: "✅ Subscribed! Your welcome email is coming shortly." });
     } else {
-      console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`));
+      console.log(`ℹ️ Email already subscribed (not new), skipping welcome email`);
       res.json({ status: "success", message: "✅ Email already subscribed. Continue receiving daily price updates!" });
     }
   } catch (error) {
