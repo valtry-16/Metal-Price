@@ -1041,9 +1041,6 @@ export default function App() {
       setExportLoading(false);
     }
   };
-      setExportLoading(false);
-    }
-  };
 
   const handleCopyDownloadLink = async () => {
     if (!downloadLink?.url) return;
