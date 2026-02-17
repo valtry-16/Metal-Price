@@ -16,9 +16,8 @@ const loadPdfLibs = () => {
     pdfLibPromise = Promise.all([
       import("jspdf"),
       import("jspdf-autotable")
-    ]).then(([jspdfModule, autoTableModule]) => ({
-      jsPDF: jspdfModule.jsPDF,
-      autoTable: autoTableModule.default || autoTableModule
+    ]).then(([jspdfModule]) => ({
+      jsPDF: jspdfModule.jsPDF
     }));
   }
   return pdfLibPromise;
@@ -855,14 +854,57 @@ export default function App() {
       setExportLoading(true);
       setStatus({ loading: false, error: "", message: "Generating PDF..." });
       
-      const { jsPDF, autoTable } = await loadPdfLibs();
-      const runAutoTable = (doc, options) => autoTable(doc, options);
+      const { jsPDF } = await loadPdfLibs();
       const rows = buildExportRows();
       const stats = getWeeklyStats();
       const dateRange = {
         start: dayjs(weekly[0].date).format("DD MMM YYYY"),
         end: dayjs(weekly[weekly.length - 1].date).format("DD MMM YYYY")
       };
+      
+      // Load and convert logo SVG to PNG for PDF embedding (CSP-safe, no blob URLs)
+      const convertSvgToPng = async () => {
+        try {
+          const response = await fetch("/metal-price-icon.svg");
+          if (!response.ok) return null;
+          
+          const svgText = await response.text();
+          return new Promise((resolve) => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 72;
+            canvas.height = 72;
+            const ctx = canvas.getContext("2d");
+            
+            // Encode SVG as data URL (no blob URLs to avoid CSP violation)
+            const encoded = encodeURIComponent(svgText);
+            const svgDataUrl = `data:image/svg+xml;charset=utf-8,${encoded}`;
+            const img = new Image();
+            
+            img.onload = () => {
+              ctx.drawImage(img, 0, 0, 72, 72);
+              const pngUrl = canvas.toDataURL("image/png");
+              resolve(pngUrl);
+            };
+            
+            img.onerror = () => {
+              console.warn("Failed to load SVG image");
+              resolve(null);
+            };
+            
+            img.src = svgDataUrl;
+            
+            // Timeout fallback
+            setTimeout(() => {
+              resolve(null);
+            }, 3000);
+          });
+        } catch (e) {
+          console.warn("Could not convert logo SVG to PNG", e);
+          return null;
+        }
+      };
+      
+      const logoPngUrl = await convertSvgToPng();
       
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       
@@ -883,13 +925,28 @@ export default function App() {
       doc.setFillColor(...bgColor);
       doc.rect(0, 0, 595, 96, "F");
       
-      // Always use fallback circle with AL (skip complex logo loading to avoid CSP issues)
-      doc.setFillColor(...accentColor);
-      doc.circle(48, 40, 14, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.text("AL", 43, 43);
+      // Add logo (prefer actual logo, fallback to AL circle)
+      if (logoPngUrl) {
+        try {
+          doc.addImage(logoPngUrl, "PNG", 32, 22, 36, 36);
+        } catch (e) {
+          console.warn("Could not add logo image to PDF, using fallback");
+          doc.setFillColor(...accentColor);
+          doc.circle(48, 40, 14, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(255, 255, 255);
+          doc.text("AL", 43, 43);
+        }
+      } else {
+        // Fallback: AL circle
+        doc.setFillColor(...accentColor);
+        doc.circle(48, 40, 14, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(255, 255, 255);
+        doc.text("AL", 43, 43);
+      }
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
@@ -969,7 +1026,7 @@ export default function App() {
         formatNumberPlain(entry[selectedPriceKey] || 0)
       ]);
 
-      runAutoTable(doc, {
+      doc.autoTable({
         startY: currentY,
         head: [["Date", "Metal", "Unit", "Price (Rs.)"]],
         body: pdfRows,
