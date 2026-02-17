@@ -586,23 +586,25 @@ const getComparison = async ({ metal, carat }) => {
     }
   }
   
-  if (uniqueData.length < 2) return null;
-
-  const [today, yesterday] = uniqueData;
+  // If we don't have 2 unique dates, at least return today's price
+  if (uniqueData.length === 0) return null;
+  
+  const today = uniqueData[0];
+  const yesterday = uniqueData[1];
 
   return {
     metal_name: metal,
     today_date: today.date,
-    yesterday_date: yesterday.date,
+    yesterday_date: yesterday?.date || today.date,
     today_prices: {
       price_1g: today.price_1g,
       price_8g: today.price_8g,
       price_per_kg: today.price_per_kg
     },
     yesterday_prices: {
-      price_1g: yesterday.price_1g,
-      price_8g: yesterday.price_8g,
-      price_per_kg: yesterday.price_per_kg
+      price_1g: yesterday?.price_1g || today.price_1g,
+      price_8g: yesterday?.price_8g || today.price_8g,
+      price_per_kg: yesterday?.price_per_kg || today.price_per_kg
     }
   };
 };

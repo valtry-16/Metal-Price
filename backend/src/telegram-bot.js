@@ -23,6 +23,24 @@ if (TELEGRAM_BOT_TOKEN && !botInitialized) {
   console.log("💡 Webhook must be set manually via Telegram API");
 }
 
+// Helper function to send "collecting data" message
+const sendCollectingIndicator = async (chatId) => {
+  try {
+    return await bot.sendMessage(chatId, "⏳ *Collecting data...* Please wait while we fetch the latest prices.", { parse_mode: "Markdown" });
+  } catch (error) {
+    console.error("Error sending indicator:", error);
+  }
+};
+
+// Helper function to update/delete the collecting message
+const deleteMessage = async (chatId, messageId) => {
+  try {
+    await bot.deleteMessage(chatId, messageId);
+  } catch (error) {
+    console.warn("Could not delete message:", error.message);
+  }
+};
+
 // Helper function to format price data for Telegram
 const formatPricesForTelegram = (metalPrices) => {
   if (!metalPrices || Object.keys(metalPrices).length === 0) {
@@ -352,19 +370,29 @@ _Example: Send "${metalSymbol} 7" for 7-day chart_
       // /start and /help commands
       if (command === '/start' || command === '/help') {
         const welcomeMessage = `
-🌟 *Welcome to Auric Ledger Price Bot!* 🌟
+🌟 *Welcome to Auric Ledger Bot!* 🌟
 
-I can help you track metal prices instantly!
+Your instant precious metals price tracker.
 
-*Available Commands:*
+*📋 Available Commands:*
+
 /prices - Get current prices for all metals
-/yesterday - Get yesterday's metal prices
-/chart - View 7-day & 30-day price charts
-/subscribe - Subscribe to daily price updates (9 AM)
-/unsubscribe - Unsubscribe from daily updates
-/help - Show this message
+/yesterday - View yesterday's prices  
+/chart - See 7-day & 30-day charts
+/download - Get PDF price reports
+/subscribe - Daily updates (9 AM IST)
+/unsubscribe - Stop daily updates
 
-Get started by typing /prices to see current metal prices! 💎
+*💡 Quick Tips:*
+
+Send metal symbol + period:
+• \`XAU 7\` → Gold 7-day chart
+• \`XAU 30\` → Gold 30-day chart
+• \`XAU 2026-01\` → Gold January 2026
+
+_Metal codes: XAU, XAG, XPT, XPD, XCU, LEAD, NI, ZNC, ALU_
+
+Get started → /prices 💎
         `.trim();
         await bot.sendMessage(chatId, welcomeMessage, { parse_mode: "Markdown" });
         return;
@@ -372,141 +400,166 @@ Get started by typing /prices to see current metal prices! 💎
 
       // /prices command
       if (command === '/prices') {
-        // Get the latest date from database
-        const { data: latestDateData, error: dateError } = await supabase
-          .from("metal_prices")
-          .select("date")
-          .order("date", { ascending: false })
-          .limit(1);
+        // Show collecting indicator
+        const indicatorMsg = await sendCollectingIndicator(chatId);
+        
+        try {
+          // Get the latest date from database
+          const { data: latestDateData, error: dateError } = await supabase
+            .from("metal_prices")
+            .select("date")
+            .order("date", { ascending: false })
+            .limit(1);
 
-        if (dateError) throw dateError;
+          if (dateError) throw dateError;
 
-        if (!latestDateData || latestDateData.length === 0) {
-          await bot.sendMessage(chatId, "⚠️ No price data available at the moment. Please try again later.");
-          return;
-        }
-
-        const latestDate = latestDateData[0].date;
-
-        // Fetch all prices for the latest date
-        const { data, error } = await supabase
-          .from("metal_prices")
-          .select("*")
-          .eq("date", latestDate);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          await bot.sendMessage(chatId, "⚠️ No price data available at the moment. Please try again later.");
-          return;
-        }
-
-        // Process prices (similar to email logic)
-        const availableMetals = ["XAU", "XAG", "XPT", "XPD", "XCU", "LEAD", "NI", "ZNC", "ALU"];
-        const metalPrices = {};
-
-        data.forEach(row => {
-          if (!availableMetals.includes(row.metal_name)) return;
-          
-          // Special handling for Gold - only use 22K carat
-          if (row.metal_name === "XAU") {
-            if (row.carat === "22" && row.price_1g) {
-              metalPrices['XAU'] = row.price_1g;
-            }
+          if (!latestDateData || latestDateData.length === 0) {
+            await bot.sendMessage(chatId, "⚠️ No price data available at the moment. Please try again later.");
+            if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
             return;
           }
-          
-          // For other metals, just take the first price
-          if (!metalPrices[row.metal_name] && row.price_1g) {
-            metalPrices[row.metal_name] = row.price_1g;
-          }
-        });
 
-        const message = formatPricesForTelegram(metalPrices);
-        await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+          const latestDate = latestDateData[0].date;
+
+          // Fetch all prices for the latest date
+          const { data, error } = await supabase
+            .from("metal_prices")
+            .select("*")
+            .eq("date", latestDate);
+
+          if (error) throw error;
+
+          if (!data || data.length === 0) {
+            await bot.sendMessage(chatId, "⚠️ No price data available at the moment. Please try again later.");
+            if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+            return;
+          }
+
+          // Process prices (similar to email logic)
+          const availableMetals = ["XAU", "XAG", "XPT", "XPD", "XCU", "LEAD", "NI", "ZNC", "ALU"];
+          const metalPrices = {};
+
+          data.forEach(row => {
+            if (!availableMetals.includes(row.metal_name)) return;
+            
+            // Special handling for Gold - only use 22K carat
+            if (row.metal_name === "XAU") {
+              if (row.carat === "22" && row.price_1g) {
+                metalPrices['XAU'] = row.price_1g;
+              }
+              return;
+            }
+            
+            // For other metals, just take the first price
+            if (!metalPrices[row.metal_name] && row.price_1g) {
+              metalPrices[row.metal_name] = row.price_1g;
+            }
+          });
+
+          const message = formatPricesForTelegram(metalPrices);
+          await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+          if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+        } catch (error) {
+          console.error("Error in /prices command:", error);
+          await bot.sendMessage(chatId, "❌ Error fetching prices. Please try again later.");
+          if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+        }
         return;
       }
 
       // /yesterday command - show yesterday's prices
       if (command === '/yesterday') {
-        // Get the latest two dates from database
-        const { data: dates, error: dateError } = await supabase
-          .from("metal_prices")
-          .select("date")
-          .order("date", { ascending: false })
-          .limit(10);
+        // Show collecting indicator
+        const indicatorMsg = await sendCollectingIndicator(chatId);
+        
+        try {
+          // Get the latest two dates from database
+          const { data: dates, error: dateError } = await supabase
+            .from("metal_prices")
+            .select("date")
+            .order("date", { ascending: false })
+            .limit(10);
 
-        if (dateError) throw dateError;
+          if (dateError) throw dateError;
 
-        if (!dates || dates.length < 2) {
-          await bot.sendMessage(chatId, "⚠️ Not enough historical data available.");
-          return;
-        }
-
-        // Get unique dates
-        const uniqueDates = [...new Set(dates.map(d => d.date))];
-        if (uniqueDates.length < 2) {
-          await bot.sendMessage(chatId, "⚠️ Yesterday's data not available yet.");
-          return;
-        }
-
-        const yesterdayDate = uniqueDates[1]; // Second most recent date
-
-        // Fetch all prices for yesterday
-        const { data, error } = await supabase
-          .from("metal_prices")
-          .select("*")
-          .eq("date", yesterdayDate);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          await bot.sendMessage(chatId, "⚠️ Yesterday's data not available.");
-          return;
-        }
-
-        // Process prices (similar to current prices)
-        const availableMetals = ["XAU", "XAG", "XPT", "XPD", "XCU", "LEAD", "NI", "ZNC", "ALU"];
-        const metalPrices = {};
-
-        data.forEach(row => {
-          if (!availableMetals.includes(row.metal_name)) return;
-          
-          // Special handling for Gold - only use 22K carat
-          if (row.metal_name === "XAU") {
-            if (row.carat === "22" && row.price_1g) {
-              metalPrices['XAU'] = row.price_1g;
-            }
+          if (!dates || dates.length < 1) {
+            await bot.sendMessage(chatId, "⚠️ No historical data available.");
+            if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
             return;
           }
-          
-          // For other metals, just take the first price
-          if (!metalPrices[row.metal_name] && row.price_1g) {
-            metalPrices[row.metal_name] = row.price_1g;
+
+          // Get unique dates
+          const uniqueDates = [...new Set(dates.map(d => d.date))];
+          if (uniqueDates.length < 1) {
+            await bot.sendMessage(chatId, "⚠️ No data available yet.");
+            if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+            return;
           }
-        });
 
-        const metalNames = {
-          XAU: "Gold (22K)",
-          XAG: "Silver",
-          XPT: "Platinum",
-          XPD: "Palladium",
-          XCU: "Copper",
-          LEAD: "Lead",
-          NI: "Nickel",
-          ZNC: "Zinc",
-          ALU: "Aluminium"
-        };
+const yesterdayDate = uniqueDates[1] || uniqueDates[0]; // Second most recent date or latest if only 1
 
-        let message = `📅 *Yesterday's Metal Prices* (${yesterdayDate})\n\n`;
-        
-        Object.entries(metalPrices).forEach(([symbol, price]) => {
-          const name = metalNames[symbol] || symbol;
-          const formattedPrice = price ? `₹${price.toFixed(2)}` : "N/A";
-          message += `${name}: ${formattedPrice}\n`;
-        });
+          // Fetch all prices for yesterday
+          const { data, error } = await supabase
+            .from("metal_prices")
+            .select("*")
+            .eq("date", yesterdayDate);
 
-        await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+          if (error) throw error;
+
+          if (!data || data.length === 0) {
+            await bot.sendMessage(chatId, "⚠️ Yesterday's data not available.");
+            if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+            return;
+          }
+
+          // Process prices (similar to current prices)
+          const availableMetals = ["XAU", "XAG", "XPT", "XPD", "XCU", "LEAD", "NI", "ZNC", "ALU"];
+          const metalPrices = {};
+
+          data.forEach(row => {
+            if (!availableMetals.includes(row.metal_name)) return;
+            
+            // Special handling for Gold - only use 22K carat
+            if (row.metal_name === "XAU") {
+              if (row.carat === "22" && row.price_1g) {
+                metalPrices['XAU'] = row.price_1g;
+              }
+              return;
+            }
+            
+            // For other metals, just take the first price
+            if (!metalPrices[row.metal_name] && row.price_1g) {
+              metalPrices[row.metal_name] = row.price_1g;
+            }
+          });
+
+          const metalNames = {
+            XAU: "Gold (22K)",
+            XAG: "Silver",
+            XPT: "Platinum",
+            XPD: "Palladium",
+            XCU: "Copper",
+            LEAD: "Lead",
+            NI: "Nickel",
+            ZNC: "Zinc",
+            ALU: "Aluminium"
+          };
+
+          let message = `📅 *Yesterday's Prices* /${yesterdayDate}\n\n`;
+          
+          Object.entries(metalPrices).forEach(([symbol, price]) => {
+            const name = metalNames[symbol] || symbol;
+            const formattedPrice = price ? `₹${price.toFixed(2)}/g` : "N/A";
+            message += `*${name}*: ${formattedPrice}\n`;
+          });
+
+          await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+          if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+        } catch (error) {
+          console.error("Error in /yesterday command:", error);
+          await bot.sendMessage(chatId, "❌ Error fetching yesterday's prices. Please try again later.");
+          if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+        }
         return;
       }
 
@@ -573,6 +626,37 @@ _Example: Send "XAU 7" to see Gold 7-day chart_
           "✅ *Successfully subscribed!*\n\nYou'll receive daily price updates at 9:00 AM (IST). 🔔",
           { parse_mode: "Markdown" }
         );
+        return;
+      }
+
+      // /download command - guide users to download PDF reports
+      if (command === '/download') {
+        const downloadMessage = `
+📥 *Download Price Data Reports*
+
+You can download detailed PDF reports of metal prices:
+
+*Available Downloads:*
+• 📅 *Weekly Reports* - 7 days of price history
+• 📊 *Monthly Reports* - Full month price data
+• 📈 *Trend Analysis* - Charts and statistics
+
+*How to Download:*
+
+1️⃣ Visit the web app:
+[Auric Ledger](https://auric-ledger.vercel.app)
+
+2️⃣ Select a metal from the dropdown
+
+3️⃣ Click "📄 Download PDF" button
+
+*Available Metals:*
+🥇 Gold • 🥈 Silver • Platinum • Palladium • Copper • Lead • Nickel • Zinc • Aluminium
+
+_PDF reports include price summaries, 7-day analysis, and detailed price tables._
+        `.trim();
+        
+        await bot.sendMessage(chatId, downloadMessage, { parse_mode: "Markdown" });
         return;
       }
 
@@ -706,7 +790,7 @@ export const sendDailyPricesToTelegram = async (metalPrices) => {
   }
 };
 
-// Helper function to format daily prices with changes and colors
+// Helper function to format daily prices with changes, colors, and better layout
 const formatDailyPricesWithChanges = (todayPrices, yesterdayPrices) => {
   if (!todayPrices || Object.keys(todayPrices).length === 0) {
     return "⚠️ No price data available at the moment.";
@@ -724,45 +808,45 @@ const formatDailyPricesWithChanges = (todayPrices, yesterdayPrices) => {
     ALU: "Aluminium"
   };
 
-  const metalColors = {
-    XAU: "🟡", // Gold - Yellow
-    XAG: "⚪", // Silver - White
-    XPT: "⚫", // Platinum - Black
-    XPD: "🟤", // Palladium - Brown
-    XCU: "🟠", // Copper - Orange
-    LEAD: "🔵", // Lead - Blue
-    NI: "🟢", // Nickel - Green
-    ZNC: "🔘", // Zinc - Gray
-    ALU: "⚪"  // Aluminium - White
-  };
-
-  let message = "💰 *Daily Metal Price Update* 💰\n\n";
+  // Enhanced formatting with better structure
+  let message = `💎 *DAILY MARKET UPDATE*\n`;
+  message += `${new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n\n`;
+  message += `━━━━━━━━━━━━━━━━━━━━━━━\n`;
   
   Object.entries(todayPrices).forEach(([symbol, todayPrice]) => {
     const name = metalNames[symbol] || symbol;
-    const colorEmoji = metalColors[symbol] || "⚪";
-    const formattedPrice = todayPrice ? `₹${todayPrice.toFixed(2)}` : "N/A";
+    const formattedPrice = todayPrice ? `₹${todayPrice.toFixed(2)}/g` : "N/A";
     
     // Calculate change from yesterday
-    let changeText = "";
+    let changeSymbol = "⚪";
+    let changeText = "─ No data";
+    
     if (yesterdayPrices[symbol] && todayPrice) {
       const yesterdayPrice = yesterdayPrices[symbol];
       const change = todayPrice - yesterdayPrice;
       const changePercent = ((change / yesterdayPrice) * 100).toFixed(2);
       
       if (change > 0) {
-        changeText = ` 🟢 +₹${change.toFixed(2)} (+${changePercent}%)`;
+        changeSymbol = "📈"; // Increase arrow
+        changeText = `+₹${change.toFixed(2)} (+${changePercent}%)`;
       } else if (change < 0) {
-        changeText = ` 🔴 ₹${change.toFixed(2)} (${changePercent}%)`;
+        changeSymbol = "📉"; // Decrease arrow
+        changeText = `₹${change.toFixed(2)} (${changePercent}%)`;
       } else {
-        changeText = ` ⚪ No change`;
+        changeSymbol = "━";
+        changeText = "No change";
       }
     }
     
-    message += `${colorEmoji} *${name}*: ${formattedPrice}${changeText}\n`;
+    message += `\n*${name}*\n`;
+    message += `💰 ${formattedPrice}\n`;
+    message += `${changeSymbol} ${changeText}\n`;
   });
 
-  message += `\n_Updated: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}_`;
+  message += `\n━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  message += `\n_Last updated: ${new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}_\n\n`;
+  message += `📊 *See detailed charts & set price alerts on the app* →\n`;
+  message += `[Visit Auric Ledger](https://auric-ledger.vercel.app)`;
   
   return message;
 };

@@ -231,6 +231,7 @@ export default function App() {
   
   // Alert system states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [newAlert, setNewAlert] = useState({ metal: "", type: "target_price", value: "", enabled: true });
@@ -845,197 +846,240 @@ export default function App() {
   };
 
   const handleExportPdf = async () => {
-    if (!weekly.length) return;
-    const { jsPDF, autoTable } = await loadPdfLibs();
-    const runAutoTable = (doc, options) => autoTable(doc, options);
-    const rows = buildExportRows();
-    const stats = getWeeklyStats();
-    const dateRange = {
-      start: dayjs(weekly[0].date).format("DD MMM YYYY"),
-      end: dayjs(weekly[weekly.length - 1].date).format("DD MMM YYYY")
-    };
-    const loadLogoPng = async (src, size = 72) => {
-      const response = await fetch(src);
-      if (!response.ok) throw new Error("Logo fetch failed");
-      const svgText = await response.text();
-      const svgBlob = new Blob([svgText], { type: "image/svg+xml" });
-      const svgUrl = URL.createObjectURL(svgBlob);
-      try {
-        const image = await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = svgUrl;
-        });
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas unavailable");
-        ctx.drawImage(image, 0, 0, size, size);
-        return canvas.toDataURL("image/png");
-      } finally {
-        URL.revokeObjectURL(svgUrl);
-      }
-    };
-    let logoDataUrl = null;
+    if (!weekly.length) {
+      setStatus({ loading: false, error: "No data available", message: "" });
+      return;
+    }
+    
     try {
-      logoDataUrl = await loadLogoPng("/metal-price-icon.svg", 72);
-    } catch {
-      logoDataUrl = null;
-    }
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    
-    // Theme-aware colors
-    const bgColor = darkMode ? [26, 24, 32] : [250, 247, 241];
-    const textColor = darkMode ? [245, 241, 234] : [24, 24, 30];
-    const mutedColor = darkMode ? [169, 173, 184] : [90, 90, 96];
-    const accentColor = darkMode ? [212, 169, 84] : [197, 154, 60];
-    const tableHeadBg = darkMode ? [42, 107, 95] : [181, 134, 11];
-    const tableAltRowBg = darkMode ? [31, 28, 38] : [249, 247, 242];
-    const tableTextColor = darkMode ? [245, 241, 234] : [40, 40, 40];
-    
-    // Full page background
-    doc.setFillColor(...bgColor);
-    doc.rect(0, 0, 595, 842, "F");
-    
-    // Header background
-    doc.setFillColor(...bgColor);
-    doc.rect(0, 0, 595, 96, "F");
-    if (logoDataUrl) {
-      doc.addImage(logoDataUrl, "PNG", 32, 22, 36, 36);
-    } else {
-      doc.setFillColor(...accentColor);
-      doc.circle(48, 40, 14, "F");
+      setExportLoading(true);
+      setStatus({ loading: false, error: "", message: "📄 Generating PDF..." });
+      
+      const { jsPDF, autoTable } = await loadPdfLibs();
+      const runAutoTable = (doc, options) => autoTable(doc, options);
+      const rows = buildExportRows();
+      const stats = getWeeklyStats();
+      const dateRange = {
+        start: dayjs(weekly[0].date).format("DD MMM YYYY"),
+        end: dayjs(weekly[weekly.length - 1].date).format("DD MMM YYYY")
+      };
+      
+      const loadLogoPng = async (src, size = 72) => {
+        const response = await fetch(src);
+        if (!response.ok) throw new Error("Logo fetch failed");
+        const svgText = await response.text();
+        const svgBlob = new Blob([svgText], { type: "image/svg+xml" });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        try {
+          const image = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = svgUrl;
+          });
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas unavailable");
+          ctx.drawImage(image, 0, 0, size, size);
+          return canvas.toDataURL("image/png");
+        } finally {
+          URL.revokeObjectURL(svgUrl);
+        }
+      };
+      
+      let logoDataUrl = null;
+      try {
+        logoDataUrl = await loadLogoPng("/metal-price-icon.svg", 72);
+      } catch {
+        logoDataUrl = null;
+      }
+      
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      
+      // Theme-aware colors
+      const bgColor = darkMode ? [26, 24, 32] : [250, 247, 241];
+      const textColor = darkMode ? [245, 241, 234] : [24, 24, 30];
+      const mutedColor = darkMode ? [169, 173, 184] : [90, 90, 96];
+      const accentColor = darkMode ? [212, 169, 84] : [197, 154, 60];
+      const tableHeadBg = darkMode ? [42, 107, 95] : [181, 134, 11];
+      const tableAltRowBg = darkMode ? [31, 28, 38] : [249, 247, 242];
+      const tableTextColor = darkMode ? [245, 241, 234] : [40, 40, 40];
+      
+      // Full page background
+      doc.setFillColor(...bgColor);
+      doc.rect(0, 0, 595, 842, "F");
+      
+      // Header background
+      doc.setFillColor(...bgColor);
+      doc.rect(0, 0, 595, 96, "F");
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, "PNG", 32, 22, 36, 36);
+      } else {
+        doc.setFillColor(...accentColor);
+        doc.circle(48, 40, 14, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(255, 255, 255);
+        doc.text("AL", 43, 43);
+      }
+
       doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.setTextColor(...textColor);
+      doc.text("Auric Ledger", 75, 42);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(...mutedColor);
+      doc.text("Precision metal pricing for modern markets", 75, 60);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(...textColor);
+      doc.text("Auric Ledger Report", 40, 115);
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.text("AL", 43, 43);
+      doc.setTextColor(...mutedColor);
+      doc.text("https://auric-ledger.vercel.app/", 40, 130);
+      
+      // Content section with better spacing
+      const contentY = 150;
+      doc.setFontSize(11);
+      doc.setTextColor(...textColor);
+      doc.setFont("helvetica", "normal");
+      
+      const infoLines = [
+        `Metal: ${formatMetalLabel({ metal_name: selectedMetal, display_name: metalLabelMap[selectedMetal] || null })}${isGold ? ` (${carat}K)` : ""}`,
+        `Unit: ${unit}`,
+        `Date Range: ${dateRange.start} to ${dateRange.end}`,
+        `Last Updated: ${lastUpdated}`,
+        `Generated: ${dayjs().format("DD MMM YYYY, HH:mm")}`
+      ];
+      
+      let currentY = contentY;
+      infoLines.forEach((line) => {
+        doc.text(line, 40, currentY);
+        currentY += 16;
+      });
+
+      // 7-Day Summary Section
+      currentY += 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(...textColor);
+      doc.text("7-Day Summary", 40, currentY);
+      
+      currentY += 18;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      const summaryLines = [
+        `Low: ${formatNumberPlain(stats.min)}`,
+        `High: ${formatNumberPlain(stats.max)}`,
+        `Average: ${formatNumberPlain(stats.avg)}`
+      ];
+      
+      summaryLines.forEach((line) => {
+        doc.text(line, 40, currentY);
+        currentY += 16;
+      });
+
+      if (unitComparison) {
+        doc.text(
+          `Change vs Yesterday: ${formatNumberPlain(unitComparison.difference)} (${unitComparison.percentage_change.toFixed(2)}%)`,
+          40,
+          currentY
+        );
+        currentY += 16;
+      }
+
+      currentY += 8;
+      const pdfRows = weekly.map((entry) => [
+        dayjs(entry.date).format("DD MMM YYYY"),
+        `${formatMetalLabel({ metal_name: selectedMetal, display_name: metalLabelMap[selectedMetal] || null })}${
+          isGold ? ` (${carat}K)` : ""
+        }`,
+        unit,
+        formatNumberPlain(entry[selectedPriceKey] || 0)
+      ]);
+
+      runAutoTable(doc, {
+        startY: currentY,
+        head: [["Date", "Metal", "Unit", "Price (Rs.)"]],
+        body: pdfRows,
+        theme: "grid",
+        headStyles: {
+          fillColor: tableHeadBg,
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "left",
+          fontSize: 11
+        },
+        styles: {
+          font: "helvetica",
+          fontSize: 10,
+          cellPadding: 8,
+          textColor: tableTextColor,
+          fillColor: bgColor,
+          lineColor: 180
+        },
+        columnStyles: {
+          0: { halign: "left" },
+          1: { halign: "left" },
+          2: { halign: "center" },
+          3: { halign: "right" }
+        },
+        alternateRowStyles: { fillColor: tableAltRowBg },
+        margin: { left: 40, right: 40 }
+      });
+
+      const pageCount = doc.getNumberOfPages();
+      doc.setFontSize(9);
+      doc.setTextColor(...mutedColor);
+      doc.text("Auric Ledger • https://auric-ledger.vercel.app/", 40, 820);
+      doc.text(`Page 1 of ${pageCount}`, 520, 820);
+
+      const filename = `metal-prices-${selectedMetal}-${unit}-${dayjs().format("YYYYMMDD")}.pdf`;
+      const pdfBlob = doc.output("blob");
+      
+      if (!pdfBlob || pdfBlob.size === 0) {
+        throw new Error("Failed to generate PDF blob");
+      }
+      
+      const url = URL.createObjectURL(pdfBlob);
+      setDownloadLink({ url, filename, label: "PDF" });
+      
+      // Create and trigger download with better timing
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      
+      // Use setTimeout to ensure link is in DOM before clicking
+      setTimeout(() => {
+        link.click();
+        // Cleanup after download is initiated
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+      }, 100);
+      
+      setStatus({ loading: false, error: "", message: "✅ PDF downloaded successfully!" });
+      setExportLoading(false);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setStatus({ loading: false, error: "", message: "" });
+      }, 3000);
+      
+    } catch (error) {
+      console.error("PDF export error:", error);
+      setStatus({ loading: false, error: `❌ PDF failed: ${error.message}`, message: "" });
+      setExportLoading(false);
     }
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(...textColor);
-    doc.text("Auric Ledger", 75, 42);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(...mutedColor);
-    doc.text("Precision metal pricing for modern markets", 75, 60);
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(...textColor);
-    doc.text("Auric Ledger Report", 40, 115);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(...mutedColor);
-    doc.text("https://auric-ledger.vercel.app/", 40, 130);
-    
-    // Content section with better spacing
-    const contentY = 150;
-    doc.setFontSize(11);
-    doc.setTextColor(...textColor);
-    doc.setFont("helvetica", "normal");
-    
-    const infoLines = [
-      `Metal: ${formatMetalLabel({ metal_name: selectedMetal, display_name: metalLabelMap[selectedMetal] || null })}${isGold ? ` (${carat}K)` : ""}`,
-      `Unit: ${unit}`,
-      `Date Range: ${dateRange.start} to ${dateRange.end}`,
-      `Last Updated: ${lastUpdated}`,
-      `Generated: ${dayjs().format("DD MMM YYYY, HH:mm")}`
-    ];
-    
-    let currentY = contentY;
-    infoLines.forEach((line) => {
-      doc.text(line, 40, currentY);
-      currentY += 16;
-    });
-
-    // 7-Day Summary Section
-    currentY += 8;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(...textColor);
-    doc.text("7-Day Summary", 40, currentY);
-    
-    currentY += 18;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    const summaryLines = [
-      `Low: ${formatNumberPlain(stats.min)}`,
-      `High: ${formatNumberPlain(stats.max)}`,
-      `Average: ${formatNumberPlain(stats.avg)}`
-    ];
-    
-    summaryLines.forEach((line) => {
-      doc.text(line, 40, currentY);
-      currentY += 16;
-    });
-
-    if (unitComparison) {
-      doc.text(
-        `Change vs Yesterday: ${formatNumberPlain(unitComparison.difference)} (${unitComparison.percentage_change.toFixed(2)}%)`,
-        40,
-        currentY
-      );
-      currentY += 16;
-    }
-
-    currentY += 8;
-    const pdfRows = weekly.map((entry) => [
-      dayjs(entry.date).format("DD MMM YYYY"),
-      `${formatMetalLabel({ metal_name: selectedMetal, display_name: metalLabelMap[selectedMetal] || null })}${
-        isGold ? ` (${carat}K)` : ""
-      }`,
-      unit,
-      formatNumberPlain(entry[selectedPriceKey] || 0)
-    ]);
-
-    runAutoTable(doc, {
-      startY: currentY,
-      head: [["Date", "Metal", "Unit", "Price (Rs.)"]],
-      body: pdfRows,
-      theme: "grid",
-      headStyles: {
-        fillColor: tableHeadBg,
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-        halign: "left",
-        fontSize: 11
-      },
-      styles: {
-        font: "helvetica",
-        fontSize: 10,
-        cellPadding: 8,
-        textColor: tableTextColor,
-        fillColor: bgColor,
-        lineColor: 180
-      },
-      columnStyles: {
-        0: { halign: "left" },
-        1: { halign: "left" },
-        2: { halign: "center" },
-        3: { halign: "right" }
-      },
-      alternateRowStyles: { fillColor: tableAltRowBg },
-      margin: { left: 40, right: 40 }
-    });
-
-    const pageCount = doc.getNumberOfPages();
-    doc.setFontSize(9);
-    doc.setTextColor(...mutedColor);
-    doc.text("Auric Ledger • https://auric-ledger.vercel.app/", 40, 820);
-    doc.text(`Page 1 of ${pageCount}`, 520, 820);
-
-    const filename = `metal-prices-${selectedMetal}-${unit}-${dayjs().format("YYYYMMDD")}.pdf`;
-    const pdfBlob = doc.output("blob");
-    const url = URL.createObjectURL(pdfBlob);
-    setDownloadLink({ url, filename, label: "PDF" });
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
   };
 
   const handleCopyDownloadLink = async () => {
@@ -1284,11 +1328,11 @@ export default function App() {
             ) : null}
           </div>
           <div className="export-actions">
-            <button className="export-btn" type="button" onClick={handleExportCsv}>
+            <button className="export-btn" type="button" onClick={handleExportCsv} disabled={exportLoading}>
               Download CSV
             </button>
-            <button className="export-btn" type="button" onClick={handleExportPdf}>
-              Download PDF
+            <button className="export-btn" type="button" onClick={handleExportPdf} disabled={exportLoading}>
+              {exportLoading ? "⏳ Generating..." : "📄 Download PDF"}
             </button>
           </div>
         </section>
