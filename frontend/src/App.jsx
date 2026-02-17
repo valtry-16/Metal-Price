@@ -853,7 +853,7 @@ export default function App() {
     
     try {
       setExportLoading(true);
-      setStatus({ loading: false, error: "", message: "📄 Generating PDF..." });
+      setStatus({ loading: false, error: "", message: "Generating PDF..." });
       
       const { jsPDF, autoTable } = await loadPdfLibs();
       const runAutoTable = (doc, options) => autoTable(doc, options);
@@ -863,39 +863,6 @@ export default function App() {
         start: dayjs(weekly[0].date).format("DD MMM YYYY"),
         end: dayjs(weekly[weekly.length - 1].date).format("DD MMM YYYY")
       };
-      
-      const loadLogoPng = async (src, size = 72) => {
-        const response = await fetch(src);
-        if (!response.ok) throw new Error("Logo fetch failed");
-        const svgText = await response.text();
-        const svgBlob = new Blob([svgText], { type: "image/svg+xml" });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        try {
-          const image = await new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = svgUrl;
-          });
-          const canvas = document.createElement("canvas");
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) throw new Error("Canvas unavailable");
-          ctx.drawImage(image, 0, 0, size, size);
-          return canvas.toDataURL("image/png");
-        } finally {
-          URL.revokeObjectURL(svgUrl);
-        }
-      };
-      
-      let logoDataUrl = null;
-      try {
-        logoDataUrl = await loadLogoPng("/metal-price-icon.svg", 72);
-      } catch {
-        logoDataUrl = null;
-      }
       
       const doc = new jsPDF({ unit: "pt", format: "a4" });
       
@@ -915,16 +882,14 @@ export default function App() {
       // Header background
       doc.setFillColor(...bgColor);
       doc.rect(0, 0, 595, 96, "F");
-      if (logoDataUrl) {
-        doc.addImage(logoDataUrl, "PNG", 32, 22, 36, 36);
-      } else {
-        doc.setFillColor(...accentColor);
-        doc.circle(48, 40, 14, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(255, 255, 255);
-        doc.text("AL", 43, 43);
-      }
+      
+      // Always use fallback circle with AL (skip complex logo loading to avoid CSP issues)
+      doc.setFillColor(...accentColor);
+      doc.circle(48, 40, 14, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text("AL", 43, 43);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
@@ -1040,32 +1005,27 @@ export default function App() {
       doc.text("Auric Ledger • https://auric-ledger.vercel.app/", 40, 820);
       doc.text(`Page 1 of ${pageCount}`, 520, 820);
 
+      // Generate PDF blob (same logic as CSV)
       const filename = `metal-prices-${selectedMetal}-${unit}-${dayjs().format("YYYYMMDD")}.pdf`;
       const pdfBlob = doc.output("blob");
       
       if (!pdfBlob || pdfBlob.size === 0) {
-        throw new Error("Failed to generate PDF blob");
+        throw new Error("Failed to generate PDF");
       }
       
+      // Revoke previous blob if exists (cleanup)
+      if (downloadLink?.url) {
+        URL.revokeObjectURL(downloadLink.url);
+      }
+      
+      // Create object URL and trigger download immediately (same as CSV)
       const url = URL.createObjectURL(pdfBlob);
       setDownloadLink({ url, filename, label: "PDF" });
       
-      // Create and trigger download with better timing
       const link = document.createElement("a");
       link.href = url;
       link.download = filename;
-      link.style.display = "none";
-      document.body.appendChild(link);
-      
-      // Use setTimeout to ensure link is in DOM before clicking
-      setTimeout(() => {
-        link.click();
-        // Cleanup after download is initiated
-        setTimeout(() => {
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-        }, 100);
-      }, 100);
+      link.click();
       
       setStatus({ loading: false, error: "", message: "✅ PDF downloaded successfully!" });
       setExportLoading(false);
@@ -1078,6 +1038,9 @@ export default function App() {
     } catch (error) {
       console.error("PDF export error:", error);
       setStatus({ loading: false, error: `❌ PDF failed: ${error.message}`, message: "" });
+      setExportLoading(false);
+    }
+  };
       setExportLoading(false);
     }
   };
@@ -1332,7 +1295,7 @@ export default function App() {
               Download CSV
             </button>
             <button className="export-btn" type="button" onClick={handleExportPdf} disabled={exportLoading}>
-              {exportLoading ? "⏳ Generating..." : "📄 Download PDF"}
+              {exportLoading ? "⏳ Generating..." : "Download PDF"}
             </button>
           </div>
         </section>
