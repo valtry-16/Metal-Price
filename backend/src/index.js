@@ -493,6 +493,59 @@ const fetchAndStoreToday = async () => {
   return { rows: data || [], usdToInr, date: today };
 };
 
+// Preserve current day's prices as yesterday (runs at 8:55 AM IST, before the 9:00 AM price fetch)
+const preserveYesterdayPrices = async () => {
+  const today = dayjs().format("YYYY-MM-DD");
+  const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+  
+  try {
+    // Fetch today's prices (latest) from the database
+    const { data: todaysPrices, error: fetchError } = await supabase
+      .from("metal_prices")
+      .select("*")
+      .eq("date", today);
+    
+    if (fetchError) throw fetchError;
+    
+    // If today's prices exist, we need to update yesterday's records
+    if (todaysPrices && todaysPrices.length > 0) {
+      // Delete old yesterday's prices to avoid duplicates
+      const { error: deleteError } = await supabase
+        .from("metal_prices")
+        .delete()
+        .eq("date", yesterday);
+      
+      if (deleteError) {
+        console.warn("⚠️  Could not delete old yesterday prices:", deleteError.message);
+      }
+      
+      // Create yesterday's price records by copying today's with yesterday's date
+      const yesterdayRows = todaysPrices.map(row => ({
+        ...row,
+        id: undefined, // Let database generate new ID
+        date: yesterday,
+        created_at: new Date().toISOString()
+      }));
+      
+      const { data, error: insertError } = await supabase
+        .from("metal_prices")
+        .insert(yesterdayRows)
+        .select();
+      
+      if (insertError) throw insertError;
+      
+      console.log(`✅ Preserved ${yesterdayRows.length} price records as yesterday's prices`);
+      return { status: "success", count: yesterdayRows.length };
+    } else {
+      console.log("⚠️  No today's prices found to preserve as yesterday");
+      return { status: "no_data", count: 0 };
+    }
+  } catch (error) {
+    console.error("❌ Failed to preserve yesterday's prices:", error.message);
+    throw error;
+  }
+};
+
 const fetchWithGuard = async () => {
   if (fetchCache.lastRunAt) {
     const minutesSince = dayjs().diff(fetchCache.lastRunAt, "minute");
@@ -1667,6 +1720,19 @@ if (CRON_ENABLED === "true") {
       await runDailyPipeline("cron");
     } catch (error) {
       // Errors already logged in runDailyPipeline
+    }
+  }, { timezone: "Asia/Kolkata" });
+
+  // Preserve yesterday's prices at 8:55 AM IST (5 minutes before daily fetch at 9:00 AM)
+  cron.schedule("55 8 * * *", async () => {
+    try {
+      const timestamp = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+      console.log(`\n⏳ [${timestamp}] Starting to preserve yesterday's prices...`);
+      const result = await preserveYesterdayPrices();
+      console.log(`✅ [${timestamp}] Successfully preserved yesterday's prices (${result.count} records)\n`);
+    } catch (error) {
+      const timestamp = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+      console.error(`❌ [${timestamp}] Failed to preserve yesterday's prices:`, error.message);
     }
   }, { timezone: "Asia/Kolkata" });
 } else {
