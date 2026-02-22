@@ -1691,6 +1691,28 @@ app.post("/run-daily", authLimiter, async (req, res) => {
   }
 });
 
+app.post("/preserve-yesterday", authLimiter, async (req, res) => {
+  try {
+    const preserveSecret = process.env.PRESERVE_YESTERDAY_SECRET;
+    if (!preserveSecret) {
+      console.error("❌ PRESERVE_YESTERDAY_SECRET is not configured");
+      return sendErrorResponse(res, 500, "Service not properly configured");
+    }
+
+    const providedSecret = req.header("x-preserve-yesterday-secret");
+    if (!providedSecret || providedSecret !== preserveSecret) {
+      console.warn("⚠️ Unauthorized /preserve-yesterday access attempt");
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const result = await preserveYesterdayPrices();
+    res.json({ status: "ok", ...result });
+  } catch (error) {
+    console.error("❌ Preserve yesterday job error:", error.message);
+    return sendErrorResponse(res, 500, "Preserve yesterday job failed");
+  }
+});
+
 // Background cron: Send pending welcome emails every 5 minutes
 // (Triggered by external cron-job.org, not internal)
 app.post("/send-welcome-emails", authLimiter, async (req, res) => {
