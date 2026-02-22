@@ -520,9 +520,8 @@ const preserveYesterdayPrices = async () => {
       }
       
       // Create yesterday's price records by copying today's with yesterday's date
-      const yesterdayRows = todaysPrices.map(row => ({
+      const yesterdayRows = todaysPrices.map(({ id, ...row }) => ({
         ...row,
-        id: undefined, // Let database generate new ID
         date: yesterday,
         created_at: new Date().toISOString()
       }));
