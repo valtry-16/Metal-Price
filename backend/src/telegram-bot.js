@@ -1,6 +1,7 @@
 import TelegramBot from "node-telegram-bot-api";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import dayjs from "dayjs";
 
 dotenv.config();
 
@@ -473,32 +474,11 @@ Get started → /prices 💎
         const indicatorMsg = await sendCollectingIndicator(chatId);
         
         try {
-          // Get the latest two dates from database
-          const { data: dates, error: dateError } = await supabase
-            .from("metal_prices")
-            .select("date")
-            .order("date", { ascending: false })
-            .limit(10);
+          // Calculate yesterday's date explicitly
+          const today = dayjs().format("YYYY-MM-DD");
+          const yesterdayDate = dayjs().subtract(1, "day").format("YYYY-MM-DD");
 
-          if (dateError) throw dateError;
-
-          if (!dates || dates.length < 1) {
-            await bot.sendMessage(chatId, "⚠️ No historical data available.");
-            if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
-            return;
-          }
-
-          // Get unique dates
-          const uniqueDates = [...new Set(dates.map(d => d.date))];
-          if (uniqueDates.length < 1) {
-            await bot.sendMessage(chatId, "⚠️ No data available yet.");
-            if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
-            return;
-          }
-
-const yesterdayDate = uniqueDates[1] || uniqueDates[0]; // Second most recent date or latest if only 1
-
-          // Fetch all prices for yesterday
+          // Fetch all prices for yesterday's date
           const { data, error } = await supabase
             .from("metal_prices")
             .select("*")
@@ -506,7 +486,34 @@ const yesterdayDate = uniqueDates[1] || uniqueDates[0]; // Second most recent da
 
           if (error) throw error;
 
+          // If no data for yesterday, try to get the most recent date before today
+          let finalData = data;
+          let finalDate = yesterdayDate;
+          
           if (!data || data.length === 0) {
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from("metal_prices")
+              .select("*")
+              .lt("date", today)
+              .order("date", { ascending: false })
+              .limit(50);
+
+            if (fallbackError) throw fallbackError;
+            
+            if (!fallbackData || fallbackData.length === 0) {
+              await bot.sendMessage(chatId, "⚠️ No historical data available yet.");
+              if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+              return;
+            }
+            
+            // Get the most recent date from fallback
+            finalDate = fallbackData[0].date;
+            finalData = fallbackData.filter(row => row.date === finalDate);
+          }
+
+          // Fetch all prices for yesterday (use finalData)
+          
+          if (!finalData || finalData.length === 0) {
             await bot.sendMessage(chatId, "⚠️ Yesterday's data not available.");
             if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
             return;
@@ -516,7 +523,7 @@ const yesterdayDate = uniqueDates[1] || uniqueDates[0]; // Second most recent da
           const availableMetals = ["XAU", "XAG", "XPT", "XPD", "XCU", "LEAD", "NI", "ZNC", "ALU"];
           const metalPrices = {};
 
-          data.forEach(row => {
+          finalData.forEach(row => {
             if (!availableMetals.includes(row.metal_name)) return;
             
             // Special handling for Gold - only use 22K carat
@@ -545,7 +552,7 @@ const yesterdayDate = uniqueDates[1] || uniqueDates[0]; // Second most recent da
             ALU: "Aluminium"
           };
 
-          let message = `📅 *Yesterday's Prices* /${yesterdayDate}\n\n`;
+          let message = `📅 *Yesterday's Prices* (${finalDate})\n\n`;
           
           Object.entries(metalPrices).forEach(([symbol, price]) => {
             const name = metalNames[symbol] || symbol;
