@@ -27,7 +27,7 @@ if (TELEGRAM_BOT_TOKEN && !botInitialized) {
 // Helper function to send "collecting data" message
 const sendCollectingIndicator = async (chatId) => {
   try {
-    return await bot.sendMessage(chatId, "⏳ *Collecting data...* Please wait while we fetch the latest prices.", { parse_mode: "Markdown" });
+    return await bot.sendMessage(chatId, "<b>Fetching Data</b>\n\nPlease wait while we retrieve the latest prices...", { parse_mode: "HTML" });
   } catch (error) {
     console.error("Error sending indicator:", error);
   }
@@ -60,15 +60,21 @@ const formatPricesForTelegram = (metalPrices) => {
     ALU: "Aluminium"
   };
 
-  let message = "💰 *Current Metal Prices* 💰\n\n";
+  const timestamp = new Date().toLocaleString("en-IN", { 
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+
+  let message = "<b>Current Metal Prices</b>\nReal-time market rates\n\n━━━\n\n";
   
   Object.entries(metalPrices).forEach(([symbol, price]) => {
     const name = metalNames[symbol] || symbol;
-    const formattedPrice = price ? `₹${price.toFixed(2)}` : "N/A";
-    message += `${name}: ${formattedPrice}\n`;
+    const formattedPrice = price ? `₹${price.toFixed(2)}/g` : "N/A";
+    message += `<b>${name}</b>\n• ${formattedPrice}\n\n`;
   });
 
-  message += `\n_Updated: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}_`;
+  message += `━━━\n\n<b>Last Updated</b>\n${timestamp}`;
   
   return message;
 };
@@ -146,8 +152,8 @@ const sendChartForMetal = async (chatId, metalSymbol, days = 30) => {
     const latestPrice = uniqueData[uniqueData.length - 1].price_1g;
 
     await bot.sendPhoto(chatId, chartUrl, {
-      caption: `📈 *${days}-Day Price Chart*\n${metalName}: ₹${latestPrice.toFixed(2)}/g`,
-      parse_mode: "Markdown"
+      caption: `<b>${days}-Day Price Chart</b>\n${metalName}: ₹${latestPrice.toFixed(2)}/g`,
+      parse_mode: "HTML"
     });
 
   } catch (error) {
@@ -224,8 +230,8 @@ const sendMonthChartForMetal = async (chatId, metalSymbol, month) => {
     const latestPrice = uniqueData[uniqueData.length - 1].price_1g;
 
     await bot.sendPhoto(chatId, chartUrl, {
-      caption: `📈 *${monthName} ${year} Price Chart*\n${metalName}: ₹${latestPrice.toFixed(2)}/g (${uniqueData.length} days)`,
-      parse_mode: "Markdown"
+      caption: `<b>${monthName} ${year} Price Chart</b>\n${metalName}: ₹${latestPrice.toFixed(2)}/g\n${uniqueData.length} days analyzed`,
+      parse_mode: "HTML"
     });
 
   } catch (error) {
@@ -328,17 +334,8 @@ if (bot) {
       
       // If only metal symbol, ask for period
       if (parts.length === 1) {
-        const periodMessage = `
-📊 Select chart period for *${getMetalName(metalSymbol)}*:
-
-Reply with:
-• \`${metalSymbol} 7\` - Last 7 days
-• \`${metalSymbol} 30\` - Last 30 days
-• \`${metalSymbol} 2026-01\` - Specific month (YYYY-MM)
-
-_Example: Send "${metalSymbol} 7" for 7-day chart_
-        `.trim();
-        await bot.sendMessage(chatId, periodMessage, { parse_mode: "Markdown" });
+        const periodMessage = `<b>Select Time Period</b>\n${getMetalName(metalSymbol)}\n\n━━━\n\n<b>Available Options</b>\n\n• ${metalSymbol} 7 - Last 7 days\n• ${metalSymbol} 30 - Last 30 days\n• ${metalSymbol} 2026-01 - Specific month\n\n━━━\n\n<b>Example</b>\nSend "${metalSymbol} 7" for 7-day chart`;
+        await bot.sendMessage(chatId, periodMessage, { parse_mode: "HTML" });
         return;
       }
       
@@ -370,32 +367,8 @@ _Example: Send "${metalSymbol} 7" for 7-day chart_
     try {
       // /start and /help commands
       if (command === '/start' || command === '/help') {
-        const welcomeMessage = `
-🌟 *Welcome to Auric Ledger Bot!* 🌟
-
-Your instant precious metals price tracker.
-
-*📋 Available Commands:*
-
-/prices - Get current prices for all metals
-/yesterday - View yesterday's prices  
-/chart - See 7-day & 30-day charts
-/download - Get PDF price reports
-/subscribe - Daily updates (9 AM IST)
-/unsubscribe - Stop daily updates
-
-*💡 Quick Tips:*
-
-Send metal symbol + period:
-• \`XAU 7\` → Gold 7-day chart
-• \`XAU 30\` → Gold 30-day chart
-• \`XAU 2026-01\` → Gold January 2026
-
-_Metal codes: XAU, XAG, XPT, XPD, XCU, LEAD, NI, ZNC, ALU_
-
-Get started → /prices 💎
-        `.trim();
-        await bot.sendMessage(chatId, welcomeMessage, { parse_mode: "Markdown" });
+        const welcomeMessage = `<b>Auric Ledger Bot</b>\nPremium Metal Price Tracker\n\n━━━\n\n<b>Available Commands</b>\n\n• /prices - Current market rates\n• /yesterday - Yesterday's prices\n• /chart - Price history charts\n• /download - PDF reports\n• /subscribe - Daily updates (9 AM IST)\n• /unsubscribe - Stop updates\n\n━━━\n\n<b>Quick Actions</b>\n\nSend metal code + period:\n• XAU 7 - Gold 7-day chart\n• XAU 30 - Gold 30-day chart\n• XAU 2026-01 - Monthly view\n\n━━━\n\n<b>Supported Metals</b>\nXAU, XAG, XPT, XPD, XCU, LEAD, NI, ZNC, ALU\n\n━━━\n\n<b>Get Started</b>\nTry /prices to see current rates`;
+        await bot.sendMessage(chatId, welcomeMessage, { parse_mode: "HTML" });
         return;
       }
 
@@ -458,7 +431,7 @@ Get started → /prices 💎
           });
 
           const message = formatPricesForTelegram(metalPrices);
-          await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+          await bot.sendMessage(chatId, message, { parse_mode: "HTML" });
           if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
         } catch (error) {
           console.error("Error in /prices command:", error);
@@ -552,15 +525,17 @@ Get started → /prices 💎
             ALU: "Aluminium"
           };
 
-          let message = `📅 *Yesterday's Prices* (${finalDate})\n\n`;
+          let message = `<b>Yesterday's Prices</b>\n${finalDate}\n\n━━━\n\n`;
           
           Object.entries(metalPrices).forEach(([symbol, price]) => {
             const name = metalNames[symbol] || symbol;
             const formattedPrice = price ? `₹${price.toFixed(2)}/g` : "N/A";
-            message += `*${name}*: ${formattedPrice}\n`;
+            message += `<b>${name}</b>\n• ${formattedPrice}\n\n`;
           });
 
-          await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+          message += `━━━\n\n<b>Compare</b>\nUse /prices to see today's rates`;
+
+          await bot.sendMessage(chatId, message, { parse_mode: "HTML" });
           if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
         } catch (error) {
           console.error("Error in /yesterday command:", error);
@@ -572,29 +547,7 @@ Get started → /prices 💎
 
       // /chart command - show price charts
       if (command === '/chart') {
-        const selectMessage = `
-📊 *Select a metal to view charts:*
-
-*Available metals:*
-• XAU - Gold (22K)
-• XAG - Silver
-• XPT - Platinum
-• XPD - Palladium
-• XCU - Copper
-• LEAD - Lead
-• NI - Nickel
-• ZNC - Zinc
-• ALU - Aluminium
-
-*How to use:*
-• Send \`XAU 7\` for 7-day chart
-• Send \`XAU 30\` for 30-day chart
-• Send \`XAU 2026-01\` for specific month
-
-_Example: Send "XAU 7" to see Gold 7-day chart_
-        `.trim();
-        
-        await bot.sendMessage(chatId, selectMessage, { parse_mode: "Markdown" });
+        const selectMessage = `<b>Price Charts</b>\nSelect metal & time period\n\n━━━\n\n<b>Available Metals</b>\n\n• XAU - Gold (22K)\n• XAG - Silver\n• XPT - Platinum\n• XPD - Palladium\n• XCU - Copper\n• LEAD - Lead\n• NI - Nickel\n• ZNC - Zinc\n• ALU - Aluminium\n\n━━━\n\n<b>How to Use</b>\n\n• XAU 7 - Gold 7-day chart\n• XAU 30 - Gold 30-day chart\n• XAU 2026-01 - Monthly view\n\n━━━\n\n<b>Example</b>\nSend "XAU 7" for Gold 7-day chart`;\n        \n        await bot.sendMessage(chatId, selectMessage, { parse_mode: "HTML" });
         return;
       }
 
@@ -630,40 +583,15 @@ _Example: Send "XAU 7" to see Gold 7-day chart_
 
         await bot.sendMessage(
           chatId,
-          "✅ *Successfully subscribed!*\n\nYou'll receive daily price updates at 9:00 AM (IST). 🔔",
-          { parse_mode: "Markdown" }
+          "<b>Subscription Confirmed</b>\n\nYou'll receive daily price updates at 9:00 AM IST",
+          { parse_mode: "HTML" }
         );
         return;
       }
 
       // /download command - guide users to download PDF reports
       if (command === '/download') {
-        const downloadMessage = `
-📥 *Download Price Data Reports*
-
-You can download detailed PDF reports of metal prices:
-
-*Available Downloads:*
-• 📅 *Weekly Reports* - 7 days of price history
-• 📊 *Monthly Reports* - Full month price data
-• 📈 *Trend Analysis* - Charts and statistics
-
-*How to Download:*
-
-1️⃣ Visit the web app:
-[Auric Ledger](https://auric-ledger.vercel.app)
-
-2️⃣ Select a metal from the dropdown
-
-3️⃣ Click "📄 Download PDF" button
-
-*Available Metals:*
-🥇 Gold • 🥈 Silver • Platinum • Palladium • Copper • Lead • Nickel • Zinc • Aluminium
-
-_PDF reports include price summaries, 7-day analysis, and detailed price tables._
-        `.trim();
-        
-        await bot.sendMessage(chatId, downloadMessage, { parse_mode: "Markdown" });
+        const downloadMessage = `<b>PDF Price Reports</b>\nDetailed market analysis\n\n━━━\n\n<b>Available Downloads</b>\n\n• Weekly Reports - 7 days history\n• Monthly Reports - Full month data\n• Trend Analysis - Charts & stats\n\n━━━\n\n<b>How to Download</b>\n\n• Visit <a href="https://auric-ledger.vercel.app">Auric Ledger</a>\n• Select a metal from dropdown\n• Click Download PDF button\n\n━━━\n\n<b>Available Metals</b>\n\nGold • Silver • Platinum • Palladium\nCopper • Lead • Nickel • Zinc • Aluminium\n\n━━━\n\n<b>Report Contents</b>\n\n• Price summaries\n• 7-day trend analysis\n• Detailed price tables`;\n        \n        await bot.sendMessage(chatId, downloadMessage, { parse_mode: "HTML" });
         return;
       }
 
@@ -689,8 +617,8 @@ _PDF reports include price summaries, 7-day analysis, and detailed price tables.
 
         await bot.sendMessage(
           chatId,
-          "✅ *Successfully unsubscribed!*\n\nYou can resubscribe anytime using /subscribe",
-          { parse_mode: "Markdown" }
+          "<b>Unsubscribed</b>\n\nYou can resubscribe anytime using /subscribe",
+          { parse_mode: "HTML" }
         );
         return;
       }
@@ -776,7 +704,7 @@ export const sendDailyPricesToTelegram = async (metalPrices) => {
     // Send to each subscriber
     for (const subscriber of subscribers) {
       try {
-        await bot.sendMessage(subscriber.chat_id, message, { parse_mode: "Markdown" });
+        await bot.sendMessage(subscriber.chat_id, message, { parse_mode: "HTML" });
         console.log(`✅ Sent daily prices to Telegram chat: ${subscriber.chat_id}`);
       } catch (error) {
         console.error(`Error sending to chat ${subscriber.chat_id}:`, error.message);
@@ -800,7 +728,7 @@ export const sendDailyPricesToTelegram = async (metalPrices) => {
 // Helper function to format daily prices with changes, colors, and better layout
 const formatDailyPricesWithChanges = (todayPrices, yesterdayPrices) => {
   if (!todayPrices || Object.keys(todayPrices).length === 0) {
-    return "⚠️ No price data available at the moment.";
+    return "<b>Market Update</b>\n\nNo price data available at the moment.";
   }
 
   const metalNames = {
@@ -815,18 +743,27 @@ const formatDailyPricesWithChanges = (todayPrices, yesterdayPrices) => {
     ALU: "Aluminium"
   };
 
+  const dateStr = new Date().toLocaleDateString("en-IN", { 
+    weekday: "long", 
+    year: "numeric", 
+    month: "long", 
+    day: "numeric" 
+  });
+  const timeStr = new Date().toLocaleTimeString("en-IN", { 
+    timeZone: "Asia/Kolkata", 
+    hour: "2-digit", 
+    minute: "2-digit" 
+  });
+
   // Enhanced formatting with better structure
-  let message = `💎 *DAILY MARKET UPDATE*\n`;
-  message += `${new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n\n`;
-  message += `━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  let message = `<b>Daily Market Update</b>\n${dateStr}\n\n━━━\n\n`;
   
   Object.entries(todayPrices).forEach(([symbol, todayPrice]) => {
     const name = metalNames[symbol] || symbol;
     const formattedPrice = todayPrice ? `₹${todayPrice.toFixed(2)}/g` : "N/A";
     
     // Calculate change from yesterday
-    let changeSymbol = "⚪";
-    let changeText = "─ No data";
+    let changeText = "• No comparison data";
     
     if (yesterdayPrices[symbol] && todayPrice) {
       const yesterdayPrice = yesterdayPrices[symbol];
@@ -834,26 +771,18 @@ const formatDailyPricesWithChanges = (todayPrices, yesterdayPrices) => {
       const changePercent = ((change / yesterdayPrice) * 100).toFixed(2);
       
       if (change > 0) {
-        changeSymbol = "📈"; // Increase arrow
-        changeText = `+₹${change.toFixed(2)} (+${changePercent}%)`;
+        changeText = `• ↑ +₹${change.toFixed(2)} (+${changePercent}%)`;
       } else if (change < 0) {
-        changeSymbol = "📉"; // Decrease arrow
-        changeText = `₹${change.toFixed(2)} (${changePercent}%)`;
+        changeText = `• ↓ ₹${change.toFixed(2)} (${changePercent}%)`;
       } else {
-        changeSymbol = "━";
-        changeText = "No change";
+        changeText = "• Unchanged";
       }
     }
     
-    message += `\n*${name}*\n`;
-    message += `💰 ${formattedPrice}\n`;
-    message += `${changeSymbol} ${changeText}\n`;
+    message += `<b>${name}</b>\n• ${formattedPrice}\n${changeText}\n\n`;
   });
 
-  message += `\n━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `\n_Last updated: ${new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })}_\n\n`;
-  message += `📊 *See detailed charts & set price alerts on the app* →\n`;
-  message += `[Visit Auric Ledger](https://auric-ledger.vercel.app)`;
+  message += `━━━\n\n<b>Last Updated</b>\n${timeStr} IST\n\n━━━\n\n<b>View Details</b>\n<a href="https://auric-ledger.vercel.app">Auric Ledger</a> - Charts & Alerts`;
   
   return message;
 };
