@@ -547,7 +547,9 @@ if (bot) {
 
       // /chart command - show price charts
       if (command === '/chart') {
-        const selectMessage = `<b>Price Charts</b>\nSelect metal & time period\n\n━━━\n\n<b>Available Metals</b>\n\n• XAU - Gold (22K)\n• XAG - Silver\n• XPT - Platinum\n• XPD - Palladium\n• XCU - Copper\n• LEAD - Lead\n• NI - Nickel\n• ZNC - Zinc\n• ALU - Aluminium\n\n━━━\n\n<b>How to Use</b>\n\n• XAU 7 - Gold 7-day chart\n• XAU 30 - Gold 30-day chart\n• XAU 2026-01 - Monthly view\n\n━━━\n\n<b>Example</b>\nSend "XAU 7" for Gold 7-day chart`;\n        \n        await bot.sendMessage(chatId, selectMessage, { parse_mode: "HTML" });
+        const selectMessage = `<b>Price Charts</b>\nSelect metal & time period\n\n━━━\n\n<b>Available Metals</b>\n\n• XAU - Gold (22K)\n• XAG - Silver\n• XPT - Platinum\n• XPD - Palladium\n• XCU - Copper\n• LEAD - Lead\n• NI - Nickel\n• ZNC - Zinc\n• ALU - Aluminium\n\n━━━\n\n<b>How to Use</b>\n\n• XAU 7 - Gold 7-day chart\n• XAU 30 - Gold 30-day chart\n• XAU 2026-01 - Monthly view\n\n━━━\n\n<b>Example</b>\nSend "XAU 7" for Gold 7-day chart`;
+        
+        await bot.sendMessage(chatId, selectMessage, { parse_mode: "HTML" });
         return;
       }
 
@@ -591,7 +593,9 @@ if (bot) {
 
       // /download command - guide users to download PDF reports
       if (command === '/download') {
-        const downloadMessage = `<b>PDF Price Reports</b>\nDetailed market analysis\n\n━━━\n\n<b>Available Downloads</b>\n\n• Weekly Reports - 7 days history\n• Monthly Reports - Full month data\n• Trend Analysis - Charts & stats\n\n━━━\n\n<b>How to Download</b>\n\n• Visit <a href="https://auric-ledger.vercel.app">Auric Ledger</a>\n• Select a metal from dropdown\n• Click Download PDF button\n\n━━━\n\n<b>Available Metals</b>\n\nGold • Silver • Platinum • Palladium\nCopper • Lead • Nickel • Zinc • Aluminium\n\n━━━\n\n<b>Report Contents</b>\n\n• Price summaries\n• 7-day trend analysis\n• Detailed price tables`;\n        \n        await bot.sendMessage(chatId, downloadMessage, { parse_mode: "HTML" });
+        const downloadMessage = `<b>PDF Price Reports</b>\nDetailed market analysis\n\n━━━\n\n<b>Available Downloads</b>\n\n• Weekly Reports - 7 days history\n• Monthly Reports - Full month data\n• Trend Analysis - Charts & stats\n\n━━━\n\n<b>How to Download</b>\n\n• Visit <a href="https://auric-ledger.vercel.app">Auric Ledger</a>\n• Select a metal from dropdown\n• Click Download PDF button\n\n━━━\n\n<b>Available Metals</b>\n\nGold • Silver • Platinum • Palladium\nCopper • Lead • Nickel • Zinc • Aluminium\n\n━━━\n\n<b>Report Contents</b>\n\n• Price summaries\n• 7-day trend analysis\n• Detailed price tables`;
+        
+        await bot.sendMessage(chatId, downloadMessage, { parse_mode: "HTML" });
         return;
       }
 
