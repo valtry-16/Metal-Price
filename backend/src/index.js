@@ -1686,9 +1686,13 @@ app.get("/wake-up", (req, res) => {
 // DAILY AI SUMMARY — Generate & Fetch
 // ============================================
 
+// Track whether a summary is currently being generated
+let summaryGenerating = false;
+
 // POST /generate-daily-summary — Called by cron-job.org at 9:01 AM IST
 // Background worker for summary generation (runs after immediate response)
 const generateSummaryInBackground = async (today) => {
+  summaryGenerating = true;
   try {
     // Fetch today's prices (all metals)
     const { data: todayPrices, error: todayErr } = await supabase
@@ -1814,6 +1818,8 @@ Format rules:
     console.log(`✅ Daily summary generated and saved for ${today}`);
   } catch (error) {
     console.error("❌ Background summary generation error:", error.message);
+  } finally {
+    summaryGenerating = false;
   }
 };
 
@@ -1861,10 +1867,10 @@ app.get("/daily-summary", generalLimiter, async (req, res) => {
     }
 
     if (!data || data.length === 0) {
-      return res.json({ status: "success", date: null, summary: null });
+      return res.json({ status: "success", date: null, summary: null, generating: summaryGenerating });
     }
 
-    res.json({ status: "success", date: data[0].date, summary: data[0].summary, created_at: data[0].created_at });
+    res.json({ status: "success", date: data[0].date, summary: data[0].summary, created_at: data[0].created_at, generating: summaryGenerating });
   } catch (error) {
     console.error("❌ Daily summary fetch error:", error.message);
     return sendErrorResponse(res, 500, "Failed to fetch summary");

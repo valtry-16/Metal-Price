@@ -230,6 +230,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dailySummary, setDailySummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   
   // Alert system states
@@ -623,24 +624,44 @@ export default function App() {
     load();
   }, []);
 
-  // Fetch daily AI summary — show loading until data arrives
+  // Fetch daily AI summary — poll when backend is generating
   useEffect(() => {
-    setSummaryLoading(true);
-    const fetchSummary = async () => {
+    let pollTimer = null;
+    let cancelled = false;
+
+    const fetchSummary = async (isInitial = false) => {
+      if (isInitial) setSummaryLoading(true);
       try {
         const res = await fetch(`${apiBase}/daily-summary`);
-        if (!res.ok) { setSummaryLoading(false); return; }
+        if (!res.ok) { if (isInitial) setSummaryLoading(false); return; }
         const data = await res.json();
+        if (cancelled) return;
+
         if (data.summary) {
           setDailySummary({ date: data.date, summary: data.summary });
+        }
+
+        if (data.generating) {
+          // Backend is still generating — show generating state and poll
+          setSummaryGenerating(true);
+          pollTimer = setTimeout(() => fetchSummary(false), 10000);
+        } else {
+          // Done generating — stop polling
+          setSummaryGenerating(false);
         }
       } catch {
         // Silent fail
       } finally {
-        setSummaryLoading(false);
+        if (isInitial) setSummaryLoading(false);
       }
     };
-    fetchSummary();
+
+    fetchSummary(true);
+
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, []);
 
   useEffect(() => {
@@ -1194,16 +1215,23 @@ export default function App() {
             <p className="hero__tagline">
               Beautifully simple pricing insights, updated in real time.
             </p>
-            {(dailySummary || summaryLoading) && (
+            {(dailySummary || summaryLoading || summaryGenerating) && (
               <div className="hero__summary">
                 <div className="hero__summary-inner">
                   <div className="hero__summary-header">
                     <span style={{ fontSize: "18px" }}>📊</span>
                     <h3>Daily Market Summary</h3>
-                    {dailySummary && <span className="hero__summary-date">{dailySummary.date}</span>}
-                    {summaryLoading && <span className="hero__summary-loading">Updating…</span>}
+                    {dailySummary && !summaryGenerating && <span className="hero__summary-date">{dailySummary.date}</span>}
+                    {summaryGenerating && <span className="hero__summary-loading">Generating…</span>}
+                    {summaryLoading && !summaryGenerating && <span className="hero__summary-loading">Updating…</span>}
                   </div>
-                  {summaryLoading ? (
+                  {summaryGenerating ? (
+                    <div className="summary-generating-loader">
+                      <div className="summary-orb"></div>
+                      <p className="summary-gen-text">Generating Today's Summary</p>
+                      <p className="summary-gen-sub">Please wait…</p>
+                    </div>
+                  ) : summaryLoading ? (
                     <div className="hero__summary-body summary-skeleton">
                       <div className="skeleton-line w80" />
                       <div className="skeleton-line w60" />
@@ -1714,7 +1742,15 @@ export default function App() {
                 </button>
               </div>
               <div className="faq-section">
-                {summaryLoading ? (
+                {summaryGenerating ? (
+                  <div className="faq-item">
+                    <div className="summary-generating-loader">
+                      <div className="summary-orb"></div>
+                      <p className="summary-gen-text">Generating Today's Summary</p>
+                      <p className="summary-gen-sub">Please wait…</p>
+                    </div>
+                  </div>
+                ) : summaryLoading ? (
                   <div className="faq-item">
                     <div className="summary-skeleton">
                       <div className="skeleton-line w80" />

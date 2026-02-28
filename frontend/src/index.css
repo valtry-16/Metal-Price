@@ -766,6 +766,49 @@ select {
   50% { opacity: 0.4; }
 }
 
+/* Summary generating orb loader (matches Loading Market Data style) */
+.summary-generating-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px 16px;
+  min-height: 140px;
+}
+
+.summary-generating-loader .summary-orb {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #f7e6b0, #c59a3c, #f7e6b0);
+  box-shadow: 0 0 24px rgba(197, 154, 60, 0.45);
+  position: relative;
+  animation: spin-slow 2.2s linear infinite;
+}
+
+.summary-generating-loader .summary-orb::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffdf7 0%, #ead7ba 100%);
+}
+
+.summary-generating-loader .summary-gen-text {
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--panel-ink);
+}
+
+.summary-generating-loader .summary-gen-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: -8px;
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+
 /* Skeleton loading animation */
 .summary-skeleton {
   display: flex;
