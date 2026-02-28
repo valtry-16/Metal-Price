@@ -1160,7 +1160,7 @@ const sendWelcomeEmail = async (email, priceData) => {
 // Endpoint to trigger manual price alert (user-set alerts)
 app.post("/trigger-price-alert", async (req, res) => {
   try {
-    const { email, metalName, currentPrice, alertType, targetValue, browserNotificationEnabled } = req.body;
+    const { email, metalName, currentPrice, alertType, alertDirection, targetValue, browserNotificationEnabled } = req.body;
     
     if (!email || !metalName || !currentPrice) {
       return res.status(400).json({ status: "error", message: "Missing required fields" });
@@ -1175,12 +1175,15 @@ app.post("/trigger-price-alert", async (req, res) => {
         .single();
 
       if (subscription) {
-        const message = alertType === "target_price"
-          ? `${metalName} has reached your target price of ₹${targetValue}/g! Current price: ₹${currentPrice.toFixed(2)}/g`
+        const isThreshold = alertType === "price_threshold" || alertType === "target_price";
+        const direction = alertDirection || "below";
+        
+        const message = isThreshold
+          ? `${metalName} has crossed ${direction} your threshold of ₹${targetValue}/g! Current price: ₹${currentPrice.toFixed(2)}/g`
           : `${metalName} has changed by ${targetValue}%! Current price: ₹${currentPrice.toFixed(2)}/g`;
 
-        const alertTitle = alertType === "target_price"
-          ? "Target Price Reached!"
+        const alertTitle = isThreshold
+          ? (direction === "below" ? "📉 Price Dropped Below Threshold!" : "📈 Price Crossed Above Threshold!")
           : "Price Change Alert!";
 
         const emailContent = `
@@ -1236,10 +1239,10 @@ app.post("/trigger-price-alert", async (req, res) => {
                                 ₹${currentPrice.toFixed(2)}/g
                               </td>
                             </tr>
-                            ${alertType === "target_price" ? `
+                            ${isThreshold ? `
                             <tr>
                               <td style="color: #666; font-size: 14px; padding: 8px 0;">
-                                <strong>Target Price:</strong>
+                                <strong>Threshold (${direction === "below" ? "Below" : "Above"}):</strong>
                               </td>
                               <td style="color: #333; font-size: 14px; padding: 8px 0; text-align: right;">
                                 ₹${targetValue}/g

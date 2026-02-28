@@ -389,7 +389,7 @@ if (bot) {
     try {
       // /start and /help commands
       if (command === '/start' || command === '/help') {
-        const welcomeMessage = `<b>Auric Ledger Bot</b>\nPremium Metal Price Tracker\n\n━━━\n\n<b>Available Commands</b>\n\n• /prices - Current market rates\n• /yesterday - Yesterday's prices\n• /chart - Price history charts\n• /download - PDF reports\n• /subscribe - Daily updates (9 AM IST)\n• /unsubscribe - Stop updates\n\n━━━\n\n<b>Quick Actions</b>\n\nSend metal code + period:\n• XAU 7 - Gold 7-day chart\n• XAU 30 - Gold 30-day chart\n• XAU 2026-01 - Monthly view\n\n━━━\n\n<b>Supported Metals</b>\nXAU, XAG, XPT, XPD, XCU, LEAD, NI, ZNC, ALU\n\n━━━\n\n<b>Get Started</b>\nTry /prices to see current rates`;
+        const welcomeMessage = `<b>Auric Ledger Bot</b>\nPremium Metal Price Tracker\n\n━━━\n\n<b>Available Commands</b>\n\n• /prices - Current market rates\n• /yesterday - Yesterday's prices\n• /summary - AI daily market summary\n• /chart - Price history charts\n• /ask - Ask Auric AI anything\n• /download - PDF reports\n• /subscribe - Daily updates (9 AM IST)\n• /unsubscribe - Stop updates\n\n━━━\n\n<b>Quick Actions</b>\n\nSend metal code + period:\n• XAU 7 - Gold 7-day chart\n• XAU 30 - Gold 30-day chart\n• XAU 2026-01 - Monthly view\n\n━━━\n\n<b>Supported Metals</b>\nXAU, XAG, XPT, XPD, XCU, LEAD, NI, ZNC, ALU\n\n━━━\n\n<b>Get Started</b>\nTry /prices to see current rates`;
         await bot.sendMessage(chatId, welcomeMessage, { parse_mode: "HTML" });
         return;
       }
@@ -646,6 +646,41 @@ if (bot) {
           "<b>Unsubscribed</b>\n\nYou can resubscribe anytime using /subscribe",
           { parse_mode: "HTML" }
         );
+        return;
+      }
+
+      // /summary command - Daily AI market summary
+      if (command === '/summary') {
+        const indicatorMsg = await sendCollectingIndicator(chatId);
+        try {
+          const { data, error } = await supabase
+            .from("daily_summaries")
+            .select("date, summary")
+            .order("date", { ascending: false })
+            .limit(1);
+
+          if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+
+          if (error || !data || data.length === 0 || !data[0].summary) {
+            await bot.sendMessage(chatId, "⚠️ No daily summary available yet. The summary is generated at 9:01 AM IST.", { parse_mode: "HTML" });
+            return;
+          }
+
+          const row = data[0];
+          let body = row.summary.trim();
+          // Convert markdown bold **text** → <b>text</b>
+          body = body.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+          // Convert "- " bullets
+          body = body.replace(/^- (.+)$/gm, "• $1");
+
+          const dateFormatted = dayjs(row.date).format("DD MMM YYYY");
+          const message = `<b>Daily Market Summary</b>\n${dateFormatted}\n\n━━━\n\n${body}\n\n━━━\n<i>Powered by Auric Ledger AI</i>`;
+          await bot.sendMessage(chatId, message, { parse_mode: "HTML" });
+        } catch (err) {
+          console.error("Error in /summary command:", err);
+          if (indicatorMsg) await deleteMessage(chatId, indicatorMsg.message_id);
+          await bot.sendMessage(chatId, "❌ Error fetching daily summary. Please try again later.");
+        }
         return;
       }
 

@@ -238,7 +238,7 @@ export default function App() {
   const [exportLoading, setExportLoading] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [toasts, setToasts] = useState([]);
-  const [newAlert, setNewAlert] = useState({ metal: "", type: "target_price", value: "", enabled: true });
+  const [newAlert, setNewAlert] = useState({ metal: "", type: "price_threshold", direction: "below", value: "", enabled: true });
   const [notificationPermission, setNotificationPermission] = useState("default");
   const [userEmail, setUserEmail] = useState("");
   const [savedEmailMask, setSavedEmailMask] = useState("");
@@ -425,6 +425,7 @@ export default function App() {
       id: Date.now(),
       metal: newAlert.metal,
       type: newAlert.type,
+      direction: newAlert.type === "price_threshold" ? newAlert.direction : null,
       value: parseFloat(newAlert.value),
       enabled: true,
       createdAt: new Date().toISOString(),
@@ -433,7 +434,7 @@ export default function App() {
 
     const updated = [...alerts, alert];
     saveAlerts(updated);
-    setNewAlert({ metal: "", type: "target_price", value: "", enabled: true });
+    setNewAlert({ metal: "", type: "price_threshold", direction: "below", value: "", enabled: true });
     showToast(`✅ Alert created for ${formatMetalLabel({ metal_name: newAlert.metal })}`);
   };
 
@@ -469,10 +470,14 @@ export default function App() {
       let shouldTrigger = false;
       let message = "";
 
-      if (alert.type === "target_price") {
-        if (currentPrice >= alert.value * 0.99 && currentPrice <= alert.value * 1.01) {
+      if (alert.type === "price_threshold" || alert.type === "target_price") {
+        const direction = alert.direction || "below";
+        if (direction === "below" && currentPrice <= alert.value) {
           shouldTrigger = true;
-          message = `🎯 ${formatMetalLabel({ metal_name: alert.metal })} reached ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}`;
+          message = `📉 ${formatMetalLabel({ metal_name: alert.metal })} dropped below ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}/g`;
+        } else if (direction === "above" && currentPrice >= alert.value) {
+          shouldTrigger = true;
+          message = `📈 ${formatMetalLabel({ metal_name: alert.metal })} crossed above ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}/g`;
         }
       } else if (alert.type === "percentage_change") {
         const comparison = comparisons[metalName];
@@ -508,6 +513,7 @@ export default function App() {
                 metalName: alert.metal,
                 currentPrice: currentPrice,
                 alertType: alert.type,
+                alertDirection: alert.direction || "below",
                 targetValue: alert.value,
                 browserNotificationEnabled: notificationPermission === "granted"
               })
@@ -1506,11 +1512,12 @@ export default function App() {
               </div>
               <div className="faq-section">
                 <div className="faq-item">
-                  <h3>🚀 Auric Ledger v1.0.0</h3>
+                  <h3>🚀 Auric Ledger v1.1.0</h3>
                   <p>
                     <strong>Premium Precious Metals Price Tracker</strong><br/>
-                    A production-ready full-stack application for tracking real-time prices of 9 precious metals and commodities 
-                    with transparent INR conversion, duty calculations, and GST applied. Built for serious traders and investors.
+                    A production-ready full-stack AI-powered application for tracking real-time prices of 9 precious metals and commodities 
+                    with transparent INR conversion, duty calculations, and GST applied. Now featuring AI daily market summaries, 
+                    an intelligent chatbot, and smart threshold-based price alerts. Built for serious traders and investors.
                   </p>
                 </div>
                 
@@ -1519,13 +1526,16 @@ export default function App() {
                   <p>
                     <strong style={{ color: "var(--accent)" }}>📊 Real-Time Pricing:</strong> Live prices for Gold, Silver, Platinum, Palladium, 
                     Copper, Nickel, Zinc, Aluminium, and Lead converted to INR with duty (6%) and GST (3%)<br/>
+                    <strong style={{ color: "var(--accent)" }}>🧠 AI Daily Summary:</strong> Auto-generated AI market analysis each day with key insights, trends, and recommendations<br/>
+                    <strong style={{ color: "var(--accent)" }}>💬 AI Chatbot (Auric AI):</strong> Ask questions about metals, prices, and market trends — powered by a custom AI model<br/>
+                    <strong style={{ color: "var(--accent)" }}>🔔 Smart Alerts:</strong> Set price thresholds — get notified via browser + email when prices cross above or below your limit<br/>
                     <strong style={{ color: "var(--accent)" }}>📱 PWA App:</strong> Install as native app on desktop, Android, and iOS. Works offline with automatic sync<br/>
-                    <strong style={{ color: "var(--accent)" }}>🤖 Telegram Bot:</strong> Get prices, charts, and daily updates via Telegram bot with 7 powerful commands<br/>
+                    <strong style={{ color: "var(--accent)" }}>🤖 Telegram Bot:</strong> Get prices, charts, summaries, AI chat, and daily updates via Telegram bot with 9 powerful commands<br/>
                     <strong style={{ color: "var(--accent)" }}>📈 Analytics:</strong> 7-day weekly trends and monthly historical data with interactive charts<br/>
                     <strong style={{ color: "var(--accent)" }}>💾 Export:</strong> Download CSV data or premium PDF reports with price breakdowns<br/>
                     <strong style={{ color: "var(--accent)" }}>📧 Email Updates:</strong> Subscribe for daily prices with a welcome email sent within minutes<br/>
                     <strong style={{ color: "var(--accent)" }}>🌙 Dark Mode:</strong> Eye-friendly dark theme with persistent preferences<br/>
-                    <strong style={{ color: "var(--accent)" }}>⚡ Automated:</strong> Daily cron job at 9:00 AM IST for price updates
+                    <strong style={{ color: "var(--accent)" }}>⚡ Automated:</strong> Daily cron job at 9:00 AM IST for price updates and AI summary generation
                   </p>
                 </div>
 
@@ -1534,9 +1544,12 @@ export default function App() {
                   <p>
                     <strong style={{ color: "var(--accent)" }}>📱 Instant Prices:</strong> Get current and yesterday's prices for all 9 metals on demand<br/>
                     <strong style={{ color: "var(--accent)" }}>📊 Smart Charts:</strong> View 7-day, 30-day, or custom month charts for any metal<br/>
+                    <strong style={{ color: "var(--accent)" }}>� AI Summary:</strong> Get the daily AI-generated market summary via /summary command<br/>
+                    <strong style={{ color: "var(--accent)" }}>💬 AI Chat:</strong> Ask the AI about metals and prices via /ask command<br/>
                     <strong style={{ color: "var(--accent)" }}>🔔 Daily Updates:</strong> Subscribe to automatic 9 AM price updates with change indicators (↑↓)<br/>
                     <strong style={{ color: "var(--accent)" }}>🎨 Color-Coded:</strong> Each metal has unique color emoji for quick visual identification<br/>
                     <strong style={{ color: "var(--accent)" }}>💹 Price Changes:</strong> Daily updates show exact price changes and percentages from yesterday<br/><br/>
+                    <strong>Commands:</strong> /start, /prices, /yesterday, /summary, /chart, /download, /ask, /subscribe, /unsubscribe<br/>
                     <strong>Bot Link:</strong> <a href="https://t.me/AuricLedgerBot" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>t.me/AuricLedgerBot</a>
                   </p>
                 </div>
@@ -1565,11 +1578,14 @@ export default function App() {
                     ✅ Built comprehensive PDF & CSV export functionality<br/>
                     ✅ Implemented responsive mobile design with hamburger menu<br/>
                     ✅ Added detailed About + Privacy pages with updated policies<br/>
-                    ✅ Integrated Telegram bot with 7 commands and daily price updates<br/>
+                    ✅ Integrated Telegram bot with 9 commands including /summary and /ask<br/>
                     ✅ Built interactive chart system (7-day, 30-day, custom month)<br/>
                     ✅ Added price change tracking with color-coded indicators<br/>
                     ✅ Added welcome emails with retry-safe background delivery<br/>
-                    ✅ Hardened security with CORS, rate limits, CSP, and data masking
+                    ✅ Hardened security with CORS, rate limits, CSP, and data masking<br/>
+                    ✅ Built AI daily market summary with auto-generation and real-time SSE updates<br/>
+                    ✅ Integrated Auric AI chatbot with streaming responses and RAG knowledge base<br/>
+                    ✅ Revamped alert system with threshold-based price crossing detection
                   </p>
                 </div>
 
@@ -1636,7 +1652,7 @@ export default function App() {
                   <p>
                     <strong>Built by: Sabithulla</strong><br/>
                     A full-stack developer passionate about financial technology and data visualization<br/>
-                    Version 1.0.0 | Released: February 15, 2026<br/>
+                    Version 1.1.0 | Released: February 15, 2026<br/>
                     <em style={{ color: "var(--muted)" }}>Built with precision for serious precious metals traders and investors</em>
                   </p>
                 </div>
@@ -1669,8 +1685,9 @@ export default function App() {
                 <div className="faq-item">
                   <h3>📋 Data We Collect</h3>
                   <p>
-                    <strong>Email (optional):</strong> Only if you subscribe to daily emails. This is stored securely on our server to send updates.<br/>
+                    <strong>Email (optional):</strong> Only if you subscribe to daily emails or price alerts. Stored securely on our server to send updates.<br/>
                     <strong>Local Preferences:</strong> Theme, selected metal, units, and alert settings stored locally in your browser.<br/>
+                    <strong>AI Chat Messages:</strong> Questions sent to Auric AI are processed in real-time and not stored permanently on our servers.<br/>
                     <strong>Masked Email (local):</strong> Saved locally to show you that emails are enabled. Full email is saved only if you opt in to “Remember my email.”
                   </p>
                 </div>
@@ -1679,7 +1696,9 @@ export default function App() {
                   <h3>🔒 How We Use Your Data</h3>
                   <p>
                     <strong>Daily Emails:</strong> Used only to deliver metal price updates.<br/>
-                    <strong>Alerts:</strong> Stored locally in your browser. Not transmitted to our servers unless you choose to receive email alerts.
+                    <strong>Price Alerts:</strong> Alert configurations are stored locally in your browser. Email alerts are sent only if you provide your email.<br/>
+                    <strong>AI Summary:</strong> Daily AI-generated market summaries are stored in our database and served to all users.<br/>
+                    <strong>SSE Connection:</strong> A Server-Sent Events connection is maintained for real-time summary generation updates. No personal data is transmitted.
                   </p>
                 </div>
 
@@ -1696,8 +1715,9 @@ export default function App() {
                   <p>
                     <strong>Metals API:</strong> Price data is fetched from apised.com.<br/>
                     <strong>Exchange Rates:</strong> USD to INR rates from frankfurter.app.<br/>
-                    <strong>Email Delivery:</strong> Brevo API for sending subscription emails.<br/>
-                    <strong>Database:</strong> Supabase (PostgreSQL) stores subscription emails securely.<br/>
+                    <strong>Email Delivery:</strong> Brevo API for sending subscription and alert emails.<br/>
+                    <strong>AI Model:</strong> Custom Auric AI model hosted on Hugging Face for chatbot and daily summaries.<br/>
+                    <strong>Database:</strong> Supabase (PostgreSQL) stores subscription emails and daily summaries securely.<br/>
                     <strong>Telegram:</strong> If you opt in, your Telegram chat ID is used for bot updates.
                   </p>
                 </div>
@@ -1906,17 +1926,38 @@ export default function App() {
                           fontSize: "14px"
                         }}
                       >
-                        <option value="target_price">🎯 Target Price (₹/g)</option>
-                        <option value="percentage_change">📊 Price Change (%)</option>
+                        <option value="price_threshold">📊 Price Threshold (₹/g)</option>
+                        <option value="percentage_change">📈 Price Change (%)</option>
                       </select>
                     </div>
+                    {newAlert.type === "price_threshold" && (
+                      <div>
+                        <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Alert When Price Goes</label>
+                        <select
+                          value={newAlert.direction}
+                          onChange={(e) => setNewAlert({ ...newAlert, direction: e.target.value })}
+                          style={{
+                            width: "100%",
+                            padding: "8px 12px",
+                            border: "1px solid var(--line)",
+                            borderRadius: "8px",
+                            background: "var(--panel)",
+                            color: "var(--panel-ink)",
+                            fontSize: "14px"
+                          }}
+                        >
+                          <option value="below">⬇️ Below this price</option>
+                          <option value="above">⬆️ Above this price</option>
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>
-                        {newAlert.type === "target_price" ? "Price in ₹/g" : "Percentage Change (%)"}
+                        {newAlert.type === "price_threshold" ? "Threshold Price in ₹/g" : "Percentage Change (%)"}
                       </label>
                       <input
                         type="number"
-                        placeholder={newAlert.type === "target_price" ? "e.g., 7500" : "e.g., 2.5"}
+                        placeholder={newAlert.type === "price_threshold" ? "e.g., 7500" : "e.g., 2.5"}
                         value={newAlert.value}
                         onChange={(e) => setNewAlert({ ...newAlert, value: e.target.value })}
                         style={{
@@ -2089,7 +2130,7 @@ export default function App() {
                       📱 Open Telegram Bot
                     </a>
                     <p style={{ margin: "10px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
-                      Commands: /prices, /yesterday, /chart, /subscribe
+                      Commands: /prices, /yesterday, /summary, /chart, /ask, /subscribe
                     </p>
                   </div>
                 </div>
@@ -2120,8 +2161,8 @@ export default function App() {
                               {formatMetalLabel({ metal_name: alert.metal })}
                             </strong>
                             <p style={{ fontSize: "13px", color: "var(--muted)", margin: "4px 0 0 0" }}>
-                              {alert.type === "target_price"
-                                ? `When price reaches ₹${alert.value.toFixed(2)}/g`
+                              {(alert.type === "price_threshold" || alert.type === "target_price")
+                                ? `When price goes ${alert.direction === "above" ? "above" : "below"} ₹${alert.value.toFixed(2)}/g`
                                 : `When price changes by ${alert.value.toFixed(2)}%`}
                             </p>
                           </div>
@@ -2166,10 +2207,10 @@ export default function App() {
                 <div className="faq-item">
                   <h3>ℹ️ How Alerts Work</h3>
                   <p>
-                    <strong style={{ color: "var(--accent)" }}>Target Price:</strong> Get notified when a metal reaches your target price<br/>
-                    <strong style={{ color: "var(--accent)" }}>Price Change:</strong> Get notified when a metal increases or decreases by your chosen percentage<br/>
-                    <strong style={{ color: "var(--accent)" }}>Cooldown:</strong> Each alert waits 60 minutes before triggering again to avoid duplicates<br/>
-                    <strong style={{ color: "var(--accent)" }}>Notifications:</strong> Browser notifications require your permission (enable via button above)
+                    <strong style={{ color: "var(--accent)" }}>Price Threshold:</strong> Set a price limit — get alerted when the metal price crosses below or above your threshold. Example: Gold is ₹9,000/g, you set ₹8,500 below → alert fires when Gold drops to ₹8,500 or lower.<br/>
+                    <strong style={{ color: "var(--accent)" }}>Price Change %:</strong> Get notified when a metal’s daily price change exceeds your set percentage<br/>
+                    <strong style={{ color: "var(--accent)" }}>Delivery:</strong> Alerts are sent via browser notification + email (if subscribed)<br/>
+                    <strong style={{ color: "var(--accent)" }}>Cooldown:</strong> Each alert waits 60 minutes before triggering again to avoid duplicates
                   </p>
                 </div>
               </div>
