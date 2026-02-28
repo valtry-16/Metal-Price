@@ -1963,20 +1963,20 @@ select {
 @media (max-width: 480px) {
   .chat-panel {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
-    height: 100%;
-    max-width: 100vw;
-    max-height: 100vh;
-    max-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
     border-radius: 0;
     border: none;
     z-index: 10001;
-  }
-  /* When keyboard is open, panel shrinks to visual viewport */
-  .chat-panel.keyboard-open {
-    height: calc(var(--chat-vh, 100vh));
-    max-height: calc(var(--chat-vh, 100vh));
+    /* Height is overridden by JS via visualViewport */
+    overflow: hidden;
   }
   .chat-fab {
     width: 52px;

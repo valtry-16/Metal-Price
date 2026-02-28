@@ -18,7 +18,6 @@ export default function ChatWidget({ apiBase }) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
@@ -32,51 +31,50 @@ export default function ChatWidget({ apiBase }) {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
-  // Lock body scroll when chat is open on mobile
+  // Mobile keyboard handling:
+  // Use visualViewport to set panel height = visible area only.
+  // The panel is a flex column, so only .chat-messages scrolls.
+  // We never touch body position/overflow — that causes the page to shift.
   useEffect(() => {
-    if (!isMobile()) return;
-    if (open) {
-      document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.width = "100%";
-    } else {
-      document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.width = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.width = "";
-    };
-  }, [open]);
+    if (!open || !isMobile()) return;
 
-  // Handle mobile keyboard: resize chat panel to visual viewport
-  useEffect(() => {
-    if (!open || !isMobile() || !window.visualViewport) return;
+    // Prevent background scroll via touch on the overlay
+    const preventBgScroll = (e) => {
+      // Allow scroll inside .chat-messages
+      if (e.target.closest(".chat-messages")) return;
+      e.preventDefault();
+    };
+    document.addEventListener("touchmove", preventBgScroll, { passive: false });
 
     const vv = window.visualViewport;
+    if (!vv) return () => document.removeEventListener("touchmove", preventBgScroll);
 
-    const onResize = () => {
-      const vh = vv.height;
-      const isKb = vh < window.innerHeight * 0.75;
-      setKeyboardOpen(isKb);
-
+    const syncHeight = () => {
+      // Set panel height to exactly the visual viewport (excludes keyboard)
       if (panelRef.current) {
-        panelRef.current.style.setProperty("--chat-vh", `${vh}px`);
+        panelRef.current.style.height = `${vv.height}px`;
+        // Pin to top of visual viewport (in case browser scrolls the layout viewport)
+        panelRef.current.style.top = `${vv.offsetTop}px`;
       }
-
-      // Keep input visible by scrolling messages
-      if (isKb) {
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
-      }
+      // Scroll to latest message so input stays visible
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
     };
 
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
+    // Initial sync
+    syncHeight();
+
+    vv.addEventListener("resize", syncHeight);
+    vv.addEventListener("scroll", syncHeight);
+
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
+      vv.removeEventListener("resize", syncHeight);
+      vv.removeEventListener("scroll", syncHeight);
+      document.removeEventListener("touchmove", preventBgScroll);
+      // Reset inline styles
+      if (panelRef.current) {
+        panelRef.current.style.height = "";
+        panelRef.current.style.top = "";
+      }
     };
   }, [open]);
 
@@ -222,7 +220,7 @@ export default function ChatWidget({ apiBase }) {
       {open && (
         <div
           ref={panelRef}
-          className={`chat-panel${keyboardOpen ? " keyboard-open" : ""}`}
+          className="chat-panel"
           role="dialog"
           aria-label="Auric AI Chat"
         >
