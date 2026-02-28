@@ -1687,22 +1687,9 @@ app.get("/wake-up", (req, res) => {
 // ============================================
 
 // POST /generate-daily-summary — Called by cron-job.org at 9:01 AM IST
-app.post("/generate-daily-summary", authLimiter, async (req, res) => {
+// Background worker for summary generation (runs after immediate response)
+const generateSummaryInBackground = async (today) => {
   try {
-    if (!GENERATE_SUMMARY_SECRET) {
-      console.error("❌ GENERATE_SUMMARY_SECRET is not configured");
-      return sendErrorResponse(res, 500, "Service not properly configured");
-    }
-
-    const providedSecret = req.header("x-generate-summary-secret");
-    if (!providedSecret || providedSecret !== GENERATE_SUMMARY_SECRET) {
-      console.warn("⚠️ Unauthorized /generate-daily-summary access attempt");
-      return sendErrorResponse(res, 401, "Unauthorized");
-    }
-
-    const today = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD");
-    console.log(`📊 Generating daily summary for ${today}...`);
-
     // Fetch today's prices (all metals)
     const { data: todayPrices, error: todayErr } = await supabase
       .from("metal_prices")
@@ -1711,16 +1698,16 @@ app.post("/generate-daily-summary", authLimiter, async (req, res) => {
 
     if (todayErr) {
       console.error("❌ Error fetching today's prices:", todayErr.message);
-      return sendErrorResponse(res, 500, "Failed to fetch today's prices");
+      return;
     }
 
     if (!todayPrices || todayPrices.length === 0) {
       console.warn("⚠️ No prices found for today, skipping summary generation");
-      return res.json({ status: "skipped", reason: "No prices available for today" });
+      return;
     }
 
     // Fetch yesterday's prices for comparison
-    const yesterday = dayjs().tz("Asia/Kolkata").subtract(1, "day").format("YYYY-MM-DD");
+    const yesterday = dayjs(today).subtract(1, "day").format("YYYY-MM-DD");
     const { data: yesterdayPrices } = await supabase
       .from("metal_prices")
       .select("metal_name, price_1g, price_8g, price_per_kg, carat, date")
@@ -1808,7 +1795,7 @@ Format rules:
     const summary = hfResponse.data?.choices?.[0]?.message?.content;
     if (!summary) {
       console.error("❌ Empty response from HF model");
-      return sendErrorResponse(res, 500, "Failed to generate summary");
+      return;
     }
 
     // Upsert into daily_summaries table
@@ -1821,14 +1808,41 @@ Format rules:
 
     if (upsertErr) {
       console.error("❌ Error saving summary:", upsertErr.message);
-      return sendErrorResponse(res, 500, "Failed to save summary");
+      return;
     }
 
     console.log(`✅ Daily summary generated and saved for ${today}`);
-    res.json({ status: "ok", date: today, summary_length: summary.length });
+  } catch (error) {
+    console.error("❌ Background summary generation error:", error.message);
+  }
+};
+
+app.post("/generate-daily-summary", authLimiter, async (req, res) => {
+  try {
+    if (!GENERATE_SUMMARY_SECRET) {
+      console.error("❌ GENERATE_SUMMARY_SECRET is not configured");
+      return sendErrorResponse(res, 500, "Service not properly configured");
+    }
+
+    const providedSecret = req.header("x-generate-summary-secret");
+    if (!providedSecret || providedSecret !== GENERATE_SUMMARY_SECRET) {
+      console.warn("⚠️ Unauthorized /generate-daily-summary access attempt");
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const today = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD");
+    console.log(`📊 Generating daily summary for ${today}...`);
+
+    // Respond immediately so cron-job.org doesn't timeout
+    res.json({ status: "accepted", message: "Summary generation started", date: today });
+
+    // Run generation in background (after response is sent)
+    generateSummaryInBackground(today);
   } catch (error) {
     console.error("❌ Generate summary error:", error.message);
-    return sendErrorResponse(res, 500, "Summary generation failed");
+    if (!res.headersSent) {
+      return sendErrorResponse(res, 500, "Summary generation failed");
+    }
   }
 });
 
