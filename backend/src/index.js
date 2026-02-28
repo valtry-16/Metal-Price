@@ -1789,7 +1789,7 @@ Format rules:
         max_tokens: 1024,
         temperature: 0.3,
       },
-      { headers: { "Content-Type": "application/json" }, timeout: 90000 }
+      { headers: { "Content-Type": "application/json" }, timeout: 180000 }
     );
 
     const summary = hfResponse.data?.choices?.[0]?.message?.content;

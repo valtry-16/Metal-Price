@@ -623,43 +623,24 @@ export default function App() {
     load();
   }, []);
 
-  // Fetch daily AI summary — polls if stale (summary date < today after 9 AM IST)
+  // Fetch daily AI summary — show loading until data arrives
   useEffect(() => {
-    let pollTimer = null;
-    const getTodayIST = () => {
-      const now = new Date();
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      const ist = new Date(now.getTime() + istOffset + now.getTimezoneOffset() * 60000);
-      return { date: ist.toISOString().slice(0, 10), hour: ist.getHours() };
-    };
+    setSummaryLoading(true);
     const fetchSummary = async () => {
       try {
         const res = await fetch(`${apiBase}/daily-summary`);
-        if (!res.ok) return;
+        if (!res.ok) { setSummaryLoading(false); return; }
         const data = await res.json();
         if (data.summary) {
-          const { date: todayIST, hour } = getTodayIST();
           setDailySummary({ date: data.date, summary: data.summary });
-          // If summary is outdated and it's past 9 AM IST, show loading and poll
-          if (data.date < todayIST && hour >= 9) {
-            setSummaryLoading(true);
-            pollTimer = setTimeout(fetchSummary, 30000);
-          } else {
-            setSummaryLoading(false);
-          }
-        } else {
-          const { hour } = getTodayIST();
-          if (hour >= 9) {
-            setSummaryLoading(true);
-            pollTimer = setTimeout(fetchSummary, 30000);
-          }
         }
       } catch {
         // Silent fail
+      } finally {
+        setSummaryLoading(false);
       }
     };
     fetchSummary();
-    return () => { if (pollTimer) clearTimeout(pollTimer); };
   }, []);
 
   useEffect(() => {
