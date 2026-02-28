@@ -8,6 +8,9 @@ const SUGGESTIONS = [
   "Gold trend last 7 days",
 ];
 
+/** Detect mobile (<= 480px) */
+const isMobile = () => window.innerWidth <= 480;
+
 export default function ChatWidget({ apiBase }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
@@ -15,9 +18,11 @@ export default function ChatWidget({ apiBase }) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
+  const panelRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -25,6 +30,54 @@ export default function ChatWidget({ apiBase }) {
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [open]);
+
+  // Lock body scroll when chat is open on mobile
+  useEffect(() => {
+    if (!isMobile()) return;
+    if (open) {
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+    };
+  }, [open]);
+
+  // Handle mobile keyboard: resize chat panel to visual viewport
+  useEffect(() => {
+    if (!open || !isMobile() || !window.visualViewport) return;
+
+    const vv = window.visualViewport;
+
+    const onResize = () => {
+      const vh = vv.height;
+      const isKb = vh < window.innerHeight * 0.75;
+      setKeyboardOpen(isKb);
+
+      if (panelRef.current) {
+        panelRef.current.style.setProperty("--chat-vh", `${vh}px`);
+      }
+
+      // Keep input visible by scrolling messages
+      if (isKb) {
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      }
+    };
+
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+    };
   }, [open]);
 
   const send = useCallback(async (text) => {
@@ -167,7 +220,12 @@ export default function ChatWidget({ apiBase }) {
 
       {/* Chat panel */}
       {open && (
-        <div className="chat-panel" role="dialog" aria-label="Auric AI Chat">
+        <div
+          ref={panelRef}
+          className={`chat-panel${keyboardOpen ? " keyboard-open" : ""}`}
+          role="dialog"
+          aria-label="Auric AI Chat"
+        >
           {/* Header */}
           <div className="chat-header">
             <img src="/metal-price-icon.svg" alt="" className="chat-header-logo" />
