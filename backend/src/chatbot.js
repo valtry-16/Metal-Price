@@ -265,26 +265,48 @@ const detectIntent = (question) => {
 // Format helpers
 // ─────────────────────────────────────────────
 
-const fmtPrice = (p) => p != null ? `\u20B9${p.toFixed(2)}` : "N/A";
+/** Format price in Indian Rupee with commas (Indian numbering: 1,00,000) */
+const fmtPrice = (p) => {
+  if (p == null) return "N/A";
+  const fixed = p.toFixed(2);
+  const [intPart, decPart] = fixed.split(".");
+  // Indian grouping: last 3 digits, then groups of 2
+  let result = intPart.slice(-3);
+  let remaining = intPart.slice(0, -3);
+  while (remaining.length > 0) {
+    result = remaining.slice(-2) + "," + result;
+    remaining = remaining.slice(0, -2);
+  }
+  return `₹${result}.${decPart}`;
+};
 
+/** Simple format: just number without symbol */
+const fmtNum = (p) => {
+  if (p == null) return "N/A";
+  return p.toFixed(2);
+};
+
+/** Format gold prices — ONLY price_1g per gram to avoid confusion */
 const formatGoldPrices = (goldData) => {
-  if (!goldData || typeof goldData !== "object") return "Gold: N/A";
+  if (!goldData || typeof goldData !== "object") return "Gold: data not available";
   const lines = [];
   const caratOrder = ["24", "22", "18", "14"];
   caratOrder.forEach((c) => {
-    if (goldData[c]) lines.push(`  ${c}K: ${fmtPrice(goldData[c].price_1g)}/gram${goldData[c].price_8g ? ` | ${fmtPrice(goldData[c].price_8g)}/8g` : ""}`);
+    if (goldData[c]?.price_1g) {
+      lines.push(`Gold ${c}K = ${fmtPrice(goldData[c].price_1g)} per gram`);
+    }
   });
-  return lines.length > 0 ? `Gold:\n${lines.join("\n")}` : "Gold: N/A";
+  return lines.length > 0 ? lines.join("\n") : "Gold: data not available";
 };
 
+/** Format all metal prices — clean table, one line per metal, ONLY per-gram */
 const formatMetalPrices = (prices, date) => {
-  const lines = [`PRICES FOR ${date}:`];
+  const lines = [`Date: ${date}`, "---"];
   Object.entries(prices).forEach(([sym, data]) => {
     if (sym === "XAU") {
       lines.push(formatGoldPrices(data));
-    } else if (METAL_NAMES[sym]) {
-      const kg = data.price_per_kg ? ` | ${fmtPrice(data.price_per_kg)}/kg` : "";
-      lines.push(`${METAL_NAMES[sym]}: ${fmtPrice(data.price_1g)}/gram${kg}`);
+    } else if (METAL_NAMES[sym] && data?.price_1g) {
+      lines.push(`${METAL_NAMES[sym]} = ${fmtPrice(data.price_1g)} per gram`);
     }
   });
   return lines.join("\n");
@@ -300,18 +322,21 @@ const buildContext = async (question) => {
   const dateInfo = parseDate(question);
   const targetMetals = metals.length > 0 ? metals : ALL_METALS;
   let contextParts = [];
+  let suggestedAnswer = ""; // Pre-built answer hint for the model
 
   try {
     // Help intent
     if (intent === "help") {
       const range = await fetchAvailableDateRange();
-      return `Auric Ledger tracks 9 metals: Gold (all carats: 24K, 22K, 18K, 14K), Silver, Platinum, Palladium, Copper, Lead, Nickel, Zinc, Aluminium.\n\nDatabase has prices from ${range.oldest} to ${range.newest}.\n\nYou can ask:\n- Price on any date (e.g., "gold price on 15 feb")\n- Date range (e.g., "silver prices last 7 days")\n- Compare dates (e.g., "compare gold prices from 20 feb to 25 feb")\n- Rankings (e.g., "which metal is cheapest today?")\n- Trends (e.g., "gold trend this week")\n- All gold carats (e.g., "all gold carat prices")`;
+      suggestedAnswer = `I'm Auric AI! I can help you with metal prices. Our database has prices from ${range.oldest} to ${range.newest} for Gold (24K, 22K, 18K, 14K), Silver, Platinum, Palladium, Copper, Lead, Nickel, Zinc, and Aluminium. Ask me about prices on any date, compare metals, check trends, or find the cheapest/most expensive metals.`;
+      return { context: suggestedAnswer, suggestedAnswer };
     }
 
     // Available date range query
     if (intent === "daterange") {
       const range = await fetchAvailableDateRange();
-      return `Database has price records from ${range.oldest} to ${range.newest}.`;
+      suggestedAnswer = `Our database has price records from ${range.oldest} to ${range.newest}.`;
+      return { context: suggestedAnswer, suggestedAnswer };
     }
 
     // --- Date-specific single day ---
@@ -319,23 +344,39 @@ const buildContext = async (question) => {
       const result = await fetchClosestDate(dateInfo.date, targetMetals);
       if (!result) {
         const range = await fetchAvailableDateRange();
-        return `No price data found for ${dateInfo.date} or nearby dates. Database has prices from ${range.oldest} to ${range.newest}.`;
+        suggestedAnswer = `Sorry, no price data found for ${dateInfo.date}. Our database has prices from ${range.oldest} to ${range.newest}.`;
+        return { context: suggestedAnswer, suggestedAnswer };
       }
-      const note = result.date !== dateInfo.date ? ` (closest available to ${dateInfo.date})` : "";
-      contextParts.push(formatMetalPrices(result.prices, result.date + note));
+      const closestNote = result.date !== dateInfo.date ? ` (closest to ${dateInfo.date})` : "";
+      const priceBlock = formatMetalPrices(result.prices, result.date + closestNote);
+      contextParts.push(priceBlock);
+
+      // Build suggested answer for single-date price queries
+      if (metals.length === 1 || (metals.length === 0 && intent === "price")) {
+        const m = metals.length === 1 ? metals[0] : "XAU";
+        if (m === "XAU" && result.prices.XAU) {
+          const gd = result.prices.XAU;
+          const caratLines = [];
+          ["24", "22", "18", "14"].forEach(c => {
+            if (gd[c]?.price_1g) caratLines.push(`${c}K: ${fmtPrice(gd[c].price_1g)} per gram`);
+          });
+          suggestedAnswer = `Gold prices on ${result.date}${closestNote}:\n${caratLines.join("\n")}`;
+        } else if (METAL_NAMES[m] && result.prices[m]?.price_1g) {
+          suggestedAnswer = `${METAL_NAMES[m]} price on ${result.date}${closestNote}: ${fmtPrice(result.prices[m].price_1g)} per gram.`;
+        }
+      }
 
       // If comparing with today
       if (intent === "compare") {
         const latest = await fetchLatestPrices(targetMetals);
         if (latest && latest.date !== result.date) {
           contextParts.push(formatMetalPrices(latest.prices, latest.date + " (latest)"));
-          // Compute changes
           const changes = computeChanges(result.prices, latest.prices, result.date, latest.date);
           if (changes) contextParts.push(changes);
         }
       }
 
-      return contextParts.join("\n\n");
+      return { context: contextParts.join("\n\n"), suggestedAnswer };
     }
 
     // --- Date range ---
@@ -343,17 +384,17 @@ const buildContext = async (question) => {
       const history = await fetchDateRange(dateInfo.from, dateInfo.to, targetMetals);
       if (history.length === 0) {
         const range = await fetchAvailableDateRange();
-        return `No price data found between ${dateInfo.from} and ${dateInfo.to}. Database has prices from ${range.oldest} to ${range.newest}.`;
+        suggestedAnswer = `No price data found between ${dateInfo.from} and ${dateInfo.to}. Database has prices from ${range.oldest} to ${range.newest}.`;
+        return { context: suggestedAnswer, suggestedAnswer };
       }
 
-      // Show metal-by-metal summary for the range
       const primaryMetal = metals.length > 0 ? metals[0] : "XAU";
       const metalName = METAL_NAMES[primaryMetal] || primaryMetal;
 
-      let lines = [`PRICE HISTORY FOR ${metalName} (${dateInfo.from} to ${dateInfo.to}):`];
+      let lines = [`${metalName} price history (${dateInfo.from} to ${dateInfo.to}):`];
       history.forEach((day) => {
         const p = day.prices[primaryMetal];
-        if (p != null) lines.push(`  ${day.date}: ${fmtPrice(p)}/gram`);
+        if (p != null) lines.push(`${day.date}: ${fmtPrice(p)} per gram`);
       });
 
       // Statistics
@@ -366,39 +407,62 @@ const buildContext = async (question) => {
         const last = vals[vals.length - 1];
         const change = last - first;
         const pct = ((change / first) * 100).toFixed(2);
-        lines.push(`\nLow: ${fmtPrice(min)} | High: ${fmtPrice(max)} | Avg: ${fmtPrice(avg)}`);
-        lines.push(`Change: ${change > 0 ? "+" : ""}${fmtPrice(change)} (${pct}%) from first to last`);
+        lines.push(`\nLowest: ${fmtPrice(min)} | Highest: ${fmtPrice(max)} | Average: ${fmtPrice(avg)}`);
+        lines.push(`Change: ${change > 0 ? "+" : ""}${fmtPrice(change)} (${pct}%)`);
+
+        suggestedAnswer = `${metalName} from ${dateInfo.from} to ${dateInfo.to}: Lowest ${fmtPrice(min)}, Highest ${fmtPrice(max)}, Average ${fmtPrice(avg)} per gram. Overall change: ${change > 0 ? "+" : ""}${fmtPrice(change)} (${pct}%).`;
       }
 
       contextParts.push(lines.join("\n"));
-
-      // If multiple metals requested, show latest for all
-      if (metals.length > 1 || metals.length === 0) {
-        const lastDay = history[history.length - 1];
-        const otherLines = [];
-        targetMetals.forEach((sym) => {
-          if (sym !== primaryMetal && lastDay.prices[sym] != null) {
-            otherLines.push(`${METAL_NAMES[sym]}: ${fmtPrice(lastDay.prices[sym])}/gram`);
-          }
-        });
-        if (otherLines.length > 0) contextParts.push(`OTHER METALS ON ${lastDay.date}:\n${otherLines.join("\n")}`);
-      }
-
-      return contextParts.join("\n\n");
+      return { context: contextParts.join("\n\n"), suggestedAnswer };
     }
 
     // --- No specific date → use latest ---
     const latest = await fetchLatestPrices(targetMetals);
-    if (!latest) return "No price data is currently available in the database.";
+    if (!latest) return { context: "No price data is currently available.", suggestedAnswer: "Sorry, no price data is currently available in our database." };
 
     // All carats
     if (intent === "carats" && latest.prices.XAU) {
-      contextParts.push(`GOLD PRICES - ALL CARATS (${latest.date}):\n${formatGoldPrices(latest.prices.XAU)}`);
-      return contextParts.join("\n\n");
+      const gd = latest.prices.XAU;
+      const caratLines = [];
+      ["24", "22", "18", "14"].forEach(c => {
+        if (gd[c]?.price_1g) caratLines.push(`${c}K: ${fmtPrice(gd[c].price_1g)} per gram`);
+      });
+      const block = `Gold prices - all carats (${latest.date}):\n${caratLines.join("\n")}`;
+      suggestedAnswer = `Gold prices as of ${latest.date}:\n${caratLines.join("\n")}`;
+      return { context: block, suggestedAnswer };
     }
 
     // Current prices
     contextParts.push(formatMetalPrices(latest.prices, latest.date));
+
+    // Build suggested answer for simple price queries
+    if (intent === "price") {
+      if (metals.length === 1) {
+        const m = metals[0];
+        if (m === "XAU" && latest.prices.XAU) {
+          const gd = latest.prices.XAU;
+          const caratLines = [];
+          ["24", "22", "18", "14"].forEach(c => {
+            if (gd[c]?.price_1g) caratLines.push(`${c}K: ${fmtPrice(gd[c].price_1g)} per gram`);
+          });
+          suggestedAnswer = `Latest gold prices (${latest.date}):\n${caratLines.join("\n")}`;
+        } else if (METAL_NAMES[m] && latest.prices[m]?.price_1g) {
+          suggestedAnswer = `Latest ${METAL_NAMES[m]} price (${latest.date}): ${fmtPrice(latest.prices[m].price_1g)} per gram.`;
+        }
+      } else if (metals.length === 0) {
+        // General "prices" query - list all
+        const allLines = [];
+        Object.entries(latest.prices).forEach(([sym, data]) => {
+          if (sym === "XAU" && data?.["22"]?.price_1g) {
+            allLines.push(`Gold (22K): ${fmtPrice(data["22"].price_1g)} per gram`);
+          } else if (METAL_NAMES[sym] && data?.price_1g) {
+            allLines.push(`${METAL_NAMES[sym]}: ${fmtPrice(data.price_1g)} per gram`);
+          }
+        });
+        suggestedAnswer = `Latest metal prices (${latest.date}):\n${allLines.join("\n")}`;
+      }
+    }
 
     // Compare intent → also fetch yesterday
     if (intent === "compare") {
@@ -420,7 +484,7 @@ const buildContext = async (question) => {
         const vals = history.map((d) => d.prices[primaryMetal]).filter((v) => v != null);
         const hLines = history.map((d) => {
           const p = d.prices[primaryMetal];
-          return p != null ? `  ${d.date}: ${fmtPrice(p)}/gram` : null;
+          return p != null ? `${d.date}: ${fmtPrice(p)} per gram` : null;
         }).filter(Boolean);
 
         if (vals.length > 1) {
@@ -428,7 +492,9 @@ const buildContext = async (question) => {
           const max = Math.max(...vals);
           const change = vals[vals.length - 1] - vals[0];
           const pct = ((change / vals[0]) * 100).toFixed(2);
-          contextParts.push(`WEEKLY TREND FOR ${METAL_NAMES[primaryMetal]}:\n${hLines.join("\n")}\n\nLow: ${fmtPrice(min)} | High: ${fmtPrice(max)}\nChange: ${change > 0 ? "+" : ""}${fmtPrice(change)} (${pct}%)`);
+          contextParts.push(`${METAL_NAMES[primaryMetal]} 7-day trend:\n${hLines.join("\n")}\n\nLowest: ${fmtPrice(min)} | Highest: ${fmtPrice(max)}\nChange: ${change > 0 ? "+" : ""}${fmtPrice(change)} (${pct}%)`);
+
+          suggestedAnswer = `${METAL_NAMES[primaryMetal]} 7-day trend (${from} to ${latest.date}): Lowest ${fmtPrice(min)}, Highest ${fmtPrice(max)}. Overall ${change > 0 ? "up" : "down"} by ${fmtPrice(Math.abs(change))} (${pct}%).`;
         }
       }
     }
@@ -444,7 +510,10 @@ const buildContext = async (question) => {
         }
       });
       flat.sort((a, b) => a.price - b.price);
-      contextParts.push(`METALS RANKED BY PRICE (${latest.date}):\n${flat.map((m, i) => `${i + 1}. ${m.name}: ${fmtPrice(m.price)}/gram`).join("\n")}`);
+      const rankLines = flat.map((m, i) => `${i + 1}. ${m.name}: ${fmtPrice(m.price)} per gram`);
+      contextParts.push(`Metals ranked by price (${latest.date}):\n${rankLines.join("\n")}`);
+
+      suggestedAnswer = `Metal prices ranked cheapest to most expensive (${latest.date}):\n${rankLines.join("\n")}`;
     }
 
     // Average intent → last 7 days avg
@@ -456,22 +525,24 @@ const buildContext = async (question) => {
         const vals = history.map((d) => d.prices[primaryMetal]).filter((v) => v != null);
         if (vals.length > 0) {
           const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
-          contextParts.push(`7-DAY AVERAGE FOR ${METAL_NAMES[primaryMetal]}: ${fmtPrice(avg)}/gram (based on ${vals.length} data points)`);
+          contextParts.push(`7-day average for ${METAL_NAMES[primaryMetal]}: ${fmtPrice(avg)} per gram (${vals.length} data points)`);
+
+          suggestedAnswer = `The 7-day average price for ${METAL_NAMES[primaryMetal]} is ${fmtPrice(avg)} per gram (based on ${vals.length} days of data).`;
         }
       }
     }
 
   } catch (err) {
     console.error("Error building context:", err);
-    return "Error retrieving data from database.";
+    return { context: "Error retrieving data from database.", suggestedAnswer: "Sorry, there was an error retrieving data. Please try again." };
   }
 
-  return contextParts.join("\n\n");
+  return { context: contextParts.join("\n\n"), suggestedAnswer };
 };
 
 /** Compute price changes between two sets of prices */
 const computeChanges = (oldPrices, newPrices, oldDate, newDate) => {
-  const lines = [`PRICE CHANGES (${oldDate} → ${newDate}):`];
+  const lines = [`Price changes (${oldDate} → ${newDate}):`];
   let hasData = false;
 
   for (const sym of ALL_METALS) {
@@ -494,23 +565,19 @@ const computeChanges = (oldPrices, newPrices, oldDate, newDate) => {
 // System prompt
 // ─────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Auric AI, the intelligent assistant for Auric Ledger - an Indian metal price tracking platform.
+const SYSTEM_PROMPT = `You are Auric AI, the concise assistant for Auric Ledger — an Indian metal price tracker.
 
-CRITICAL CURRENCY RULE:
-- ALL prices are in INDIAN RUPEES. Use the ₹ symbol (₹) ALWAYS. Example: ₹14938.42/gram.
-- NEVER use $, USD, dollars, or any other currency symbol. This is an Indian platform.
-- Copy the exact price numbers from the context data. Do not convert or change them.
-
-OTHER RULES:
-- Answer ONLY using the data provided in the context. Never make up or guess prices.
-- Keep answers concise but complete (3-6 sentences).
-- Always mention the specific date the price data is from.
-- If data says "closest available to DATE", explain that prices for the exact date weren't available and you're showing the nearest date.
-- Use the pre-calculated statistics (changes, averages, etc.) provided - do NOT recalculate.
-- For gold, mention the carat (22K, 24K, etc.) when relevant.
-- Be professional but friendly.
-- If the user asks something completely unrelated to metals/prices, politely redirect them.
-- For greetings, introduce yourself briefly and mention you can help with metal prices on any date.`;
+STRICT RULES:
+1. ALL prices are Indian Rupees (₹). NEVER use $ or USD or dollars.
+2. ONLY use data from CONTEXT DATA. NEVER invent, guess, or approximate prices.
+3. Copy exact ₹ amounts from the context — do NOT change, round, or recalculate any number.
+4. Keep answers SHORT: 2-4 sentences maximum. State the facts, then stop.
+5. Always mention the date the data is from.
+6. For gold, always specify the carat (24K, 22K, 18K).
+7. If a SUGGESTED ANSWER is provided, use it as your response base — refine the wording but keep all numbers identical.
+8. If the question is unrelated to metals/prices, say: "I can only help with metal prices. Try asking about gold, silver, or other metal prices!"
+9. For greetings, say: "Hi! I'm Auric AI. Ask me about any metal price — today, any date, trends, or comparisons!"
+10. Use "per gram" not "/gram" or "/g".`;
 
 // ─────────────────────────────────────────────
 // Non-streaming (for Telegram)
@@ -518,8 +585,16 @@ OTHER RULES:
 
 export const askChatbot = async (question) => {
   try {
-    const context = await buildContext(question);
-    const userPrompt = `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
+    const { context, suggestedAnswer } = await buildContext(question);
+
+    // If we have a high-confidence suggested answer for simple queries, use it directly
+    if (suggestedAnswer && !question.toLowerCase().includes("explain") && !question.toLowerCase().includes("why")) {
+      return { answer: suggestedAnswer, context_used: context.substring(0, 200) + "..." };
+    }
+
+    const userPrompt = suggestedAnswer
+      ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
+      : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
 
     const response = await axios.post(
       HF_API_URL,
@@ -531,18 +606,18 @@ export const askChatbot = async (question) => {
           { role: "user", content: userPrompt },
         ],
         max_tokens: 512,
-        temperature: 0.3,
+        temperature: 0.1,
       },
       { headers: { "Content-Type": "application/json" }, timeout: 60000 }
     );
 
-    const answer = response.data?.choices?.[0]?.message?.content || "I could not generate a response. Please try again.";
+    const answer = response.data?.choices?.[0]?.message?.content || suggestedAnswer || "I could not generate a response. Please try again.";
     return { answer, context_used: context.substring(0, 200) + "..." };
   } catch (err) {
     console.error("Chatbot error:", err.message);
     try {
-      const context = await buildContext(question);
-      return { answer: `I'm having trouble connecting to my AI engine, but here's the data I found:\n\n${context}`, context_used: "fallback" };
+      const { context, suggestedAnswer } = await buildContext(question);
+      return { answer: suggestedAnswer || `Here's the data I found:\n\n${context}`, context_used: "fallback" };
     } catch {
       return { answer: "Sorry, I'm unable to process your request right now. Please try again later.", context_used: "error" };
     }
@@ -562,8 +637,25 @@ export const streamChatbot = async (question, res) => {
   res.flushHeaders();
 
   try {
-    const context = await buildContext(question);
-    const userPrompt = `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
+    const { context, suggestedAnswer } = await buildContext(question);
+
+    // For simple factual queries with a suggested answer, stream the suggested answer directly
+    // This avoids the LLM hallucinating and ensures exact numbers
+    const isSimple = suggestedAnswer && !question.toLowerCase().includes("explain") && !question.toLowerCase().includes("why") && !question.toLowerCase().includes("tell me more");
+    if (isSimple) {
+      // Stream the suggested answer token-by-token for a natural feel
+      const words = suggestedAnswer.split(/(\s+|\n)/);
+      for (const word of words) {
+        res.write(`data: ${JSON.stringify({ token: word })}\n\n`);
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+      return;
+    }
+
+    const userPrompt = suggestedAnswer
+      ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
+      : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
 
     const response = await axios.post(
       HF_API_URL,
@@ -575,7 +667,7 @@ export const streamChatbot = async (question, res) => {
           { role: "user", content: userPrompt },
         ],
         max_tokens: 512,
-        temperature: 0.3,
+        temperature: 0.1,
       },
       {
         headers: { "Content-Type": "application/json" },
@@ -642,10 +734,10 @@ export const streamChatbot = async (question, res) => {
   } catch (err) {
     console.error("Stream chatbot error:", err.message);
 
-    // Fallback: send context as non-streamed response
+    // Fallback: send suggested answer or context
     try {
-      const context = await buildContext(question);
-      const fallback = `I'm having trouble connecting to my AI engine, but here's the data I found:\n\n${context}`;
+      const { context, suggestedAnswer } = await buildContext(question);
+      const fallback = suggestedAnswer || `Here's the data I found:\n\n${context}`;
       res.write(`data: ${JSON.stringify({ token: fallback })}\n\n`);
     } catch {
       res.write(`data: ${JSON.stringify({ token: "Sorry, I'm unable to process your request right now." })}\n\n`);
