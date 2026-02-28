@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 const SUGGESTIONS = [
-  "What is the gold price today?",
-  "Compare gold and silver",
-  "Gold price on 22 February",
-  "Which metal is cheapest?",
-  "Gold trend last 7 days",
+  "Today's gold & silver prices",
+  "Compare 24K vs 22K gold",
+  "Weekly gold trend",
+  "Cheapest metal right now",
 ];
 
 /** Detect mobile (<= 480px) */
@@ -27,9 +26,7 @@ export default function ChatWidget({ apiBase }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [open]);
+  // No auto-focus — let the user tap the input to open the keyboard
 
   // Mobile keyboard handling:
   // Use visualViewport to set panel height = visible area only.

@@ -95,6 +95,28 @@ const getMetalName = (symbol) => {
   return metalNames[symbol] || symbol;
 };
 
+// Format AI chatbot response into structured Telegram HTML
+const formatAIResponseForTelegram = (text) => {
+  if (!text) return "<b>Auric AI</b>\n\nNo response available.";
+
+  let body = text.trim();
+
+  // Convert markdown bold **text** → <b>text</b>
+  body = body.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+
+  // Convert lines starting with "- " into bullet points
+  body = body.replace(/^- (.+)$/gm, "• $1");
+
+  // Convert "Gold 24K = ₹..." style lines into bold-label format
+  body = body.replace(/^(Gold \d+K)\s*[:=]\s*/gm, "<b>$1:</b> ");
+  body = body.replace(/^(Silver|Platinum|Palladium|Copper|Lead|Nickel|Zinc|Aluminium)\s*[:=]\s*/gmi, (_, name) => `<b>${name}:</b> `);
+
+  // Wrap "Date:" or "As of" lines in italic
+  body = body.replace(/^((?:Date|As of|Data from)[: ].+)$/gm, "<i>$1</i>");
+
+  return `<b>Auric AI</b>\n━━━\n\n${body}\n\n━━━\n<i>Powered by Auric Ledger</i>`;
+};
+
 // Helper function to send charts for a specific metal
 const sendChartForMetal = async (chatId, metalSymbol, days = 30) => {
   try {
@@ -639,19 +661,40 @@ if (bot) {
           return;
         }
 
-        await bot.sendMessage(chatId, "Thinking...");
+        // Send a "thinking" indicator and keep its id so we can delete it later
+        let thinkingMsg = null;
+        try {
+          thinkingMsg = await bot.sendMessage(chatId, "⏳ <i>Thinking...</i>", { parse_mode: "HTML" });
+        } catch { /* ignore */ }
 
         try {
-          const { askChatbot } = await import("./chatbot.js");
-          const result = await askChatbot(question);
-          await bot.sendMessage(
-            chatId,
-            `<b>Auric AI</b>\n\n${result.answer}`,
-            { parse_mode: "HTML" }
-          );
+          const { askChatbotStream } = await import("./chatbot.js");
+
+          // Use the thinking message as the live-edit target
+          const msgId = thinkingMsg?.message_id;
+          let lastEdit = 0; // timestamp of last edit — throttle to avoid Telegram rate limits
+          const EDIT_INTERVAL = 1200; // ms between edits
+
+          const finalText = await askChatbotStream(question, (partialText) => {
+            const now = Date.now();
+            if (msgId && now - lastEdit >= EDIT_INTERVAL) {
+              lastEdit = now;
+              const preview = formatAIResponseForTelegram(partialText + " ▍");
+              bot.editMessageText(preview, { chat_id: chatId, message_id: msgId, parse_mode: "HTML" }).catch(() => {});
+            }
+          });
+
+          // Final edit with completed response
+          const formatted = formatAIResponseForTelegram(finalText);
+          if (msgId) {
+            await bot.editMessageText(formatted, { chat_id: chatId, message_id: msgId, parse_mode: "HTML" }).catch(() => {});
+          } else {
+            await bot.sendMessage(chatId, formatted, { parse_mode: "HTML" });
+          }
         } catch (aiError) {
           console.error("AI chatbot error in Telegram:", aiError);
-          await bot.sendMessage(chatId, "Sorry, I could not process your question right now. Please try again later.");
+          if (thinkingMsg) await deleteMessage(chatId, thinkingMsg.message_id);
+          await bot.sendMessage(chatId, "❌ Sorry, I could not process your question right now. Please try again later.");
         }
         return;
       }

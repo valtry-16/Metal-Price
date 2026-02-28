@@ -621,6 +621,96 @@ export const askChatbot = async (question) => {
 };
 
 // ─────────────────────────────────────────────
+// Callback-based streaming (for Telegram live edits)
+// ─────────────────────────────────────────────
+
+export const askChatbotStream = async (question, onToken) => {
+  try {
+    const { context, suggestedAnswer } = await buildContext(question);
+
+    const userPrompt = suggestedAnswer
+      ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
+      : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
+
+    const response = await axios.post(
+      HF_API_URL,
+      {
+        model: "auric-ai",
+        stream: true,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 512,
+        temperature: 0.1,
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 60000,
+        responseType: "stream",
+      }
+    );
+
+    let fullText = "";
+    let buffer = "";
+
+    return new Promise((resolve, reject) => {
+      response.data.on("data", (chunk) => {
+        buffer += chunk.toString();
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const payload = trimmed.slice(6);
+          if (payload === "[DONE]") return;
+          try {
+            const parsed = JSON.parse(payload);
+            const token = parsed.choices?.[0]?.delta?.content;
+            if (token) {
+              fullText += token;
+              onToken(fullText);
+            }
+          } catch { /* skip */ }
+        }
+      });
+
+      response.data.on("end", () => {
+        // Process remaining buffer
+        if (buffer.trim()) {
+          const trimmed = buffer.trim();
+          if (trimmed.startsWith("data: ") && trimmed.slice(6) !== "[DONE]") {
+            try {
+              const parsed = JSON.parse(trimmed.slice(6));
+              const token = parsed.choices?.[0]?.delta?.content;
+              if (token) {
+                fullText += token;
+                onToken(fullText);
+              }
+            } catch { /* skip */ }
+          }
+        }
+        resolve(fullText || suggestedAnswer || "Sorry, I couldn't generate a response.");
+      });
+
+      response.data.on("error", (err) => {
+        console.error("Stream callback error:", err.message);
+        resolve(fullText || suggestedAnswer || "Sorry, stream was interrupted.");
+      });
+    });
+  } catch (err) {
+    console.error("askChatbotStream error:", err.message);
+    try {
+      const { suggestedAnswer, context } = await buildContext(question);
+      return suggestedAnswer || `Here's the data I found:\n\n${context}`;
+    } catch {
+      return "Sorry, I'm unable to process your request right now.";
+    }
+  }
+};
+
+// ─────────────────────────────────────────────
 // Streaming (for website - SSE)
 // ─────────────────────────────────────────────
 
