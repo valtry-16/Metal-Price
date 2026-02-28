@@ -3,6 +3,7 @@ import axios from "axios";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat.js";
 import dotenv from "dotenv";
+import KNOWLEDGE_BASE from "./knowledge-base.js";
 
 dotenv.config();
 dayjs.extend(customParseFormat);
@@ -251,6 +252,10 @@ const detectMetals = (question) => {
 
 const detectIntent = (question) => {
   const q = question.toLowerCase();
+  // Greetings — answered from knowledge base
+  if (/^\s*(hi|hello|hey|good\s*(morning|afternoon|evening)|greetings|sup|yo)\s*[!.?]?\s*$/i.test(q)) return "greeting";
+  // Site / feature / about questions — answered from knowledge base, no DB needed
+  if (/\b(who (made|created|built|developed)|about (auric|this)|what is auric|auric ledger|feature|how (does|do) (this|the|auric)|telegram bot|subscribe|email|alert|notification|download|pdf|csv|install|pwa|dark mode|privacy|contact|version)\b/.test(q)) return "site_info";
   if (q.includes("compare") || q.includes("vs") || q.includes("difference") || q.includes("versus")) return "compare";
   if (q.includes("trend") || q.includes("history") || q.includes("chart") || q.includes("movement")) return "trend";
   if (q.includes("cheapest") || q.includes("expensive") || q.includes("highest") || q.includes("lowest") || q.includes("rank")) return "rank";
@@ -325,6 +330,16 @@ const buildContext = async (question) => {
   let suggestedAnswer = ""; // Pre-built answer hint for the model
 
   try {
+    // Greetings — no DB needed
+    if (intent === "greeting") {
+      return { context: "The user is greeting you. Respond warmly and mention what you can help with.", suggestedAnswer: "" };
+    }
+
+    // Site info questions — answered from knowledge base, no DB query needed
+    if (intent === "site_info") {
+      return { context: "Answer this question using the KNOWLEDGE BASE in your system prompt. No price data is needed.", suggestedAnswer: "" };
+    }
+
     // Help intent
     if (intent === "help") {
       const range = await fetchAvailableDateRange();
@@ -565,19 +580,23 @@ const computeChanges = (oldPrices, newPrices, oldDate, newDate) => {
 // System prompt
 // ─────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Auric AI, the concise assistant for Auric Ledger — an Indian metal price tracker.
+const SYSTEM_PROMPT = `You are Auric AI, the intelligent assistant for Auric Ledger — an Indian metal price tracking platform.
 
-STRICT RULES:
+${KNOWLEDGE_BASE}
+
+STRICT RULES FOR EVERY RESPONSE:
 1. ALL prices are Indian Rupees (₹). NEVER use $ or USD or dollars.
-2. ONLY use data from CONTEXT DATA. NEVER invent, guess, or approximate prices.
+2. ONLY use data from CONTEXT DATA below. NEVER invent, guess, or approximate prices.
 3. Copy exact ₹ amounts from the context — do NOT change, round, or recalculate any number.
-4. Keep answers SHORT: 2-4 sentences maximum. State the facts, then stop.
-5. Always mention the date the data is from.
+4. Keep answers SHORT: 2-4 sentences for price queries. For site questions, answer fully but concisely.
+5. Always mention the date when quoting any price.
 6. For gold, always specify the carat (24K, 22K, 18K).
 7. If a SUGGESTED ANSWER is provided, use it as your response base — refine the wording but keep all numbers identical.
-8. If the question is unrelated to metals/prices, say: "I can only help with metal prices. Try asking about gold, silver, or other metal prices!"
-9. For greetings, say: "Hi! I'm Auric AI. Ask me about any metal price — today, any date, trends, or comparisons!"
-10. Use "per gram" not "/gram" or "/g".`;
+8. If the question is about Auric Ledger, the website, Telegram bot, features, or how things work — answer using the KNOWLEDGE BASE above.
+9. If the question is completely unrelated to metals, prices, or this platform, say: "I can only help with metal prices and Auric Ledger. Try asking about gold, silver, or other metal prices!"
+10. For greetings, say: "Hi! I'm Auric AI, your metal price assistant. Ask me about prices, trends, comparisons, or anything about Auric Ledger!"
+11. Use "per gram" not "/gram" or "/g".
+12. When answering site questions (features, how-to, about), you do NOT need CONTEXT DATA — use the KNOWLEDGE BASE directly.`;
 
 // ─────────────────────────────────────────────
 // Non-streaming (for Telegram)
