@@ -1689,6 +1689,29 @@ app.get("/wake-up", (req, res) => {
 // Track whether a summary is currently being generated
 let summaryGenerating = false;
 
+// SSE clients for real-time summary notifications
+const summarySSEClients = new Set();
+
+const broadcastSummaryEvent = (event, data) => {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of summarySSEClients) {
+    try { client.write(payload); } catch { summarySSEClients.delete(client); }
+  }
+};
+
+// SSE endpoint — frontend connects here for real-time summary status
+app.get("/summary-events", (req, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+  });
+  res.write(`event: connected\ndata: {"generating":${summaryGenerating}}\n\n`);
+  summarySSEClients.add(res);
+  req.on("close", () => summarySSEClients.delete(res));
+});
+
 // POST /generate-daily-summary — Called by cron-job.org at 9:01 AM IST
 // Background worker for summary generation (runs after immediate response)
 const generateSummaryInBackground = async (today) => {
@@ -1816,8 +1839,11 @@ Format rules:
     }
 
     console.log(`✅ Daily summary generated and saved for ${today}`);
+    // Notify all connected frontends with the new summary
+    broadcastSummaryEvent("complete", { generating: false, date: today, summary });
   } catch (error) {
     console.error("❌ Background summary generation error:", error.message);
+    broadcastSummaryEvent("error", { generating: false });
   } finally {
     summaryGenerating = false;
   }
@@ -1841,6 +1867,9 @@ app.post("/generate-daily-summary", authLimiter, async (req, res) => {
 
     // Respond immediately so cron-job.org doesn't timeout
     res.json({ status: "accepted", message: "Summary generation started", date: today });
+
+    // Notify all connected frontends to show loader immediately
+    broadcastSummaryEvent("generating", { generating: true, date: today });
 
     // Run generation in background (after response is sent)
     generateSummaryInBackground(today);

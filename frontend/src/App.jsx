@@ -624,48 +624,47 @@ export default function App() {
     load();
   }, []);
 
-  // Fetch daily AI summary — detect generation start and poll until done
+  // Fetch daily AI summary on mount + listen for real-time SSE updates
   useEffect(() => {
-    let pollTimer = null;
-    let bgTimer = null;
-    let cancelled = false;
+    // Initial fetch
+    setSummaryLoading(true);
+    fetch(`${apiBase}/daily-summary`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.summary) setDailySummary({ date: data.date, summary: data.summary });
+        if (data?.generating) setSummaryGenerating(true);
+      })
+      .catch(() => {})
+      .finally(() => setSummaryLoading(false));
 
-    const fetchSummary = async (isInitial = false) => {
-      if (isInitial) setSummaryLoading(true);
-      try {
-        const res = await fetch(`${apiBase}/daily-summary`);
-        if (!res.ok) { if (isInitial) setSummaryLoading(false); return; }
-        const data = await res.json();
-        if (cancelled) return;
+    // SSE — real-time push from backend (no polling needed)
+    let es;
+    try {
+      es = new EventSource(`${apiBase}/summary-events`);
 
-        if (data.generating) {
-          // Backend is generating — show loader, poll fast (10s)
-          setSummaryGenerating(true);
-          pollTimer = setTimeout(() => fetchSummary(false), 10000);
-        } else {
-          // Not generating — update summary if available, resume background check
-          setSummaryGenerating(false);
-          if (data.summary) {
-            setDailySummary({ date: data.date, summary: data.summary });
-          }
-          // Background poll every 60s to detect when a new generation starts
-          bgTimer = setTimeout(() => fetchSummary(false), 60000);
-        }
-      } catch {
-        // Silent fail — retry in 60s
-        if (!cancelled) bgTimer = setTimeout(() => fetchSummary(false), 60000);
-      } finally {
-        if (isInitial) setSummaryLoading(false);
-      }
-    };
+      es.addEventListener("connected", (e) => {
+        const d = JSON.parse(e.data);
+        if (d.generating) setSummaryGenerating(true);
+      });
 
-    fetchSummary(true);
+      es.addEventListener("generating", () => {
+        setSummaryGenerating(true);
+      });
 
-    return () => {
-      cancelled = true;
-      if (pollTimer) clearTimeout(pollTimer);
-      if (bgTimer) clearTimeout(bgTimer);
-    };
+      es.addEventListener("complete", (e) => {
+        const d = JSON.parse(e.data);
+        setSummaryGenerating(false);
+        if (d.summary) setDailySummary({ date: d.date, summary: d.summary });
+      });
+
+      es.addEventListener("error", () => {
+        setSummaryGenerating(false);
+      });
+    } catch {
+      // SSE not supported — silent fail, initial fetch is sufficient
+    }
+
+    return () => { if (es) es.close(); };
   }, []);
 
   useEffect(() => {
