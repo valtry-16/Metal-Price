@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 
 const SUGGESTIONS = [
   "What is the gold price today?",
-  "Compare gold and silver prices",
-  "Show the weekly gold trend",
+  "Compare gold and silver",
+  "Weekly gold trend",
   "Which metal is cheapest?",
   "What can you do?",
 ];
@@ -23,7 +23,7 @@ export default function ChatWidget({ apiBase }) {
   }, [messages]);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
   const send = async (text) => {
@@ -64,42 +64,67 @@ export default function ChatWidget({ apiBase }) {
 
   return (
     <>
-      {/* Floating toggle button */}
+      {/* Floating toggle button with site logo */}
       <button
         className="chat-fab"
         onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close chat" : "Open chat"}
+        aria-label={open ? "Close chat" : "Ask Auric AI"}
         title="Ask Auric AI"
       >
         {open ? (
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         ) : (
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z"/><circle cx="8" cy="10" r="1.2"/><circle cx="12" cy="10" r="1.2"/><circle cx="16" cy="10" r="1.2"/></svg>
+          <img
+            src="/metal-price-icon.svg"
+            alt="Auric AI"
+            className="chat-fab-logo"
+          />
         )}
       </button>
 
+      {/* Label pill */}
+      {!open && (
+        <span className="chat-fab-label">Ask AI</span>
+      )}
+
       {/* Chat panel */}
       {open && (
-        <div className="chat-panel">
+        <div className="chat-panel" role="dialog" aria-label="Auric AI Chat">
           {/* Header */}
           <div className="chat-header">
-            <span className="chat-header-dot" />
-            <span className="chat-header-title">Auric AI</span>
-            <button className="chat-close" onClick={() => setOpen(false)} aria-label="Close">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <img src="/metal-price-icon.svg" alt="" className="chat-header-logo" />
+            <div className="chat-header-info">
+              <span className="chat-header-title">Auric AI</span>
+              <span className="chat-header-status">
+                <span className="chat-header-dot" />
+                Online
+              </span>
+            </div>
+            <button className="chat-close-btn" onClick={() => setOpen(false)} aria-label="Close chat">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
 
           {/* Messages */}
           <div className="chat-messages">
             {messages.map((m, i) => (
-              <div key={i} className={`chat-msg chat-msg-${m.role}`}>
+              <div key={i} className={`chat-msg chat-msg--${m.role}`}>
+                {m.role === "bot" && (
+                  <img src="/metal-price-icon.svg" alt="" className="chat-avatar" />
+                )}
                 <div className="chat-bubble">{m.text}</div>
               </div>
             ))}
             {loading && (
-              <div className="chat-msg chat-msg-bot">
-                <div className="chat-bubble chat-typing">
+              <div className="chat-msg chat-msg--bot">
+                <img src="/metal-price-icon.svg" alt="" className="chat-avatar" />
+                <div className="chat-bubble chat-bubble--typing">
                   <span /><span /><span />
                 </div>
               </div>
@@ -107,11 +132,11 @@ export default function ChatWidget({ apiBase }) {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Suggestions (show only if just the initial message) */}
+          {/* Suggestions (only on welcome) */}
           {messages.length === 1 && !loading && (
             <div className="chat-suggestions">
               {SUGGESTIONS.map((s, i) => (
-                <button key={i} className="chat-suggestion" onClick={() => send(s)}>
+                <button key={i} className="chat-chip" onClick={() => send(s)}>
                   {s}
                 </button>
               ))}
@@ -119,7 +144,7 @@ export default function ChatWidget({ apiBase }) {
           )}
 
           {/* Input */}
-          <div className="chat-input-row">
+          <div className="chat-input-bar">
             <input
               ref={inputRef}
               className="chat-input"
@@ -132,12 +157,14 @@ export default function ChatWidget({ apiBase }) {
               maxLength={500}
             />
             <button
-              className="chat-send"
+              className="chat-send-btn"
               onClick={() => send()}
               disabled={loading || !input.trim()}
-              aria-label="Send"
+              aria-label="Send message"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
             </button>
           </div>
         </div>
