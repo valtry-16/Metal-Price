@@ -1,22 +1,23 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 const SUGGESTIONS = [
   "What is the gold price today?",
   "Compare gold and silver",
-  "Weekly gold trend",
+  "Gold price on 22 February",
   "Which metal is cheapest?",
-  "What can you do?",
+  "Gold trend last 7 days",
 ];
 
 export default function ChatWidget({ apiBase }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "bot", text: "Hi! I'm Auric AI. Ask me anything about metal prices." },
+    { role: "bot", text: "Hi! I'm Auric AI. Ask me anything about metal prices - today, any date, trends, comparisons, and more!" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const abortRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,7 +27,7 @@ export default function ChatWidget({ apiBase }) {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
-  const send = async (text) => {
+  const send = useCallback(async (text) => {
     const msg = (text || input).trim();
     if (!msg || loading) return;
 
@@ -34,32 +35,106 @@ export default function ChatWidget({ apiBase }) {
     setInput("");
     setLoading(true);
 
+    // Add a placeholder bot message that we'll stream into
+    const botIdx = messages.length + 1; // index after adding user msg
+    setMessages((prev) => [...prev, { role: "bot", text: "" }]);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch(`${apiBase}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg }),
+        body: JSON.stringify({ message: msg, stream: true }),
+        signal: controller.signal,
       });
-      const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", text: data.reply || "Sorry, no response received." },
-      ]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "bot", text: "Connection error. Please try again." },
-      ]);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || "Request failed");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
+          const payload = trimmed.slice(6);
+          if (payload === "[DONE]") break;
+
+          try {
+            const parsed = JSON.parse(payload);
+            if (parsed.token) {
+              fullText += parsed.token;
+              const captured = fullText;
+              setMessages((prev) => {
+                const updated = [...prev];
+                const lastBot = updated.length - 1;
+                if (updated[lastBot]?.role === "bot") {
+                  updated[lastBot] = { ...updated[lastBot], text: captured };
+                }
+                return updated;
+              });
+            }
+            if (parsed.error) {
+              fullText += parsed.error;
+            }
+          } catch {
+            // skip malformed
+          }
+        }
+      }
+
+      // If nothing was streamed, show fallback
+      if (!fullText.trim()) {
+        setMessages((prev) => {
+          const updated = [...prev];
+          const lastBot = updated.length - 1;
+          if (updated[lastBot]?.role === "bot") {
+            updated[lastBot] = { ...updated[lastBot], text: "Sorry, I couldn't generate a response. Please try again." };
+          }
+          return updated;
+        });
+      }
+
+    } catch (err) {
+      if (err.name === "AbortError") return;
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastBot = updated.length - 1;
+        if (updated[lastBot]?.role === "bot" && !updated[lastBot].text) {
+          updated[lastBot] = { ...updated[lastBot], text: "Connection error. Please try again." };
+        }
+        return updated;
+      });
     } finally {
       setLoading(false);
+      abortRef.current = null;
     }
-  };
+  }, [input, loading, apiBase, messages.length]);
 
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
     }
+  };
+
+  const handleClose = () => {
+    if (abortRef.current) abortRef.current.abort();
+    setOpen(false);
   };
 
   return (
@@ -103,7 +178,7 @@ export default function ChatWidget({ apiBase }) {
                 Online
               </span>
             </div>
-            <button className="chat-close-btn" onClick={() => setOpen(false)} aria-label="Close chat">
+            <button className="chat-close-btn" onClick={handleClose} aria-label="Close chat">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -113,15 +188,26 @@ export default function ChatWidget({ apiBase }) {
 
           {/* Messages */}
           <div className="chat-messages">
-            {messages.map((m, i) => (
-              <div key={i} className={`chat-msg chat-msg--${m.role}`}>
-                {m.role === "bot" && (
-                  <img src="/metal-price-icon.svg" alt="" className="chat-avatar" />
-                )}
-                <div className="chat-bubble">{m.text}</div>
-              </div>
-            ))}
-            {loading && (
+            {messages.map((m, i) => {
+              const isStreamingMsg = loading && i === messages.length - 1 && m.role === "bot";
+              const isEmpty = !m.text;
+
+              // Hide empty bot placeholder (typing dots show instead)
+              if (isStreamingMsg && isEmpty) return null;
+
+              return (
+                <div key={i} className={`chat-msg chat-msg--${m.role}`}>
+                  {m.role === "bot" && (
+                    <img src="/metal-price-icon.svg" alt="" className="chat-avatar" />
+                  )}
+                  <div className={`chat-bubble${isStreamingMsg ? " chat-bubble--streaming" : ""}`}>
+                    {m.text}
+                    {isStreamingMsg && <span className="chat-cursor" />}
+                  </div>
+                </div>
+              );
+            })}
+            {loading && messages[messages.length - 1]?.role === "bot" && !messages[messages.length - 1]?.text && (
               <div className="chat-msg chat-msg--bot">
                 <img src="/metal-price-icon.svg" alt="" className="chat-avatar" />
                 <div className="chat-bubble chat-bubble--typing">

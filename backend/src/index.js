@@ -12,7 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import { sendDailyPricesToTelegram } from "./telegram-bot.js";
 import bot from "./telegram-bot.js";
-import { askChatbot } from "./chatbot.js";
+import { askChatbot, streamChatbot } from "./chatbot.js";
 
 dotenv.config();
 dayjs.extend(utc);
@@ -1805,18 +1805,27 @@ const chatLimiter = rateLimit({
 
 app.post("/api/chat", chatLimiter, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, stream } = req.body;
     if (!message || typeof message !== "string" || message.trim().length === 0) {
       return res.status(400).json({ status: "error", message: "Message is required" });
     }
     if (message.length > 500) {
       return res.status(400).json({ status: "error", message: "Message too long (max 500 chars)" });
     }
-    const result = await askChatbot(message.trim());
-    res.json({ status: "success", reply: result.answer });
+
+    if (stream) {
+      // Streaming SSE response
+      await streamChatbot(message.trim(), res);
+    } else {
+      // Non-streaming JSON response
+      const result = await askChatbot(message.trim());
+      res.json({ status: "success", reply: result.answer });
+    }
   } catch (error) {
     console.error("Chat endpoint error:", error);
-    res.status(500).json({ status: "error", message: "Failed to process chat request" });
+    if (!res.headersSent) {
+      res.status(500).json({ status: "error", message: "Failed to process chat request" });
+    }
   }
 });
 
