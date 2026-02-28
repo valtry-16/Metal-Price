@@ -229,6 +229,7 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dailySummary, setDailySummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   
   // Alert system states
@@ -622,20 +623,43 @@ export default function App() {
     load();
   }, []);
 
-  // Fetch daily AI summary
+  // Fetch daily AI summary — polls if stale (summary date < today after 9 AM IST)
   useEffect(() => {
-    const loadSummary = async () => {
+    let pollTimer = null;
+    const getTodayIST = () => {
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const ist = new Date(now.getTime() + istOffset + now.getTimezoneOffset() * 60000);
+      return { date: ist.toISOString().slice(0, 10), hour: ist.getHours() };
+    };
+    const fetchSummary = async () => {
       try {
         const res = await fetch(`${apiBase}/daily-summary`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.summary) setDailySummary({ date: data.date, summary: data.summary });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.summary) {
+          const { date: todayIST, hour } = getTodayIST();
+          setDailySummary({ date: data.date, summary: data.summary });
+          // If summary is outdated and it's past 9 AM IST, show loading and poll
+          if (data.date < todayIST && hour >= 9) {
+            setSummaryLoading(true);
+            pollTimer = setTimeout(fetchSummary, 30000);
+          } else {
+            setSummaryLoading(false);
+          }
+        } else {
+          const { hour } = getTodayIST();
+          if (hour >= 9) {
+            setSummaryLoading(true);
+            pollTimer = setTimeout(fetchSummary, 30000);
+          }
         }
       } catch {
-        // Silent fail — summary is optional
+        // Silent fail
       }
     };
-    loadSummary();
+    fetchSummary();
+    return () => { if (pollTimer) clearTimeout(pollTimer); };
   }, []);
 
   useEffect(() => {
@@ -1189,35 +1213,46 @@ export default function App() {
             <p className="hero__tagline">
               Beautifully simple pricing insights, updated in real time.
             </p>
-            {dailySummary && (
+            {(dailySummary || summaryLoading) && (
               <div className="hero__summary">
                 <div className="hero__summary-inner">
                   <div className="hero__summary-header">
                     <span style={{ fontSize: "18px" }}>📊</span>
                     <h3>Daily Market Summary</h3>
-                    <span className="hero__summary-date">{dailySummary.date}</span>
+                    {dailySummary && <span className="hero__summary-date">{dailySummary.date}</span>}
+                    {summaryLoading && <span className="hero__summary-loading">Updating…</span>}
                   </div>
-                  <div className="hero__summary-body">
-                    {dailySummary.summary.split("\n").map((line, i) => {
-                      if (!line.trim()) return <div key={i} className="summary-spacer" />;
-                      // Parse basic markdown: **bold**
-                      const parts = line.split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
-                        if (seg.startsWith("**") && seg.endsWith("**")) {
-                          return <strong key={j}>{seg.slice(2, -2)}</strong>;
-                        }
-                        return seg;
-                      });
-                      // Detect heading-like lines (Market Overview, Outlook)
-                      const isHeading = /^(Market Overview|Outlook)[:\s]/i.test(line.trim());
-                      // Detect metal price lines (contain ₹ and /g or per gram)
-                      const isMetalLine = line.includes("₹") && (/\/g|\/kg|per gram|per kg|per 8g/i.test(line));
-                      return (
-                        <p key={i} className={isHeading ? "summary-heading" : isMetalLine ? "summary-metal" : ""}>
-                          {parts}
-                        </p>
-                      );
-                    })}
-                  </div>
+                  {summaryLoading ? (
+                    <div className="hero__summary-body summary-skeleton">
+                      <div className="skeleton-line w80" />
+                      <div className="skeleton-line w60" />
+                      <div className="skeleton-line w90" />
+                      <div className="skeleton-line w70" />
+                      <div className="skeleton-line w85" />
+                      <div className="skeleton-line w50" />
+                      <div className="skeleton-line w75" />
+                      <div className="skeleton-line w65" />
+                    </div>
+                  ) : (
+                    <div className="hero__summary-body">
+                      {dailySummary.summary.split("\n").map((line, i) => {
+                        if (!line.trim()) return <div key={i} className="summary-spacer" />;
+                        const parts = line.split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
+                          if (seg.startsWith("**") && seg.endsWith("**")) {
+                            return <strong key={j}>{seg.slice(2, -2)}</strong>;
+                          }
+                          return seg;
+                        });
+                        const isHeading = /^(Market Overview|Outlook)[:\s]/i.test(line.trim());
+                        const isMetalLine = line.includes("₹") && (/\/g|\/kg|per gram|per kg|per 8g/i.test(line));
+                        return (
+                          <p key={i} className={isHeading ? "summary-heading" : isMetalLine ? "summary-metal" : ""}>
+                            {parts}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1698,7 +1733,23 @@ export default function App() {
                 </button>
               </div>
               <div className="faq-section">
-                {dailySummary ? (
+                {summaryLoading ? (
+                  <div className="faq-item">
+                    <div className="summary-skeleton">
+                      <div className="skeleton-line w80" />
+                      <div className="skeleton-line w60" />
+                      <div className="skeleton-line w90" />
+                      <div className="skeleton-line w70" />
+                      <div className="skeleton-line w85" />
+                      <div className="skeleton-line w50" />
+                      <div className="skeleton-line w75" />
+                      <div className="skeleton-line w65" />
+                    </div>
+                    <p style={{ color: "var(--muted)", textAlign: "center", marginTop: "16px", fontSize: "13px" }}>
+                      Generating today's summary…
+                    </p>
+                  </div>
+                ) : dailySummary ? (
                   <div className="faq-item">
                     <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "1px" }}>
                       {dailySummary.date}

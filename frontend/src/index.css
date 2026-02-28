@@ -751,6 +751,51 @@ select {
   border-radius: 4px;
 }
 
+/* Summary loading indicator */
+.hero__summary-loading {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Skeleton loading animation */
+.summary-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--line) 25%, rgba(197, 154, 60, 0.1) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-line.w50 { width: 50%; }
+.skeleton-line.w60 { width: 60%; }
+.skeleton-line.w65 { width: 65%; }
+.skeleton-line.w70 { width: 70%; }
+.skeleton-line.w75 { width: 75%; }
+.skeleton-line.w80 { width: 80%; }
+.skeleton-line.w85 { width: 85%; }
+.skeleton-line.w90 { width: 90%; }
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Summary modal body */
 .summary-modal-body p {
   font-size: 14px;
