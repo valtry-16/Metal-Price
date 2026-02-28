@@ -3,7 +3,7 @@ import axios from "axios";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat.js";
 import dotenv from "dotenv";
-import KNOWLEDGE_BASE from "./knowledge-base.js";
+import { getRelevantKB } from "./knowledge-base.js";
 
 dotenv.config();
 dayjs.extend(customParseFormat);
@@ -321,8 +321,7 @@ const formatMetalPrices = (prices, date) => {
 // Build context (all calculations done here)
 // ─────────────────────────────────────────────
 
-const buildContext = async (question) => {
-  const intent = detectIntent(question);
+const _buildContext = async (question, intent) => {
   const metals = detectMetals(question);
   const dateInfo = parseDate(question);
   const targetMetals = metals.length > 0 ? metals : ALL_METALS;
@@ -330,16 +329,6 @@ const buildContext = async (question) => {
   let suggestedAnswer = ""; // Pre-built answer hint for the model
 
   try {
-    // Greetings — no DB needed
-    if (intent === "greeting") {
-      return { context: "The user is greeting you. Respond warmly and mention what you can help with.", suggestedAnswer: "" };
-    }
-
-    // Site info questions — answered from knowledge base, no DB query needed
-    if (intent === "site_info") {
-      return { context: "Answer this question using the KNOWLEDGE BASE in your system prompt. No price data is needed.", suggestedAnswer: "" };
-    }
-
     // Help intent
     if (intent === "help") {
       const range = await fetchAvailableDateRange();
@@ -555,6 +544,19 @@ const buildContext = async (question) => {
   return { context: contextParts.join("\n\n"), suggestedAnswer };
 };
 
+/** Wrapper: detects intent, calls _buildContext, always includes intent in result */
+const buildContext = async (question) => {
+  const intent = detectIntent(question);
+
+  // Greetings & site info — no DB needed, KB injected by caller
+  if (intent === "greeting" || intent === "site_info") {
+    return { context: "", suggestedAnswer: "", intent };
+  }
+
+  const result = await _buildContext(question, intent);
+  return { ...result, intent };
+};
+
 /** Compute price changes between two sets of prices */
 const computeChanges = (oldPrices, newPrices, oldDate, newDate) => {
   const lines = [`Price changes (${oldDate} → ${newDate}):`];
@@ -580,23 +582,32 @@ const computeChanges = (oldPrices, newPrices, oldDate, newDate) => {
 // System prompt
 // ─────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Auric AI, the intelligent assistant for Auric Ledger — an Indian metal price tracking platform.
+const SYSTEM_PROMPT = `You are Auric AI, the assistant for Auric Ledger — an Indian metal price tracker.
 
-${KNOWLEDGE_BASE}
-
-STRICT RULES FOR EVERY RESPONSE:
-1. ALL prices are Indian Rupees (₹). NEVER use $ or USD or dollars.
-2. ONLY use data from CONTEXT DATA below. NEVER invent, guess, or approximate prices.
-3. Copy exact ₹ amounts from the context — do NOT change, round, or recalculate any number.
-4. Keep answers SHORT: 2-4 sentences for price queries. For site questions, answer fully but concisely.
-5. Always mention the date when quoting any price.
+RULES:
+1. ALL prices are in Indian Rupees (₹). NEVER use $ or USD.
+2. ONLY use numbers from CONTEXT DATA. Never invent or guess prices.
+3. Copy exact ₹ amounts — do NOT round or change any number.
+4. Keep answers SHORT: 2-4 sentences. State facts, then stop.
+5. Always mention the date when quoting a price.
 6. For gold, always specify the carat (24K, 22K, 18K).
-7. If a SUGGESTED ANSWER is provided, use it as your response base — refine the wording but keep all numbers identical.
-8. If the question is about Auric Ledger, the website, Telegram bot, features, or how things work — answer using the KNOWLEDGE BASE above.
-9. If the question is completely unrelated to metals, prices, or this platform, say: "I can only help with metal prices and Auric Ledger. Try asking about gold, silver, or other metal prices!"
-10. For greetings, say: "Hi! I'm Auric AI, your metal price assistant. Ask me about prices, trends, comparisons, or anything about Auric Ledger!"
-11. Use "per gram" not "/gram" or "/g".
-12. When answering site questions (features, how-to, about), you do NOT need CONTEXT DATA — use the KNOWLEDGE BASE directly.`;
+7. If a SUGGESTED ANSWER is provided, use it as your base — keep all numbers identical.
+8. If SITE INFO is provided, answer the question using that information.
+9. If unrelated to metals or this site, say: "I can only help with metal prices and Auric Ledger."
+10. Use "per gram" not "/gram" or "/g".`;
+
+/** Build the user prompt — injects KB snippet for site/greeting, otherwise uses context data */
+const buildUserPrompt = (question, context, suggestedAnswer, intent) => {
+  const kbSnippet = getRelevantKB(intent, question);
+  const parts = [];
+
+  if (kbSnippet) parts.push(`SITE INFO:\n${kbSnippet}`);
+  if (context) parts.push(`CONTEXT DATA:\n${context}`);
+  if (suggestedAnswer) parts.push(`SUGGESTED ANSWER:\n${suggestedAnswer}`);
+  parts.push(`USER QUESTION: ${question}`);
+
+  return parts.join("\n\n");
+};
 
 // ─────────────────────────────────────────────
 // Non-streaming (for Telegram)
@@ -604,12 +615,8 @@ STRICT RULES FOR EVERY RESPONSE:
 
 export const askChatbot = async (question) => {
   try {
-    const { context, suggestedAnswer } = await buildContext(question);
-
-    // Always send to the model — include context data AND user question
-    const userPrompt = suggestedAnswer
-      ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
-      : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
+    const { context, suggestedAnswer, intent } = await buildContext(question);
+    const userPrompt = buildUserPrompt(question, context, suggestedAnswer, intent);
 
     const response = await axios.post(
       HF_API_URL,
@@ -645,11 +652,8 @@ export const askChatbot = async (question) => {
 
 export const askChatbotStream = async (question, onToken) => {
   try {
-    const { context, suggestedAnswer } = await buildContext(question);
-
-    const userPrompt = suggestedAnswer
-      ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
-      : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
+    const { context, suggestedAnswer, intent } = await buildContext(question);
+    const userPrompt = buildUserPrompt(question, context, suggestedAnswer, intent);
 
     const response = await axios.post(
       HF_API_URL,
@@ -742,12 +746,8 @@ export const streamChatbot = async (question, res) => {
   res.flushHeaders();
 
   try {
-    const { context, suggestedAnswer } = await buildContext(question);
-
-    // Always send to the model — context + user question for a natural response
-    const userPrompt = suggestedAnswer
-      ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
-      : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
+    const { context, suggestedAnswer, intent } = await buildContext(question);
+    const userPrompt = buildUserPrompt(question, context, suggestedAnswer, intent);
 
     const response = await axios.post(
       HF_API_URL,
