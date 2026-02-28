@@ -624,9 +624,10 @@ export default function App() {
     load();
   }, []);
 
-  // Fetch daily AI summary — poll when backend is generating
+  // Fetch daily AI summary — detect generation start and poll until done
   useEffect(() => {
     let pollTimer = null;
+    let bgTimer = null;
     let cancelled = false;
 
     const fetchSummary = async (isInitial = false) => {
@@ -637,20 +638,22 @@ export default function App() {
         const data = await res.json();
         if (cancelled) return;
 
-        if (data.summary) {
-          setDailySummary({ date: data.date, summary: data.summary });
-        }
-
         if (data.generating) {
-          // Backend is still generating — show generating state and poll
+          // Backend is generating — show loader, poll fast (10s)
           setSummaryGenerating(true);
           pollTimer = setTimeout(() => fetchSummary(false), 10000);
         } else {
-          // Done generating — stop polling
+          // Not generating — update summary if available, resume background check
           setSummaryGenerating(false);
+          if (data.summary) {
+            setDailySummary({ date: data.date, summary: data.summary });
+          }
+          // Background poll every 60s to detect when a new generation starts
+          bgTimer = setTimeout(() => fetchSummary(false), 60000);
         }
       } catch {
-        // Silent fail
+        // Silent fail — retry in 60s
+        if (!cancelled) bgTimer = setTimeout(() => fetchSummary(false), 60000);
       } finally {
         if (isInitial) setSummaryLoading(false);
       }
@@ -661,6 +664,7 @@ export default function App() {
     return () => {
       cancelled = true;
       if (pollTimer) clearTimeout(pollTimer);
+      if (bgTimer) clearTimeout(bgTimer);
     };
   }, []);
 
@@ -1175,6 +1179,7 @@ export default function App() {
               Privacy
             </button>
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowSummary(true); }}>
+              <img src="/metal-price-icon.svg" alt="" style={{ width: "16px", height: "16px", verticalAlign: "middle", marginRight: "4px" }} />
               Summary
             </button>
             <button 
@@ -1205,6 +1210,7 @@ export default function App() {
                 Privacy
               </button>
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowSummary(true); setMobileMenuOpen(false); }}>
+                <img src="/metal-price-icon.svg" alt="" style={{ width: "16px", height: "16px", verticalAlign: "middle", marginRight: "4px" }} />
                 Summary
               </button>
             </div>
@@ -1219,7 +1225,6 @@ export default function App() {
               <div className="hero__summary">
                 <div className="hero__summary-inner">
                   <div className="hero__summary-header">
-                    <span style={{ fontSize: "18px" }}>📊</span>
                     <h3>Daily Market Summary</h3>
                     {dailySummary && !summaryGenerating && <span className="hero__summary-date">{dailySummary.date}</span>}
                     {summaryGenerating && <span className="hero__summary-loading">Generating…</span>}
@@ -1734,7 +1739,7 @@ export default function App() {
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
-                  <span style={{ fontSize: "24px" }}>📊</span>
+                  <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
                   <h2>Daily Market Summary</h2>
                 </div>
                 <button className="modal-close" onClick={() => setShowSummary(false)}>
@@ -1803,35 +1808,40 @@ export default function App() {
         ) : null}
 
         <footer className="site-footer">
-          <div className="footer-brand">
-            <img src="/metal-price-icon.svg" alt="Auric Ledger" />
-            <div>
-              <strong>Auric Ledger</strong>
-              <span>Premium Metal Pricing</span>
+          <div className="footer-top">
+            <div className="footer-brand">
+              <img src="/metal-price-icon.svg" alt="Auric Ledger" />
+              <div>
+                <strong>Auric Ledger</strong>
+                <span>Premium Metal Pricing</span>
+              </div>
+            </div>
+            <p className="footer-desc">Real-time precious metals and commodity pricing for the Indian market. Track Gold, Silver, Platinum, Palladium, and more.</p>
+          </div>
+          <div className="footer-divider" />
+          <div className="footer-middle">
+            <div className="footer-col">
+              <h4 className="footer-col-title">Quick Links</h4>
+              <button type="button" className="footer-link" onClick={() => setShowFaq(true)}>About</button>
+              <button type="button" className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
+              <button type="button" className="footer-link" onClick={() => setShowSummary(true)}>Daily Summary</button>
+            </div>
+            <div className="footer-col">
+              <h4 className="footer-col-title">Contact</h4>
+              <a className="footer-link" href="mailto:auricledger@gmail.com">auricledger@gmail.com</a>
+              <span className="footer-note">For privacy questions or deletion requests</span>
+            </div>
+            <div className="footer-col">
+              <h4 className="footer-col-title">Navigate</h4>
+              <button type="button" className="footer-link" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>Back to Top</button>
             </div>
           </div>
-          <div className="footer-links">
-            <button type="button" className="footer-link" onClick={() => setShowFaq(true)}>
-              About
-            </button>
-            <button type="button" className="footer-link" onClick={() => setShowPrivacy(true)}>
-              Privacy Policy
-            </button>
-            <button type="button" className="footer-link" onClick={() => setShowSummary(true)}>
-              Daily Summary
-            </button>
-            <a className="footer-link" href="mailto:auricledger@gmail.com">
-              Contact: auricledger@gmail.com
-            </a>
-            <button type="button" className="footer-link" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-              Back to top
-            </button>
+          <div className="footer-divider" />
+          <div className="footer-bottom">
+            <span>© {currentYear} Auric Ledger. All rights reserved.</span>
+            <span className="footer-credit">Developed by Sabithulla</span>
           </div>
         </footer>
-        <div className="footer-legal">
-          <div>Developed by Sabithulla</div>
-          © {currentYear} Auric Ledger. All rights reserved.
-        </div>
 
         {/* Toast Notifications */}
         <div className="toast-container">
