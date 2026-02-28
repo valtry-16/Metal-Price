@@ -587,11 +587,7 @@ export const askChatbot = async (question) => {
   try {
     const { context, suggestedAnswer } = await buildContext(question);
 
-    // If we have a high-confidence suggested answer for simple queries, use it directly
-    if (suggestedAnswer && !question.toLowerCase().includes("explain") && !question.toLowerCase().includes("why")) {
-      return { answer: suggestedAnswer, context_used: context.substring(0, 200) + "..." };
-    }
-
+    // Always send to the model — include context data AND user question
     const userPrompt = suggestedAnswer
       ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
       : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;
@@ -639,20 +635,7 @@ export const streamChatbot = async (question, res) => {
   try {
     const { context, suggestedAnswer } = await buildContext(question);
 
-    // For simple factual queries with a suggested answer, stream the suggested answer directly
-    // This avoids the LLM hallucinating and ensures exact numbers
-    const isSimple = suggestedAnswer && !question.toLowerCase().includes("explain") && !question.toLowerCase().includes("why") && !question.toLowerCase().includes("tell me more");
-    if (isSimple) {
-      // Stream the suggested answer token-by-token for a natural feel
-      const words = suggestedAnswer.split(/(\s+|\n)/);
-      for (const word of words) {
-        res.write(`data: ${JSON.stringify({ token: word })}\n\n`);
-      }
-      res.write("data: [DONE]\n\n");
-      res.end();
-      return;
-    }
-
+    // Always send to the model — context + user question for a natural response
     const userPrompt = suggestedAnswer
       ? `CONTEXT DATA:\n${context}\n\nSUGGESTED ANSWER:\n${suggestedAnswer}\n\nUSER QUESTION: ${question}`
       : `CONTEXT DATA:\n${context}\n\nUSER QUESTION: ${question}`;

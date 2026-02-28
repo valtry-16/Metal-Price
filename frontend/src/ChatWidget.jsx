@@ -49,15 +49,18 @@ export default function ChatWidget({ apiBase }) {
     const vv = window.visualViewport;
     if (!vv) return () => document.removeEventListener("touchmove", preventBgScroll);
 
+    let rafId = null;
+
     const syncHeight = () => {
-      // Set panel height to exactly the visual viewport (excludes keyboard)
-      if (panelRef.current) {
-        panelRef.current.style.height = `${vv.height}px`;
-        // Pin to top of visual viewport (in case browser scrolls the layout viewport)
-        panelRef.current.style.top = `${vv.offsetTop}px`;
-      }
-      // Scroll to latest message so input stays visible
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 30);
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        if (!panelRef.current) return;
+        const h = vv.height;
+        const t = vv.offsetTop;
+        // Use transform for GPU-accelerated repositioning (no layout thrash)
+        panelRef.current.style.height = `${h}px`;
+        panelRef.current.style.transform = `translateY(${t}px)`;
+      });
     };
 
     // Initial sync
@@ -67,13 +70,14 @@ export default function ChatWidget({ apiBase }) {
     vv.addEventListener("scroll", syncHeight);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       vv.removeEventListener("resize", syncHeight);
       vv.removeEventListener("scroll", syncHeight);
       document.removeEventListener("touchmove", preventBgScroll);
       // Reset inline styles
       if (panelRef.current) {
         panelRef.current.style.height = "";
-        panelRef.current.style.top = "";
+        panelRef.current.style.transform = "";
       }
     };
   }, [open]);

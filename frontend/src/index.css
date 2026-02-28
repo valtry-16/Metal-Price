@@ -1975,7 +1975,8 @@ select {
     border-radius: 0;
     border: none;
     z-index: 10001;
-    /* Height is overridden by JS via visualViewport */
+    /* GPU layer for smooth keyboard transitions */
+    will-change: height, transform;
     overflow: hidden;
   }
   .chat-fab {
