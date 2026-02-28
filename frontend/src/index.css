@@ -629,6 +629,91 @@ select {
   margin-bottom: 16px;
 }
 
+/* Hero left column wrapper */
+.hero__left {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+/* Daily Summary Card — desktop hero */
+.hero__summary {
+  background: var(--panel);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  max-height: 340px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.hero__summary-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero__summary-header h3 {
+  margin: 0;
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: 16px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero__summary-date {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.hero__summary-body p {
+  margin: 3px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--panel-ink);
+}
+
+.hero__summary-body p:empty {
+  margin: 6px 0;
+}
+
+/* Custom scrollbar for summary card */
+.hero__summary::-webkit-scrollbar {
+  width: 4px;
+}
+.hero__summary::-webkit-scrollbar-track {
+  background: transparent;
+}
+.hero__summary::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+
+/* Summary modal body */
+.summary-modal-body p {
+  font-size: 14px;
+  color: var(--panel-ink);
+}
+
+/* Hide hero summary card on mobile — use modal instead */
+@media (max-width: 1200px) {
+  .hero__summary {
+    display: none;
+  }
+}
+
 .export-bar::before {
   content: "";
   position: absolute;

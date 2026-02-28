@@ -96,7 +96,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-run-daily-secret", "x-send-welcome-emails-secret"]
+  allowedHeaders: ["Content-Type", "Authorization", "x-run-daily-secret", "x-send-welcome-emails-secret", "x-generate-summary-secret"]
 }));
 
 // ============================================
@@ -130,7 +130,7 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
   skip: (req) => {
     // Don't rate limit internal cron calls (they should have secret headers)
-    return req.headers["x-run-daily-secret"] || req.headers["x-send-welcome-emails-secret"];
+    return req.headers["x-run-daily-secret"] || req.headers["x-send-welcome-emails-secret"] || req.headers["x-generate-summary-secret"];
   }
 });
 
@@ -212,7 +212,8 @@ const {
   CRON_VERBOSE = "false",
   CRON_ENABLED = "true",
   RUN_DAILY_SECRET,
-  RUN_WELCOME_EMAIL_SECRET
+  RUN_WELCOME_EMAIL_SECRET,
+  GENERATE_SUMMARY_SECRET
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -1679,6 +1680,181 @@ app.get("/wake-up", (req, res) => {
   const timestamp = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
   console.log(`⏰ Wake-up ping received at ${timestamp}`);
   res.json({ status: "awake", timestamp });
+});
+
+// ============================================
+// DAILY AI SUMMARY — Generate & Fetch
+// ============================================
+
+// POST /generate-daily-summary — Called by cron-job.org at 9:01 AM IST
+app.post("/generate-daily-summary", authLimiter, async (req, res) => {
+  try {
+    if (!GENERATE_SUMMARY_SECRET) {
+      console.error("❌ GENERATE_SUMMARY_SECRET is not configured");
+      return sendErrorResponse(res, 500, "Service not properly configured");
+    }
+
+    const providedSecret = req.header("x-generate-summary-secret");
+    if (!providedSecret || providedSecret !== GENERATE_SUMMARY_SECRET) {
+      console.warn("⚠️ Unauthorized /generate-daily-summary access attempt");
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    const today = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD");
+    console.log(`📊 Generating daily summary for ${today}...`);
+
+    // Fetch today's prices (all metals)
+    const { data: todayPrices, error: todayErr } = await supabase
+      .from("metal_prices")
+      .select("metal_name, price_1g, price_8g, price_per_kg, carat, date")
+      .eq("date", today);
+
+    if (todayErr) {
+      console.error("❌ Error fetching today's prices:", todayErr.message);
+      return sendErrorResponse(res, 500, "Failed to fetch today's prices");
+    }
+
+    if (!todayPrices || todayPrices.length === 0) {
+      console.warn("⚠️ No prices found for today, skipping summary generation");
+      return res.json({ status: "skipped", reason: "No prices available for today" });
+    }
+
+    // Fetch yesterday's prices for comparison
+    const yesterday = dayjs().tz("Asia/Kolkata").subtract(1, "day").format("YYYY-MM-DD");
+    const { data: yesterdayPrices } = await supabase
+      .from("metal_prices")
+      .select("metal_name, price_1g, price_8g, price_per_kg, carat, date")
+      .eq("date", yesterday);
+
+    // Build price data text for the prompt
+    const formatPriceData = (rows, label) => {
+      if (!rows || rows.length === 0) return `${label}: No data available`;
+      const lines = [`${label}:`];
+      const metals = {};
+      rows.forEach(row => {
+        if (row.metal_name === "XAU") {
+          if (!metals.XAU) metals.XAU = {};
+          if (row.carat && row.price_1g) {
+            metals.XAU[row.carat] = { price_1g: row.price_1g, price_8g: row.price_8g };
+          }
+        } else if (row.price_1g) {
+          metals[row.metal_name] = { price_1g: row.price_1g, price_per_kg: row.price_per_kg };
+        }
+      });
+
+      // Format Gold
+      if (metals.XAU) {
+        ["24", "22", "18"].forEach(c => {
+          if (metals.XAU[c]) {
+            lines.push(`Gold ${c}K: ₹${metals.XAU[c].price_1g.toFixed(2)} per gram, ₹${metals.XAU[c].price_8g.toFixed(2)} per 8g`);
+          }
+        });
+      }
+
+      // Format other metals
+      const metalNames = { XAG: "Silver", XPT: "Platinum", XPD: "Palladium", XCU: "Copper", LEAD: "Lead", NI: "Nickel", ZNC: "Zinc", ALU: "Aluminium" };
+      Object.entries(metalNames).forEach(([sym, name]) => {
+        if (metals[sym]) {
+          const perKg = metals[sym].price_per_kg ? `, ₹${metals[sym].price_per_kg.toFixed(2)} per kg` : "";
+          lines.push(`${name}: ₹${metals[sym].price_1g.toFixed(2)} per gram${perKg}`);
+        }
+      });
+
+      return lines.join("\n");
+    };
+
+    const todayData = formatPriceData(todayPrices, `Today's Prices (${today})`);
+    const yesterdayData = formatPriceData(yesterdayPrices, `Yesterday's Prices (${yesterday})`);
+
+    // Build the summary prompt
+    const summaryPrompt = `You are a professional Indian market analyst writing a daily metal price summary for Auric Ledger.
+
+${todayData}
+
+${yesterdayData}
+
+Write a detailed daily market summary covering ALL metals listed above. For each metal:
+- State today's price in ₹ (Indian Rupees)
+- Compare with yesterday and mention if price went UP, DOWN, or stayed UNCHANGED
+- Include the exact change amount in ₹
+
+Format rules:
+- Use ₹ symbol always, NEVER use $ or USD
+- Start with a one-line market overview
+- Then list each metal with its price and change
+- End with a brief outlook or observation
+- Use bullet points or clear sections for readability
+- Keep it professional but easy to understand
+- Include Gold (all carats: 24K, 22K, 18K), Silver, Platinum, Palladium, Copper, Lead, Nickel, Zinc, and Aluminium
+- Be concise but thorough — cover every metal`;
+
+    // Call HF model
+    const HF_API_URL = "https://valtry-auric-bot.hf.space/v1/chat/completions";
+    const hfResponse = await axios.post(
+      HF_API_URL,
+      {
+        model: "auric-ai",
+        stream: false,
+        messages: [
+          { role: "system", content: "You are a professional Indian metal market analyst. Write detailed, accurate market summaries using only the data provided. All prices must be in Indian Rupees (₹)." },
+          { role: "user", content: summaryPrompt },
+        ],
+        max_tokens: 1024,
+        temperature: 0.3,
+      },
+      { headers: { "Content-Type": "application/json" }, timeout: 90000 }
+    );
+
+    const summary = hfResponse.data?.choices?.[0]?.message?.content;
+    if (!summary) {
+      console.error("❌ Empty response from HF model");
+      return sendErrorResponse(res, 500, "Failed to generate summary");
+    }
+
+    // Upsert into daily_summaries table
+    const { error: upsertErr } = await supabase
+      .from("daily_summaries")
+      .upsert(
+        { date: today, summary, created_at: new Date().toISOString() },
+        { onConflict: "date" }
+      );
+
+    if (upsertErr) {
+      console.error("❌ Error saving summary:", upsertErr.message);
+      return sendErrorResponse(res, 500, "Failed to save summary");
+    }
+
+    console.log(`✅ Daily summary generated and saved for ${today}`);
+    res.json({ status: "ok", date: today, summary_length: summary.length });
+  } catch (error) {
+    console.error("❌ Generate summary error:", error.message);
+    return sendErrorResponse(res, 500, "Summary generation failed");
+  }
+});
+
+// GET /daily-summary — Public endpoint to fetch the latest summary
+app.get("/daily-summary", generalLimiter, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("daily_summaries")
+      .select("date, summary, created_at")
+      .order("date", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error("❌ Error fetching daily summary:", error.message);
+      return sendErrorResponse(res, 500, "Failed to fetch summary");
+    }
+
+    if (!data || data.length === 0) {
+      return res.json({ status: "success", date: null, summary: null });
+    }
+
+    res.json({ status: "success", date: data[0].date, summary: data[0].summary, created_at: data[0].created_at });
+  } catch (error) {
+    console.error("❌ Daily summary fetch error:", error.message);
+    return sendErrorResponse(res, 500, "Failed to fetch summary");
+  }
 });
 
 app.post("/run-daily", authLimiter, async (req, res) => {

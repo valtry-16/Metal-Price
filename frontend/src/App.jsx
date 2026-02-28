@@ -228,6 +228,8 @@ export default function App() {
   const [showFaq, setShowFaq] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dailySummary, setDailySummary] = useState(null);
+  const [showSummary, setShowSummary] = useState(false);
   
   // Alert system states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
@@ -618,6 +620,22 @@ export default function App() {
       }
     };
     load();
+  }, []);
+
+  // Fetch daily AI summary
+  useEffect(() => {
+    const loadSummary = async () => {
+      try {
+        const res = await fetch(`${apiBase}/daily-summary`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.summary) setDailySummary({ date: data.date, summary: data.summary });
+        }
+      } catch {
+        // Silent fail — summary is optional
+      }
+    };
+    loadSummary();
   }, []);
 
   useEffect(() => {
@@ -1130,6 +1148,9 @@ export default function App() {
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowPrivacy(true); }}>
               Privacy
             </button>
+            <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowSummary(true); }}>
+              Summary
+            </button>
             <button 
               type="button"
               className="mobile-menu-toggle" 
@@ -1157,13 +1178,32 @@ export default function App() {
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowPrivacy(true); setMobileMenuOpen(false); }}>
                 Privacy
               </button>
+              <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowSummary(true); setMobileMenuOpen(false); }}>
+                Summary
+              </button>
             </div>
           )}
         </div>
         <header className="hero">
-          <p className="hero__tagline">
-            Beautifully simple pricing insights, updated in real time.
-          </p>
+          <div className="hero__left">
+            <p className="hero__tagline">
+              Beautifully simple pricing insights, updated in real time.
+            </p>
+            {dailySummary && (
+              <div className="hero__summary">
+                <div className="hero__summary-header">
+                  <span style={{ fontSize: "18px" }}>📊</span>
+                  <h3>Daily Market Summary</h3>
+                  <span className="hero__summary-date">{dailySummary.date}</span>
+                </div>
+                <div className="hero__summary-body">
+                  {dailySummary.summary.split("\n").map((line, i) => (
+                    <p key={i}>{line}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="hero__panel">
             <div className="control-grid">
               <label>
@@ -1626,6 +1666,43 @@ export default function App() {
           </div>
         ) : null}
 
+        {/* Summary Modal */}
+        {showSummary ? (
+          <div className="modal-overlay" onClick={() => setShowSummary(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+                  <span style={{ fontSize: "24px" }}>📊</span>
+                  <h2>Daily Market Summary</h2>
+                </div>
+                <button className="modal-close" onClick={() => setShowSummary(false)}>
+                  ✕
+                </button>
+              </div>
+              <div className="faq-section">
+                {dailySummary ? (
+                  <div className="faq-item">
+                    <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "1px" }}>
+                      {dailySummary.date}
+                    </p>
+                    <div className="summary-modal-body">
+                      {dailySummary.summary.split("\n").map((line, i) => (
+                        <p key={i} style={{ margin: line.trim() === "" ? "8px 0" : "4px 0", lineHeight: "1.6" }}>{line}</p>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="faq-item">
+                    <p style={{ color: "var(--muted)", textAlign: "center" }}>
+                      No summary available yet. The daily summary is generated at 9:01 AM IST.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <footer className="site-footer">
           <div className="footer-brand">
             <img src="/metal-price-icon.svg" alt="Auric Ledger" />
@@ -1640,6 +1717,9 @@ export default function App() {
             </button>
             <button type="button" className="footer-link" onClick={() => setShowPrivacy(true)}>
               Privacy Policy
+            </button>
+            <button type="button" className="footer-link" onClick={() => setShowSummary(true)}>
+              Daily Summary
             </button>
             <a className="footer-link" href="mailto:auricledger@gmail.com">
               Contact: auricledger@gmail.com
