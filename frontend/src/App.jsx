@@ -1191,31 +1191,33 @@ export default function App() {
             </p>
             {dailySummary && (
               <div className="hero__summary">
-                <div className="hero__summary-header">
-                  <span style={{ fontSize: "18px" }}>📊</span>
-                  <h3>Daily Market Summary</h3>
-                  <span className="hero__summary-date">{dailySummary.date}</span>
-                </div>
-                <div className="hero__summary-body">
-                  {dailySummary.summary.split("\n").map((line, i) => {
-                    if (!line.trim()) return <div key={i} className="summary-spacer" />;
-                    // Parse basic markdown: **bold**
-                    const parts = line.split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
-                      if (seg.startsWith("**") && seg.endsWith("**")) {
-                        return <strong key={j}>{seg.slice(2, -2)}</strong>;
-                      }
-                      return seg;
-                    });
-                    // Detect heading-like lines (Market Overview, Outlook)
-                    const isHeading = /^(Market Overview|Outlook)[:\s]/i.test(line.trim());
-                    // Detect metal price lines (contain ₹ and /g or per gram)
-                    const isMetalLine = line.includes("₹") && (/\/g|\/kg|per gram|per kg|per 8g/i.test(line));
-                    return (
-                      <p key={i} className={isHeading ? "summary-heading" : isMetalLine ? "summary-metal" : ""}>
-                        {parts}
-                      </p>
-                    );
-                  })}
+                <div className="hero__summary-inner">
+                  <div className="hero__summary-header">
+                    <span style={{ fontSize: "18px" }}>📊</span>
+                    <h3>Daily Market Summary</h3>
+                    <span className="hero__summary-date">{dailySummary.date}</span>
+                  </div>
+                  <div className="hero__summary-body">
+                    {dailySummary.summary.split("\n").map((line, i) => {
+                      if (!line.trim()) return <div key={i} className="summary-spacer" />;
+                      // Parse basic markdown: **bold**
+                      const parts = line.split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
+                        if (seg.startsWith("**") && seg.endsWith("**")) {
+                          return <strong key={j}>{seg.slice(2, -2)}</strong>;
+                        }
+                        return seg;
+                      });
+                      // Detect heading-like lines (Market Overview, Outlook)
+                      const isHeading = /^(Market Overview|Outlook)[:\s]/i.test(line.trim());
+                      // Detect metal price lines (contain ₹ and /g or per gram)
+                      const isMetalLine = line.includes("₹") && (/\/g|\/kg|per gram|per kg|per 8g/i.test(line));
+                      return (
+                        <p key={i} className={isHeading ? "summary-heading" : isMetalLine ? "summary-metal" : ""}>
+                          {parts}
+                        </p>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

@@ -641,13 +641,13 @@ select {
 .hero__summary {
   background: var(--panel);
   border-radius: var(--radius-lg);
-  padding: 16px 18px;
   box-shadow: var(--shadow);
   border: 2px solid transparent;
-  max-height: 340px;
-  overflow-y: auto;
   position: relative;
   isolation: isolate;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
 }
 
 .hero__summary::before {
@@ -664,6 +664,13 @@ select {
   animation: shimmer 3s linear infinite;
   z-index: -1;
   pointer-events: none;
+}
+
+.hero__summary-inner {
+  padding: 16px 18px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .hero__summary-header {
@@ -733,13 +740,13 @@ select {
 }
 
 /* Custom scrollbar for summary card */
-.hero__summary::-webkit-scrollbar {
+.hero__summary-inner::-webkit-scrollbar {
   width: 4px;
 }
-.hero__summary::-webkit-scrollbar-track {
+.hero__summary-inner::-webkit-scrollbar-track {
   background: transparent;
 }
-.hero__summary::-webkit-scrollbar-thumb {
+.hero__summary-inner::-webkit-scrollbar-thumb {
   background: var(--line);
   border-radius: 4px;
 }
