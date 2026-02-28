@@ -12,6 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 import rateLimit from "express-rate-limit";
 import { sendDailyPricesToTelegram } from "./telegram-bot.js";
 import bot from "./telegram-bot.js";
+import { askChatbot } from "./chatbot.js";
 
 dotenv.config();
 dayjs.extend(utc);
@@ -1790,6 +1791,34 @@ const startServer = (ports, index = 0) => {
       }
     });
 };
+
+// ============================================
+// AI Chatbot Endpoint
+// ============================================
+const chatLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Max 10 chat requests per IP per minute
+  message: "Too many chat requests, please slow down",
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.post("/api/chat", chatLimiter, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || typeof message !== "string" || message.trim().length === 0) {
+      return res.status(400).json({ status: "error", message: "Message is required" });
+    }
+    if (message.length > 500) {
+      return res.status(400).json({ status: "error", message: "Message too long (max 500 chars)" });
+    }
+    const result = await askChatbot(message.trim());
+    res.json({ status: "success", reply: result.answer });
+  } catch (error) {
+    console.error("Chat endpoint error:", error);
+    res.status(500).json({ status: "error", message: "Failed to process chat request" });
+  }
+});
 
 // ============================================
 // SECURITY: Global Error Handler

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
+import ChatWidget from "./ChatWidget";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -1990,6 +1991,7 @@ export default function App() {
           </div>
         ) : null}
       </div>
+      <ChatWidget apiBase={PROD_API_URL} />
     </div>
   );
 }

@@ -626,6 +626,35 @@ if (bot) {
         );
         return;
       }
+
+      // /ask command - AI chatbot
+      if (command === '/ask') {
+        const question = text.replace('/ask', '').trim();
+        if (!question) {
+          await bot.sendMessage(
+            chatId,
+            "<b>Ask Auric AI</b>\n\nUsage: /ask &lt;your question&gt;\n\nExamples:\n/ask What is the gold price today?\n/ask Compare gold and silver\n/ask Show me the weekly gold trend",
+            { parse_mode: "HTML" }
+          );
+          return;
+        }
+
+        await bot.sendMessage(chatId, "Thinking...");
+
+        try {
+          const { askChatbot } = await import("./chatbot.js");
+          const result = await askChatbot(question);
+          await bot.sendMessage(
+            chatId,
+            `<b>Auric AI</b>\n\n${result.answer}`,
+            { parse_mode: "HTML" }
+          );
+        } catch (aiError) {
+          console.error("AI chatbot error in Telegram:", aiError);
+          await bot.sendMessage(chatId, "Sorry, I could not process your question right now. Please try again later.");
+        }
+        return;
+      }
     } catch (error) {
       console.error("Error handling command:", error);
       await bot.sendMessage(chatId, "❌ An error occurred. Please try again later.");
