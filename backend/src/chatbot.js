@@ -265,7 +265,7 @@ const detectIntent = (question) => {
 // Format helpers
 // ─────────────────────────────────────────────
 
-const fmtPrice = (p) => p != null ? `Rs.${p.toFixed(2)}` : "N/A";
+const fmtPrice = (p) => p != null ? `\u20B9${p.toFixed(2)}` : "N/A";
 
 const formatGoldPrices = (goldData) => {
   if (!goldData || typeof goldData !== "object") return "Gold: N/A";
@@ -494,19 +494,23 @@ const computeChanges = (oldPrices, newPrices, oldDate, newDate) => {
 // System prompt
 // ─────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are Auric AI, the intelligent assistant for Auric Ledger - a premium metal price tracking platform.
+const SYSTEM_PROMPT = `You are Auric AI, the intelligent assistant for Auric Ledger - an Indian metal price tracking platform.
 
-RULES:
+CRITICAL CURRENCY RULE:
+- ALL prices are in INDIAN RUPEES. Use the ₹ symbol (₹) ALWAYS. Example: ₹14938.42/gram.
+- NEVER use $, USD, dollars, or any other currency symbol. This is an Indian platform.
+- Copy the exact price numbers from the context data. Do not convert or change them.
+
+OTHER RULES:
 - Answer ONLY using the data provided in the context. Never make up or guess prices.
-- All prices are in Indian Rupees (Rs.) per gram unless stated otherwise.
 - Keep answers concise but complete (3-6 sentences).
 - Always mention the specific date the price data is from.
 - If data says "closest available to DATE", explain that prices for the exact date weren't available and you're showing the nearest date.
 - Use the pre-calculated statistics (changes, averages, etc.) provided - do NOT recalculate.
 - For gold, mention the carat (22K, 24K, etc.) when relevant.
-- Be professional but friendly. Format prices clearly.
+- Be professional but friendly.
 - If the user asks something completely unrelated to metals/prices, politely redirect them.
-- For greetings, introduce yourself and mention you can help with metal prices on any date.`;
+- For greetings, introduce yourself briefly and mention you can help with metal prices on any date.`;
 
 // ─────────────────────────────────────────────
 // Non-streaming (for Telegram)
@@ -526,7 +530,7 @@ export const askChatbot = async (question) => {
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 400,
+        max_tokens: 512,
         temperature: 0.3,
       },
       { headers: { "Content-Type": "application/json" }, timeout: 60000 }
@@ -570,7 +574,7 @@ export const streamChatbot = async (question, res) => {
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 400,
+        max_tokens: 512,
         temperature: 0.3,
       },
       {
