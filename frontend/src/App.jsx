@@ -1178,7 +1178,6 @@ export default function App() {
               Privacy
             </button>
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowSummary(true); }}>
-              <img src="/metal-price-icon.svg" alt="" style={{ width: "16px", height: "16px", verticalAlign: "middle", marginRight: "4px" }} />
               Summary
             </button>
             <button 
@@ -1209,7 +1208,6 @@ export default function App() {
                 Privacy
               </button>
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowSummary(true); setMobileMenuOpen(false); }}>
-                <img src="/metal-price-icon.svg" alt="" style={{ width: "16px", height: "16px", verticalAlign: "middle", marginRight: "4px" }} />
                 Summary
               </button>
             </div>
