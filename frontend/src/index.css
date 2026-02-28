@@ -57,6 +57,23 @@ body {
   min-height: 100vh;
 }
 
+/* Prevent accidental text selection on UI elements */
+.app {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection where it makes sense */
+.chat-bubble,
+.chat-input,
+.chat-messages,
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 [data-theme="dark"] body {
   background: radial-gradient(circle at top, #0f0d12 0%, #1a1820 55%, #2a2632 100%);
 }
@@ -1946,16 +1963,15 @@ select {
 @media (max-width: 480px) {
   .chat-panel {
     position: fixed;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    max-width: 100vw;
-    max-height: 100vh;
-    max-height: 100dvh;
-    border-radius: 0;
-    bottom: 0;
-    right: 0;
-    border: none;
+    bottom: 80px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    height: 65vh;
+    max-height: 65vh;
+    max-width: none;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
   }
   .chat-fab {
     width: 52px;
@@ -1972,7 +1988,7 @@ select {
   }
   .chat-header {
     padding: 14px 16px;
-    border-radius: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
   }
   .chat-messages {
     padding: 14px 10px;

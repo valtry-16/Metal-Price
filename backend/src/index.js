@@ -1589,7 +1589,16 @@ const sendPendingWelcomeEmails = async () => {
   }
 };
 
+let lastPipelineRunDate = null;
+
 const runDailyPipeline = async (sourceLabel = "cron") => {
+  const todayStr = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD");
+  if (lastPipelineRunDate === todayStr) {
+    console.log(`⚠️  Daily pipeline already ran today (${todayStr}), skipping duplicate from ${sourceLabel}`);
+    return { date: todayStr, skipped: true };
+  }
+  lastPipelineRunDate = todayStr;
+
   const timestamp = dayjs().format("YYYY-MM-DD HH:mm:ss");
   const verboseCronLogs = CRON_VERBOSE === "true";
   console.log(`\n${"=".repeat(60)}`);
@@ -1651,6 +1660,8 @@ const runDailyPipeline = async (sourceLabel = "cron") => {
       totalRows: result.rows.length
     };
   } catch (error) {
+    // Reset guard so a retry can run today
+    lastPipelineRunDate = null;
     console.error(`\n❌ FAILED - Daily price fetch failed`);
     console.error(`📅 Time: ${timestamp}`);
     console.error(`⚠️  Error: ${error.message}`);
