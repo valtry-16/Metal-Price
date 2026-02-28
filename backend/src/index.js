@@ -1760,20 +1760,29 @@ ${todayData}
 
 ${yesterdayData}
 
-Write a detailed daily market summary covering ALL metals listed above. For each metal:
-- State today's price in ₹ (Indian Rupees)
-- Compare with yesterday and mention if price went UP, DOWN, or stayed UNCHANGED
-- Include the exact change amount in ₹
+Write a neat, well-formatted daily market summary covering ALL metals listed above.
 
-Format rules:
-- Use ₹ symbol always, NEVER use $ or USD
-- Start with a one-line market overview
-- Then list each metal with its price and change
-- End with a brief outlook or observation
-- Use bullet points or clear sections for readability
-- Keep it professional but easy to understand
-- Include Gold (all carats: 24K, 22K, 18K), Silver, Platinum, Palladium, Copper, Lead, Nickel, Zinc, and Aluminium
-- Be concise but thorough — cover every metal`;
+STRICT FORMAT — follow this EXACT structure:
+
+Line 1: "Market Overview" followed by a one-line summary of overall market direction.
+
+Then for EACH metal, write exactly like this example:
+Gold 24K: ₹8,500.00/g (₹68,000.00/8g) — UP ₹150.00 (+1.8%)
+Gold 22K: ₹7,800.00/g (₹62,400.00/8g) — DOWN ₹50.00 (-0.6%)
+Silver: ₹95.50/g (₹95,500.00/kg) — UNCHANGED
+
+Last line: "Outlook:" followed by a brief 1-2 sentence market observation.
+
+RULES:
+- Use ₹ symbol ALWAYS. NEVER use $ or USD.
+- Use Indian number formatting (e.g., ₹1,50,000.00).
+- Calculate exact ₹ change = today price minus yesterday price.
+- Calculate exact % change = (change / yesterday price) × 100.
+- Show UP/DOWN/UNCHANGED based on actual calculation.
+- Do NOT use markdown syntax like ** or ## or *.
+- Do NOT add extra headers, bullet points, or decorations.
+- Cover ALL metals: Gold 24K, 22K, 18K, Silver, Platinum, Palladium, Copper, Lead, Nickel, Zinc, Aluminium.
+- Be accurate — copy the exact ₹ prices from the data provided.`;
 
     // Call HF model
     const HF_API_URL = "https://valtry-auric-bot.hf.space/v1/chat/completions";

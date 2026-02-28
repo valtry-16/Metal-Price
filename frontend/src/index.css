@@ -643,10 +643,27 @@ select {
   border-radius: var(--radius-lg);
   padding: 16px 18px;
   box-shadow: var(--shadow);
-  border: 1px solid var(--line);
+  border: 2px solid transparent;
   max-height: 340px;
   overflow-y: auto;
   position: relative;
+  isolation: isolate;
+}
+
+.hero__summary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: shimmer 3s linear infinite;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .hero__summary-header {
@@ -685,8 +702,34 @@ select {
   color: var(--panel-ink);
 }
 
-.hero__summary-body p:empty {
-  margin: 6px 0;
+.hero__summary-body p:empty,
+.summary-spacer {
+  height: 8px;
+}
+
+.hero__summary-body .summary-heading,
+.summary-modal-body .summary-heading {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--accent);
+  margin: 8px 0 4px;
+}
+
+.hero__summary-body .summary-metal,
+.summary-modal-body .summary-metal {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(197, 154, 60, 0.08);
+}
+
+.hero__summary-body .summary-metal:last-of-type,
+.summary-modal-body .summary-metal:last-of-type {
+  border-bottom: none;
+}
+
+.hero__summary-body strong,
+.summary-modal-body strong {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 /* Custom scrollbar for summary card */
@@ -704,7 +747,14 @@ select {
 /* Summary modal body */
 .summary-modal-body p {
   font-size: 14px;
+  line-height: 1.7;
   color: var(--panel-ink);
+  margin: 3px 0;
+}
+
+.summary-modal-body .summary-heading {
+  font-size: 16px;
+  margin: 10px 0 6px;
 }
 
 /* Hide hero summary card on mobile — use modal instead */
