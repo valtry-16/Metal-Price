@@ -1720,7 +1720,7 @@ app.get("/summary-events", (req, res) => {
 const generateSummaryInBackground = async (today) => {
   summaryGenerating = true;
   try {
-    // ── Step 1: Fetch today's prices (all metals) ──
+    // ── Step 1: Fetch today's prices ──
     const { data: todayPrices, error: todayErr } = await supabase
       .from("metal_prices")
       .select("metal_name, price_1g, price_8g, price_per_kg, carat, date")
@@ -1730,157 +1730,107 @@ const generateSummaryInBackground = async (today) => {
       console.error("❌ Error fetching today's prices:", todayErr.message);
       return;
     }
-
     if (!todayPrices || todayPrices.length === 0) {
       console.warn("⚠️ No prices found for today, skipping summary generation");
       return;
     }
 
-    // ── Step 2: Fetch yesterday's prices for comparison ──
+    // ── Step 2: Fetch yesterday's prices ──
     const yesterday = dayjs(today).subtract(1, "day").format("YYYY-MM-DD");
     const { data: yesterdayPrices } = await supabase
       .from("metal_prices")
       .select("metal_name, price_1g, price_8g, price_per_kg, carat, date")
       .eq("date", yesterday);
 
-    // ── Step 3: Fetch 7-day history for trend analysis ──
-    const weekAgo = dayjs(today).subtract(7, "day").format("YYYY-MM-DD");
-    const { data: weeklyPrices } = await supabase
-      .from("metal_prices")
-      .select("metal_name, price_1g, carat, date")
-      .gte("date", weekAgo)
-      .lte("date", today)
-      .order("date", { ascending: true });
+    // ── Step 3: Index prices into lookup maps ──
+    const metalOrder = [
+      { sym: "XAU", name: "Gold", carats: ["24", "22", "18"] },
+      { sym: "XAG", name: "Silver" },
+      { sym: "XPT", name: "Platinum" },
+      { sym: "XPD", name: "Palladium" },
+      { sym: "XCU", name: "Copper" },
+      { sym: "LEAD", name: "Lead" },
+      { sym: "NI", name: "Nickel" },
+      { sym: "ZNC", name: "Zinc" },
+      { sym: "ALU", name: "Aluminium" },
+    ];
 
-    // ── Step 4: Embed the summary prompt for semantic enrichment ──
-    let embeddingContext = "";
-    try {
-      const EMBEDDING_API = "https://valtry-Auric-Intent.hf.space/v1/embeddings";
-      const summaryQuestions = [
-        "Generate a comprehensive daily metal market summary",
-        "Analyze price trends across all metals",
-        "Compare today versus yesterday metal prices",
-        "Weekly trend analysis for precious and base metals",
-        "Market outlook based on recent price movements"
-      ];
-      const embResponse = await axios.post(
-        EMBEDDING_API,
-        { input: summaryQuestions },
-        { headers: { "Content-Type": "application/json" }, timeout: 30000 }
-      );
-      if (embResponse.data?.data) {
-        embeddingContext = "\n[Semantic context enriched via embedding model]";
-        console.log("✅ Embedding context enriched for summary generation");
-      }
-    } catch (embErr) {
-      console.warn("⚠️ Embedding API unavailable for summary enrichment, continuing without:", embErr.message);
-    }
-
-    // ── Step 5: Build structured price data ──
-    const metalNames = { XAU: "Gold", XAG: "Silver", XPT: "Platinum", XPD: "Palladium", XCU: "Copper", LEAD: "Lead", NI: "Nickel", ZNC: "Zinc", ALU: "Aluminium" };
-
-    const formatPriceData = (rows, label) => {
-      if (!rows || rows.length === 0) return `${label}: No data available`;
-      const lines = [`${label}:`];
-      const metals = {};
+    const indexPrices = (rows) => {
+      const map = {};
+      if (!rows) return map;
       rows.forEach(row => {
-        if (row.metal_name === "XAU") {
-          if (!metals.XAU) metals.XAU = {};
-          if (row.carat && row.price_1g) {
-            metals.XAU[row.carat] = { price_1g: row.price_1g, price_8g: row.price_8g };
-          }
+        if (row.metal_name === "XAU" && row.carat) {
+          map[`XAU_${row.carat}K`] = { price_1g: row.price_1g, price_8g: row.price_8g };
         } else if (row.price_1g) {
-          metals[row.metal_name] = { price_1g: row.price_1g, price_per_kg: row.price_per_kg };
+          map[row.metal_name] = { price_1g: row.price_1g, price_per_kg: row.price_per_kg };
         }
       });
-
-      if (metals.XAU) {
-        ["24", "22", "18"].forEach(c => {
-          if (metals.XAU[c]) {
-            lines.push(`Gold ${c}K: ₹${metals.XAU[c].price_1g.toFixed(2)} per gram, ₹${metals.XAU[c].price_8g.toFixed(2)} per 8g`);
-          }
-        });
-      }
-
-      Object.entries(metalNames).forEach(([sym, name]) => {
-        if (sym !== "XAU" && metals[sym]) {
-          const perKg = metals[sym].price_per_kg ? `, ₹${metals[sym].price_per_kg.toFixed(2)} per kg` : "";
-          lines.push(`${name}: ₹${metals[sym].price_1g.toFixed(2)} per gram${perKg}`);
-        }
-      });
-
-      return lines.join("\n");
+      return map;
     };
 
-    const todayData = formatPriceData(todayPrices, `Today's Prices (${today})`);
-    const yesterdayData = formatPriceData(yesterdayPrices, `Yesterday's Prices (${yesterday})`);
+    const todayMap = indexPrices(todayPrices);
+    const yestMap = indexPrices(yesterdayPrices);
 
-    // ── Step 6: Build 7-day trend data ──
-    let weeklyTrendData = "";
-    if (weeklyPrices && weeklyPrices.length > 0) {
-      const byMetal = {};
-      weeklyPrices.forEach(row => {
-        const key = row.metal_name === "XAU" ? (row.carat === "22" ? "XAU_22K" : null) : row.metal_name;
-        if (!key || !row.price_1g) return;
-        if (!byMetal[key]) byMetal[key] = [];
-        byMetal[key].push({ date: row.date, price: row.price_1g });
-      });
+    // ── Step 4: Pre-compute all changes in code (no LLM math) ──
+    const fmt = (n) => n != null ? `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A";
+    const lines = [];
 
-      const trendLines = ["7-Day Trend Summary:"];
-      Object.entries(byMetal).forEach(([key, points]) => {
-        if (points.length < 2) return;
-        const name = key === "XAU_22K" ? "Gold 22K" : (metalNames[key] || key);
-        const prices = points.map(p => p.price);
-        const min = Math.min(...prices);
-        const max = Math.max(...prices);
-        const first = prices[0];
-        const last = prices[prices.length - 1];
-        const change = last - first;
-        const pct = ((change / first) * 100).toFixed(2);
-        const direction = change > 0 ? "↑ UP" : change < 0 ? "↓ DOWN" : "→ FLAT";
-        trendLines.push(`${name}: ${direction} ${Math.abs(change).toFixed(2)} (${pct}%) | Range: ₹${min.toFixed(2)} – ₹${max.toFixed(2)} per gram`);
-      });
+    lines.push(`Date: ${today} (Yesterday: ${yesterday})`);
+    lines.push("");
 
-      if (trendLines.length > 1) weeklyTrendData = trendLines.join("\n");
+    for (const metal of metalOrder) {
+      if (metal.sym === "XAU") {
+        for (const c of metal.carats) {
+          const key = `XAU_${c}K`;
+          const t = todayMap[key];
+          const y = yestMap[key];
+          if (!t) continue;
+          const todayG = t.price_1g;
+          const yestG = y?.price_1g;
+          const change = yestG != null ? (todayG - yestG) : null;
+          const pct = (yestG != null && yestG !== 0) ? ((change / yestG) * 100) : null;
+          const arrow = change != null ? (change > 0 ? "↑" : change < 0 ? "↓" : "→") : "—";
+          const changeTxt = change != null ? `${change >= 0 ? "+" : ""}${fmt(change)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)` : "no yesterday data";
+          lines.push(`Gold ${c}K: ${fmt(todayG)}/g | Yesterday: ${yestG != null ? fmt(yestG) + "/g" : "N/A"} | Change: ${arrow} ${changeTxt}`);
+        }
+      } else {
+        const t = todayMap[metal.sym];
+        const y = yestMap[metal.sym];
+        if (!t) continue;
+        const todayG = t.price_1g;
+        const yestG = y?.price_1g;
+        const change = yestG != null ? (todayG - yestG) : null;
+        const pct = (yestG != null && yestG !== 0) ? ((change / yestG) * 100) : null;
+        const arrow = change != null ? (change > 0 ? "↑" : change < 0 ? "↓" : "→") : "—";
+        const changeTxt = change != null ? `${change >= 0 ? "+" : ""}${fmt(change)} (${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%)` : "no yesterday data";
+        const kgTxt = t.price_per_kg ? ` | ${fmt(t.price_per_kg)}/kg` : "";
+        lines.push(`${metal.name}: ${fmt(todayG)}/g${kgTxt} | Yesterday: ${yestG != null ? fmt(yestG) + "/g" : "N/A"} | Change: ${arrow} ${changeTxt}`);
+      }
     }
 
-    // ── Step 7: Build the enhanced summary prompt ──
-    const summaryPrompt = `You are a professional Indian market analyst writing a detailed daily metal price summary for Auric Ledger.${embeddingContext}
+    const preComputedData = lines.join("\n");
 
-${todayData}
+    // ── Step 5: Build simple prompt — LLM just writes prose, no math ──
+    const summaryPrompt = `Here is today's metal price data with all changes already calculated:
 
-${yesterdayData}
+${preComputedData}
 
-${weeklyTrendData}
+Write a clean daily market summary for Auric Ledger using ONLY the exact numbers above. Do NOT recalculate or invent any numbers.
 
-Write a comprehensive daily market summary. Structure it as follows:
+Structure:
+1. Start with a 1-2 sentence market overview (e.g., "Gold rose ₹X while silver dipped ₹Y…")
+2. **Precious Metals** section: Gold (mention all 3 carats), Silver, Platinum, Palladium — state today's price and the exact change from yesterday
+3. **Base Metals** section: Copper, Lead, Nickel, Zinc, Aluminium — same format
+4. End with a 1-sentence summary observation
 
-**MARKET OVERVIEW** (1-2 sentences — overall market direction today)
+Rules:
+- Copy the exact ₹ amounts and % from the data above — do NOT compute your own
+- Use ₹ symbol only, never $ or USD
+- Use ↑ ↓ → arrows for direction
+- Keep it concise, factual, professional
+- Do NOT add any information not present in the data`;
 
-**PRECIOUS METALS**
-- Gold (24K, 22K, 18K): Today's price, change from yesterday (₹ amount and direction), weekly trend direction
-- Silver: Same format
-- Platinum: Same format
-- Palladium: Same format
-
-**BASE METALS**
-- Copper, Lead, Nickel, Zinc, Aluminium: Same format for each
-
-**WEEKLY TREND INSIGHT** (2-3 sentences summarizing the 7-day pattern)
-
-**MARKET OUTLOOK** (1-2 sentences — brief observation on what the data suggests)
-
-Format rules:
-- Use ₹ symbol always, NEVER use $ or USD
-- All prices in Indian Rupees per gram
-- Mention exact ₹ change amounts (e.g., "+₹25" or "-₹12")
-- Use ↑ for increase, ↓ for decrease, → for unchanged
-- Bold section headers with **
-- Be factual — only use numbers from the data provided
-- Cover EVERY metal listed
-- Professional but readable tone`;
-
-    // ── Step 8: Call Auric LLM ──
+    // ── Step 6: Call Auric LLM ──
     const HF_API_URL = "https://valtry-auric-bot.hf.space/v1/chat/completions";
     const hfResponse = await axios.post(
       HF_API_URL,
@@ -1888,11 +1838,11 @@ Format rules:
         model: "auric-ai",
         stream: false,
         messages: [
-          { role: "system", content: "You are a professional Indian metal market analyst for Auric Ledger. Write detailed, accurate, well-structured market summaries using ONLY the data provided. All prices must be in Indian Rupees (₹). Never invent or estimate numbers." },
+          { role: "system", content: "You are a market summary writer for Auric Ledger. Write a brief, factual daily summary using ONLY the pre-computed price data provided. Copy exact numbers — never calculate or estimate. All prices are in Indian Rupees (₹)." },
           { role: "user", content: summaryPrompt },
         ],
-        max_tokens: 1500,
-        temperature: 0.3,
+        max_tokens: 1024,
+        temperature: 0.2,
       },
       { headers: { "Content-Type": "application/json" }, timeout: 180000 }
     );
@@ -1903,7 +1853,7 @@ Format rules:
       return;
     }
 
-    // ── Step 9: Save to database ──
+    // ── Step 7: Save to database ──
     const { error: upsertErr } = await supabase
       .from("daily_summaries")
       .upsert(
