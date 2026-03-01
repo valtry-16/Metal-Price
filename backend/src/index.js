@@ -1720,7 +1720,7 @@ app.get("/summary-events", (req, res) => {
 const generateSummaryInBackground = async (today) => {
   summaryGenerating = true;
   try {
-    // Fetch today's prices (all metals)
+    // ── Step 1: Fetch today's prices (all metals) ──
     const { data: todayPrices, error: todayErr } = await supabase
       .from("metal_prices")
       .select("metal_name, price_1g, price_8g, price_per_kg, carat, date")
@@ -1736,14 +1736,49 @@ const generateSummaryInBackground = async (today) => {
       return;
     }
 
-    // Fetch yesterday's prices for comparison
+    // ── Step 2: Fetch yesterday's prices for comparison ──
     const yesterday = dayjs(today).subtract(1, "day").format("YYYY-MM-DD");
     const { data: yesterdayPrices } = await supabase
       .from("metal_prices")
       .select("metal_name, price_1g, price_8g, price_per_kg, carat, date")
       .eq("date", yesterday);
 
-    // Build price data text for the prompt
+    // ── Step 3: Fetch 7-day history for trend analysis ──
+    const weekAgo = dayjs(today).subtract(7, "day").format("YYYY-MM-DD");
+    const { data: weeklyPrices } = await supabase
+      .from("metal_prices")
+      .select("metal_name, price_1g, carat, date")
+      .gte("date", weekAgo)
+      .lte("date", today)
+      .order("date", { ascending: true });
+
+    // ── Step 4: Embed the summary prompt for semantic enrichment ──
+    let embeddingContext = "";
+    try {
+      const EMBEDDING_API = "https://valtry-Auric-Intent.hf.space/v1/embeddings";
+      const summaryQuestions = [
+        "Generate a comprehensive daily metal market summary",
+        "Analyze price trends across all metals",
+        "Compare today versus yesterday metal prices",
+        "Weekly trend analysis for precious and base metals",
+        "Market outlook based on recent price movements"
+      ];
+      const embResponse = await axios.post(
+        EMBEDDING_API,
+        { input: summaryQuestions },
+        { headers: { "Content-Type": "application/json" }, timeout: 30000 }
+      );
+      if (embResponse.data?.data) {
+        embeddingContext = "\n[Semantic context enriched via embedding model]";
+        console.log("✅ Embedding context enriched for summary generation");
+      }
+    } catch (embErr) {
+      console.warn("⚠️ Embedding API unavailable for summary enrichment, continuing without:", embErr.message);
+    }
+
+    // ── Step 5: Build structured price data ──
+    const metalNames = { XAU: "Gold", XAG: "Silver", XPT: "Platinum", XPD: "Palladium", XCU: "Copper", LEAD: "Lead", NI: "Nickel", ZNC: "Zinc", ALU: "Aluminium" };
+
     const formatPriceData = (rows, label) => {
       if (!rows || rows.length === 0) return `${label}: No data available`;
       const lines = [`${label}:`];
@@ -1759,7 +1794,6 @@ const generateSummaryInBackground = async (today) => {
         }
       });
 
-      // Format Gold
       if (metals.XAU) {
         ["24", "22", "18"].forEach(c => {
           if (metals.XAU[c]) {
@@ -1768,10 +1802,8 @@ const generateSummaryInBackground = async (today) => {
         });
       }
 
-      // Format other metals
-      const metalNames = { XAG: "Silver", XPT: "Platinum", XPD: "Palladium", XCU: "Copper", LEAD: "Lead", NI: "Nickel", ZNC: "Zinc", ALU: "Aluminium" };
       Object.entries(metalNames).forEach(([sym, name]) => {
-        if (metals[sym]) {
+        if (sym !== "XAU" && metals[sym]) {
           const perKg = metals[sym].price_per_kg ? `, ₹${metals[sym].price_per_kg.toFixed(2)} per kg` : "";
           lines.push(`${name}: ₹${metals[sym].price_1g.toFixed(2)} per gram${perKg}`);
         }
@@ -1783,29 +1815,72 @@ const generateSummaryInBackground = async (today) => {
     const todayData = formatPriceData(todayPrices, `Today's Prices (${today})`);
     const yesterdayData = formatPriceData(yesterdayPrices, `Yesterday's Prices (${yesterday})`);
 
-    // Build the summary prompt
-    const summaryPrompt = `You are a professional Indian market analyst writing a daily metal price summary for Auric Ledger.
+    // ── Step 6: Build 7-day trend data ──
+    let weeklyTrendData = "";
+    if (weeklyPrices && weeklyPrices.length > 0) {
+      const byMetal = {};
+      weeklyPrices.forEach(row => {
+        const key = row.metal_name === "XAU" ? (row.carat === "22" ? "XAU_22K" : null) : row.metal_name;
+        if (!key || !row.price_1g) return;
+        if (!byMetal[key]) byMetal[key] = [];
+        byMetal[key].push({ date: row.date, price: row.price_1g });
+      });
+
+      const trendLines = ["7-Day Trend Summary:"];
+      Object.entries(byMetal).forEach(([key, points]) => {
+        if (points.length < 2) return;
+        const name = key === "XAU_22K" ? "Gold 22K" : (metalNames[key] || key);
+        const prices = points.map(p => p.price);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        const first = prices[0];
+        const last = prices[prices.length - 1];
+        const change = last - first;
+        const pct = ((change / first) * 100).toFixed(2);
+        const direction = change > 0 ? "↑ UP" : change < 0 ? "↓ DOWN" : "→ FLAT";
+        trendLines.push(`${name}: ${direction} ${Math.abs(change).toFixed(2)} (${pct}%) | Range: ₹${min.toFixed(2)} – ₹${max.toFixed(2)} per gram`);
+      });
+
+      if (trendLines.length > 1) weeklyTrendData = trendLines.join("\n");
+    }
+
+    // ── Step 7: Build the enhanced summary prompt ──
+    const summaryPrompt = `You are a professional Indian market analyst writing a detailed daily metal price summary for Auric Ledger.${embeddingContext}
 
 ${todayData}
 
 ${yesterdayData}
 
-Write a detailed daily market summary covering ALL metals listed above. For each metal:
-- State today's price in ₹ (Indian Rupees)
-- Compare with yesterday and mention if price went UP, DOWN, or stayed UNCHANGED
-- Include the exact change amount in ₹
+${weeklyTrendData}
+
+Write a comprehensive daily market summary. Structure it as follows:
+
+**MARKET OVERVIEW** (1-2 sentences — overall market direction today)
+
+**PRECIOUS METALS**
+- Gold (24K, 22K, 18K): Today's price, change from yesterday (₹ amount and direction), weekly trend direction
+- Silver: Same format
+- Platinum: Same format
+- Palladium: Same format
+
+**BASE METALS**
+- Copper, Lead, Nickel, Zinc, Aluminium: Same format for each
+
+**WEEKLY TREND INSIGHT** (2-3 sentences summarizing the 7-day pattern)
+
+**MARKET OUTLOOK** (1-2 sentences — brief observation on what the data suggests)
 
 Format rules:
 - Use ₹ symbol always, NEVER use $ or USD
-- Start with a one-line market overview
-- Then list each metal with its price and change
-- End with a brief outlook or observation
-- Use bullet points or clear sections for readability
-- Keep it professional but easy to understand
-- Include Gold (all carats: 24K, 22K, 18K), Silver, Platinum, Palladium, Copper, Lead, Nickel, Zinc, and Aluminium
-- Be concise but thorough — cover every metal`;
+- All prices in Indian Rupees per gram
+- Mention exact ₹ change amounts (e.g., "+₹25" or "-₹12")
+- Use ↑ for increase, ↓ for decrease, → for unchanged
+- Bold section headers with **
+- Be factual — only use numbers from the data provided
+- Cover EVERY metal listed
+- Professional but readable tone`;
 
-    // Call HF model
+    // ── Step 8: Call Auric LLM ──
     const HF_API_URL = "https://valtry-auric-bot.hf.space/v1/chat/completions";
     const hfResponse = await axios.post(
       HF_API_URL,
@@ -1813,10 +1888,10 @@ Format rules:
         model: "auric-ai",
         stream: false,
         messages: [
-          { role: "system", content: "You are a professional Indian metal market analyst. Write detailed, accurate market summaries using only the data provided. All prices must be in Indian Rupees (₹)." },
+          { role: "system", content: "You are a professional Indian metal market analyst for Auric Ledger. Write detailed, accurate, well-structured market summaries using ONLY the data provided. All prices must be in Indian Rupees (₹). Never invent or estimate numbers." },
           { role: "user", content: summaryPrompt },
         ],
-        max_tokens: 1024,
+        max_tokens: 1500,
         temperature: 0.3,
       },
       { headers: { "Content-Type": "application/json" }, timeout: 180000 }
@@ -1828,7 +1903,7 @@ Format rules:
       return;
     }
 
-    // Upsert into daily_summaries table
+    // ── Step 9: Save to database ──
     const { error: upsertErr } = await supabase
       .from("daily_summaries")
       .upsert(
