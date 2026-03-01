@@ -1875,7 +1875,7 @@ export default function App() {
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
-                  <span style={{ fontSize: "24px" }}>🔔</span>
+                  <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
                   <h2>Price Alerts</h2>
                 </div>
                 <button className="modal-close" onClick={() => setShowAlertsModal(false)}>
