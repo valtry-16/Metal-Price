@@ -768,44 +768,57 @@ export const sendDailyPricesToTelegram = async (metalPrices) => {
     }
 
     // Fetch yesterday's prices for comparison
-    const { data: dates, error: dateError } = await supabase
-      .from("metal_prices")
-      .select("date")
-      .order("date", { ascending: false })
-      .limit(10);
-
+    const yesterdayDate = dayjs().subtract(1, "day").format("YYYY-MM-DD");
     let yesterdayPrices = {};
     
-    if (!dateError && dates && dates.length >= 2) {
-      const uniqueDates = [...new Set(dates.map(d => d.date))];
+    const { data: yesterdayData, error: yestError } = await supabase
+      .from("metal_prices")
+      .select("*")
+      .eq("date", yesterdayDate);
+    
+    if (!yestError && yesterdayData && yesterdayData.length > 0) {
+      const availableMetals = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
       
-      if (uniqueDates.length >= 2) {
-        const yesterdayDate = uniqueDates[1];
+      yesterdayData.forEach(row => {
+        if (!availableMetals.includes(row.metal_name)) return;
         
-        // Fetch yesterday's data
-        const { data: yesterdayData } = await supabase
-          .from("metal_prices")
-          .select("*")
-          .eq("date", yesterdayDate);
-        
-        if (yesterdayData) {
-          const availableMetals = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
-          
-          yesterdayData.forEach(row => {
-            if (!availableMetals.includes(row.metal_name)) return;
-            
-            if (row.metal_name === "XAU") {
-              if (row.carat === "22" && row.price_1g) {
-                yesterdayPrices['XAU'] = row.price_1g;
-              }
-              return;
-            }
-            
-            if (!yesterdayPrices[row.metal_name] && row.price_1g) {
-              yesterdayPrices[row.metal_name] = row.price_1g;
-            }
-          });
+        if (row.metal_name === "XAU") {
+          if (row.carat === "22" && row.price_1g) {
+            yesterdayPrices['XAU'] = row.price_1g;
+          }
+          return;
         }
+        
+        if (!yesterdayPrices[row.metal_name] && row.price_1g) {
+          yesterdayPrices[row.metal_name] = row.price_1g;
+        }
+      });
+    }
+
+    // If no data for exact yesterday, try finding the most recent previous date
+    if (Object.keys(yesterdayPrices).length === 0) {
+      const todayStr = dayjs().format("YYYY-MM-DD");
+      const { data: prevData } = await supabase
+        .from("metal_prices")
+        .select("*")
+        .lt("date", todayStr)
+        .order("date", { ascending: false })
+        .limit(20);
+      
+      if (prevData && prevData.length > 0) {
+        const availableMetals = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
+        prevData.forEach(row => {
+          if (!availableMetals.includes(row.metal_name)) return;
+          if (row.metal_name === "XAU") {
+            if (row.carat === "22" && row.price_1g && !yesterdayPrices['XAU']) {
+              yesterdayPrices['XAU'] = row.price_1g;
+            }
+            return;
+          }
+          if (!yesterdayPrices[row.metal_name] && row.price_1g) {
+            yesterdayPrices[row.metal_name] = row.price_1g;
+          }
+        });
       }
     }
 
