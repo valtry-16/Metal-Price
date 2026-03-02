@@ -39,7 +39,7 @@ const getUserId = () => {
   return id;
 };
 
-export default function PortfolioSimulator({ apiBase, onClose }) {
+export default function PortfolioSimulator({ apiBase, onClose, embedded = false }) {
   const userId = useMemo(() => getUserId(), []);
 
   const [balance, setBalance] = useState(1000000);
@@ -297,6 +297,9 @@ export default function PortfolioSimulator({ apiBase, onClose }) {
   };
 
   if (loading) {
+    if (embedded) {
+      return <div className="portfolio-embedded"><div className="portfolio-loading">Loading portfolio...</div></div>;
+    }
     return (
       <div className="modal-overlay" onClick={onClose}>
         <div className="modal-content portfolio-modal" onClick={(e) => e.stopPropagation()}>
@@ -306,12 +309,11 @@ export default function PortfolioSimulator({ apiBase, onClose }) {
     );
   }
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content portfolio-modal" onClick={(e) => e.stopPropagation()}>
+  const content = (
+    <>
         <div className="modal-header">
           <h2>Portfolio Simulator</h2>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          {!embedded && <button className="modal-close" onClick={onClose}>&times;</button>}
         </div>
 
         {/* Messages */}
@@ -495,6 +497,17 @@ export default function PortfolioSimulator({ apiBase, onClose }) {
           {priceDate && <span className="portfolio-price-date">Prices as of {priceDate}</span>}
           <button onClick={handleReset} className="portfolio-reset-btn">Reset Portfolio</button>
         </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="portfolio-embedded">{content}</div>;
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content portfolio-modal" onClick={(e) => e.stopPropagation()}>
+        {content}
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ const fmt = (n) =>
     ? `\u20B9${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "N/A";
 
-export default function JewelleryCalculator({ apiBase, onClose }) {
+export default function JewelleryCalculator({ apiBase, onClose, embedded = false }) {
   const [metal, setMetal] = useState("XAU");
   const [purity, setPurity] = useState("22");
   const [weight, setWeight] = useState("");
@@ -86,12 +86,11 @@ export default function JewelleryCalculator({ apiBase, onClose }) {
     };
   }, [weight, makingCharge, gstPercent, pricePerGram]);
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content jewellery-modal" onClick={(e) => e.stopPropagation()}>
+  const content = (
+    <>
         <div className="modal-header">
           <h2>Jewellery Calculator</h2>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          {!embedded && <button className="modal-close" onClick={onClose}>&times;</button>}
         </div>
 
         <p className="jewellery-desc">
@@ -204,6 +203,17 @@ export default function JewelleryCalculator({ apiBase, onClose }) {
         <div className="jewellery-note">
           <strong>Note:</strong> This is an estimate based on live metal prices. Actual jewellery prices may vary based on design, brand, and local market conditions.
         </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="jewellery-embedded">{content}</div>;
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content jewellery-modal" onClick={(e) => e.stopPropagation()}>
+        {content}
       </div>
     </div>
   );

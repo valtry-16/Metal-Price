@@ -1,27 +1,56 @@
 # Auric Ledger
 
-Premium, production-ready platform for tracking real-time precious metal prices in INR, with daily updates, charts, alerts, and exports.
+Premium, production-ready platform for tracking real-time precious metal prices in INR, with AI insights, portfolio simulation, and professional tools.
 
-Live site: https://metal-price.onrender.com
+Live site: https://auric-ledger.vercel.app
+API: https://metal-price.onrender.com
 
 Developer: Sabithulla
 
 ## Highlights
-- 9 metals: Gold, Silver, Platinum, Palladium, Copper, Nickel, Zinc, Aluminium, Lead
+- **Multi-page routed SPA** with React Router (Home, Market, Portfolio, Calculator, Compare, News, Dashboard, Settings)
+- **Supabase Authentication** (Google OAuth + Email/Password) with protected routes
+- **9 metals**: Gold, Silver, Platinum, Palladium, Copper, Nickel, Zinc, Aluminium, Lead
 - Real-time INR pricing with duty and GST included
-- Weekly + monthly historical charts
-- PWA installable experience (desktop and mobile)
+- Weekly + monthly historical charts (Chart.js)
+- **Portfolio Simulator** — virtual ₹10 Lakh trading with P&L tracking
+- **Jewellery Calculator** — price breakdown with purity, making charges, GST
+- **Metal Comparison** — side-by-side charts and stats
+- **AI Market Insights** — daily AI-generated summaries + RAG chatbot
 - Alerts system (target price or percentage change)
-- Daily email notifications with welcome email delivery
+- Daily email notifications via Brevo
 - Telegram bot updates and charts
 - CSV and PDF exports
+- Luxury fintech design with dark/light theme
+- PWA installable experience (desktop and mobile)
 
 ## Tech Stack
-- Frontend: React + Vite + PWA
-- Backend: Node.js + Express
-- Database: Supabase (PostgreSQL)
-- Data API: apised.com metals API
-- Email: Brevo API
+- **Frontend**: React 19 + Vite 8 + React Router DOM + Chart.js
+- **Backend**: Node.js + Express
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth (Google OAuth + Email/Password)
+- **Data API**: apised.com metals API
+- **Email**: Brevo API
+- **Deployment**: Vercel (frontend), Render (backend)
+
+## Project Structure
+```
+frontend/
+├── src/
+│   ├── App.jsx              # Router shell with lazy-loaded pages
+│   ├── index.css             # 4000+ line luxury fintech design system
+│   ├── contexts/             # ThemeContext, AuthContext
+│   ├── components/           # Navbar, Footer, AuthModal, ProtectedRoute
+│   ├── pages/                # Home, Market, Portfolio, Calculator, Compare, News, Dashboard, Settings
+│   ├── lib/                  # supabaseClient.js
+│   └── utils/                # constants.js, helpers.js
+├── vercel.json               # SPA rewrite rules
+└── .env                      # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+backend/
+├── server.js                 # Express API server
+├── .env                      # API keys, Supabase credentials
+└── ...
+```
 
 ## Local Setup
 ### 1) Install dependencies
@@ -48,7 +77,15 @@ Required (backend):
 Frontend: set frontend/.env
 ```bash
 VITE_API_BASE_URL=https://metal-price.onrender.com
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+### 3) Set up Supabase Auth (optional)
+1. Go to Supabase Dashboard > Authentication > Providers
+2. Enable Google OAuth (add Google Client ID/Secret from Google Cloud Console)
+3. Set redirect URL: `https://your-domain.com` (or `http://localhost:5173` for local dev)
+4. Copy the anon key from Settings > API into `frontend/.env`
 
 ### 3) Run locally
 ```bash

@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/((?!assets|icons|manifest|metal-price-icon|sw|workbox).*)", "destination": "/index.html" }
+  ]
+}

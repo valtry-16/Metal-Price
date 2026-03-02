@@ -827,8 +827,21 @@ app.get("/get-latest-price", async (req, res) => {
     const { metal, carat } = req.query;
     if (!metal) {
       const { latestDate, rows } = await getLatestRows({});
-      let metals = Array.from(new Set(rows.map((row) => row.metal_name))).map((name) => ({
-        metal_name: name
+      // Group by metal_name, prefer the base (non-carat) row for each metal
+      const metalMap = {};
+      for (const row of rows) {
+        const existing = metalMap[row.metal_name];
+        // Prefer non-carat row, or first seen row
+        if (!existing || (existing.carat && !row.carat)) {
+          metalMap[row.metal_name] = row;
+        }
+      }
+      let metals = Object.values(metalMap).map((row) => ({
+        metal_name: row.metal_name,
+        price_1g: row.price_1g,
+        price_8g: row.price_8g,
+        price_per_kg: row.price_per_kg,
+        date: row.date
       }));
       if (!metals.length) {
         const symbols = await getMetalSymbols();
