@@ -2377,9 +2377,11 @@ select {
 }
 
 .portfolio-balance-amount {
-  font-family: "Playfair Display", Georgia, serif;
-  font-size: 22px;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 24px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
   color: var(--panel-ink);
 }
 
