@@ -1974,7 +1974,7 @@ const generateSummaryInBackground = async (today) => {
 
     // ── Step 3: Index prices into lookup maps ──
     const metalOrder = [
-      { sym: "XAU", name: "Gold", carats: ["24", "22", "18"] },
+      { sym: "XAU", name: "Gold", carats: ["22", "24", "18"] },
       { sym: "XAG", name: "Silver" },
       { sym: "XPT", name: "Platinum" },
       { sym: "XPD", name: "Palladium" },
@@ -2040,25 +2040,44 @@ const generateSummaryInBackground = async (today) => {
 
     const preComputedData = lines.join("\n");
 
-    // ── Step 5: Build simple prompt — LLM just writes prose, no math ──
+    // ── Step 5: Build detailed prompt for Gemini ──
     const summaryPrompt = `Here is today's metal price data with all changes already calculated:
 
 ${preComputedData}
 
-Write a clean daily market summary for Auric Ledger using ONLY the exact numbers above. Do NOT recalculate or invent any numbers.
+Write a comprehensive daily market summary for **Auric Ledger** using ONLY the exact numbers above. Do NOT recalculate, round, or invent any numbers.
 
-Structure:
-1. Start with a 1-2 sentence market overview (e.g., "Gold rose ₹X while silver dipped ₹Y…")
-2. **Precious Metals** section: Gold (mention all 3 carats), Silver, Platinum, Palladium — state today's price and the exact change from yesterday
-3. **Base Metals** section: Copper, Lead, Nickel, Zinc, Aluminium — same format
-4. End with a 1-sentence summary observation
+**Structure (use markdown headings and bold):**
 
-Rules:
-- Copy the exact ₹ amounts and % from the data above — do NOT compute your own
+1. **Market Overview** (3-4 sentences)
+   - Lead with Gold 22K as the headline price (this is the standard jewellery benchmark in India)
+   - Summarize the overall market mood — are precious metals rising or falling? Any notable moves?
+   - Mention if base metals are trending differently from precious metals
+
+2. **Precious Metals** (detailed paragraph)
+   - Gold: Lead with 22K price and change, then mention 24K and 18K prices and their changes
+   - Explain briefly why 22K matters (most traded purity for Indian jewellery)
+   - Silver: price, change, and brief context (industrial + investment demand)
+   - Platinum & Palladium: prices and changes
+
+3. **Base Metals** (detailed paragraph)
+   - Cover Copper, Lead, Nickel, Zinc, Aluminium with prices and changes
+   - Note any significant movers (biggest % gain or loss)
+   - Mention per-kg prices where available for industrial context
+
+4. **Key Takeaways** (2-3 bullet points)
+   - What should investors or jewellers watch today?
+   - Any divergences between precious and industrial metals?
+   - Brief forward-looking observation based on the price trends
+
+**Rules:**
+- Use the EXACT ₹ amounts and % from the data — never compute your own
 - Use ₹ symbol only, never $ or USD
 - Use ↑ ↓ → arrows for direction
-- Keep it concise, factual, professional
-- Do NOT add any information not present in the data`;
+- Write in a professional, authoritative financial tone
+- Use **bold** for metal names and section headers
+- Keep paragraphs readable — no walls of text
+- Do NOT add external information, news, or predictions not supported by the data`;
 
     // ── Step 6: Call Gemini 2.0 Flash ──
     if (!GEMINI_API_KEY) {
@@ -2074,14 +2093,21 @@ Rules:
           {
             parts: [
               {
-                text: `You are a market summary writer for Auric Ledger. Write a brief, factual daily summary using ONLY the pre-computed price data provided. Copy exact numbers — never calculate or estimate. All prices are in Indian Rupees (₹).\n\n${summaryPrompt}`,
+                text: summaryPrompt,
               },
             ],
           },
         ],
+        systemInstruction: {
+          parts: [
+            {
+              text: "You are the senior market analyst at Auric Ledger, India's premium precious metals intelligence platform. You write authoritative, detailed daily market summaries for Indian investors, jewellers, and metal traders. Your tone is professional yet accessible — like a Bloomberg brief tailored for the Indian metals market. You ONLY use pre-computed price data provided to you. You never fabricate numbers, never use USD, and always reference Gold 22K as the primary benchmark since it is the standard jewellery purity in India. All prices are in Indian Rupees (₹). You use markdown formatting (bold, headers) for readability.",
+            },
+          ],
+        },
         generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 1024,
+          temperature: 0.35,
+          maxOutputTokens: 2048,
         },
       },
       { headers: { "Content-Type": "application/json" }, timeout: 60000 }
@@ -2089,7 +2115,7 @@ Rules:
 
     const summary = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!summary) {
-      console.error("❌ Empty response from HF model");
+      console.error("❌ Empty response from Gemini");
       return;
     }
 
