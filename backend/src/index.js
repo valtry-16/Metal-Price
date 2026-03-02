@@ -213,7 +213,9 @@ const {
   CRON_ENABLED = "true",
   RUN_DAILY_SECRET,
   RUN_WELCOME_EMAIL_SECRET,
-  GENERATE_SUMMARY_SECRET
+  GENERATE_SUMMARY_SECRET,
+  NEWS_API_KEY,
+  RUN_NEWS_SECRET
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -744,22 +746,154 @@ const getAvailableMonths = async ({ metal, carat }) => {
 };
 
 // ============================================
-// NEWS API — Proxy for precious metals news
+// NEWS — Stored in Supabase, fetched by daily cron
 // ============================================
-let newsCache = { data: null, timestamp: 0 };
-const NEWS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
-app.get("/news-articles", async (req, res) => {
+// GET /news-articles — Public: reads from Supabase news_articles table
+app.get("/news-articles", generalLimiter, async (req, res) => {
   try {
-    const now = Date.now();
-    if (newsCache.data && now - newsCache.timestamp < NEWS_CACHE_TTL) {
-      return res.json(newsCache.data);
+    const { data, error } = await supabase
+      .from("news_articles")
+      .select("*")
+      .order("published_at", { ascending: false });
+
+    if (error) {
+      console.error("News DB read error:", error.message);
+      return res.status(500).json({ error: "Failed to fetch news" });
     }
 
-    const NEWS_API_KEY = process.env.NEWS_API_KEY;
-    if (!NEWS_API_KEY) {
-      return res.status(500).json({ error: "News API key not configured" });
+    // Map DB columns back to the camelCase shape the frontend expects
+    const articles = (data || []).map((row) => ({
+      title: row.title,
+      description: row.description,
+      content: row.content,
+      url: row.url,
+      urlToImage: row.url_to_image,
+      publishedAt: row.published_at,
+      source: { name: row.source_name },
+      author: row.author,
+    }));
+
+    res.json({ articles, totalResults: articles.length });
+  } catch (err) {
+    console.error("News endpoint error:", err.message);
+    res.status(500).json({ error: "Failed to fetch news" });
+  }
+});
+
+// POST /fetch-news — Cron endpoint: fetches from NewsAPI, replaces DB rows
+app.post("/fetch-news", authLimiter, async (req, res) => {
+  try {
+    if (!RUN_NEWS_SECRET) {
+      console.error("RUN_NEWS_SECRET is not configured");
+      return sendErrorResponse(res, 500, "Service not properly configured");
     }
+
+    const providedSecret = req.header("x-run-news-secret");
+    if (!providedSecret || providedSecret !== RUN_NEWS_SECRET) {
+      console.warn("Unauthorized /fetch-news access attempt");
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    if (!NEWS_API_KEY) {
+      return sendErrorResponse(res, 500, "NEWS_API_KEY not configured");
+    }
+
+    const timestamp = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`[${timestamp}] Starting daily news fetch...`);
+    console.log(`${"=".repeat(60)}`);
+
+    // Fetch news from NewsAPI (max 100 per page on free plan)
+    const fromDate = dayjs().subtract(7, "day").format("YYYY-MM-DD");
+    const response = await axios.get("https://newsapi.org/v2/everything", {
+      params: {
+        q: '"precious metals" OR gold OR silver OR platinum OR palladium',
+        searchIn: "title,description",
+        language: "en",
+        sortBy: "publishedAt",
+        pageSize: 100,
+        from: fromDate,
+        apiKey: NEWS_API_KEY,
+      },
+      timeout: 15000,
+    });
+
+    const rawArticles = response.data?.articles || [];
+    console.log(`Fetched ${rawArticles.length} raw articles from NewsAPI`);
+
+    // Filter out bad articles
+    const articles = rawArticles.filter(
+      (a) => a.title && a.title !== "[Removed]" && a.urlToImage
+    );
+    console.log(`${articles.length} articles after filtering`);
+
+    // Step 1: Delete all existing news articles
+    const { error: deleteError } = await supabase
+      .from("news_articles")
+      .delete()
+      .neq("id", 0); // delete all rows
+
+    if (deleteError) {
+      console.error("Failed to delete old news:", deleteError.message);
+      return sendErrorResponse(res, 500, "Failed to clear old news");
+    }
+    console.log("Old news articles deleted");
+
+    // Step 2: Insert new articles
+    if (articles.length > 0) {
+      const rows = articles.map((a) => ({
+        title: a.title,
+        description: a.description || null,
+        content: a.content || null,
+        url: a.url,
+        url_to_image: a.urlToImage || null,
+        published_at: a.publishedAt || null,
+        source_name: a.source?.name || "Unknown",
+        author: a.author || null,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("news_articles")
+        .insert(rows);
+
+      if (insertError) {
+        console.error("Failed to insert news:", insertError.message);
+        return sendErrorResponse(res, 500, "Failed to store news articles");
+      }
+    }
+
+    console.log(`Successfully stored ${articles.length} news articles`);
+    console.log(`${"=".repeat(60)}\n`);
+
+    res.json({
+      status: "ok",
+      articlesStored: articles.length,
+      rawFetched: rawArticles.length,
+      timestamp,
+    });
+  } catch (error) {
+    console.error("News fetch cron error:", error.message);
+    return sendErrorResponse(res, 500, "News fetch failed");
+  }
+});
+
+// GET /fetch-news — GET version for external cron services
+app.get("/fetch-news", async (req, res) => {
+  try {
+    const secret = req.query.secret;
+    if (!RUN_NEWS_SECRET || !secret || secret !== RUN_NEWS_SECRET) {
+      return sendErrorResponse(res, 401, "Unauthorized");
+    }
+
+    if (!NEWS_API_KEY) {
+      return sendErrorResponse(res, 500, "NEWS_API_KEY not configured");
+    }
+
+    const timestamp = dayjs().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss");
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`[${timestamp}] Starting daily news fetch (GET)...`);
+    console.log(`${"=".repeat(60)}`);
 
     const fromDate = dayjs().subtract(7, "day").format("YYYY-MM-DD");
     const response = await axios.get("https://newsapi.org/v2/everything", {
@@ -768,26 +902,60 @@ app.get("/news-articles", async (req, res) => {
         searchIn: "title,description",
         language: "en",
         sortBy: "publishedAt",
-        pageSize: 20,
+        pageSize: 100,
         from: fromDate,
         apiKey: NEWS_API_KEY,
       },
-      timeout: 10000,
+      timeout: 15000,
     });
 
-    const articles = (response.data?.articles || []).filter(
+    const rawArticles = response.data?.articles || [];
+    const articles = rawArticles.filter(
       (a) => a.title && a.title !== "[Removed]" && a.urlToImage
     );
 
-    const result = { articles, totalResults: articles.length };
-    newsCache = { data: result, timestamp: now };
-    res.json(result);
-  } catch (err) {
-    console.error("News API error:", err.message);
-    if (newsCache.data) {
-      return res.json(newsCache.data);
+    const { error: deleteError } = await supabase
+      .from("news_articles")
+      .delete()
+      .neq("id", 0);
+
+    if (deleteError) {
+      return sendErrorResponse(res, 500, "Failed to clear old news");
     }
-    res.status(500).json({ error: "Failed to fetch news", message: err.message });
+
+    if (articles.length > 0) {
+      const rows = articles.map((a) => ({
+        title: a.title,
+        description: a.description || null,
+        content: a.content || null,
+        url: a.url,
+        url_to_image: a.urlToImage || null,
+        published_at: a.publishedAt || null,
+        source_name: a.source?.name || "Unknown",
+        author: a.author || null,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("news_articles")
+        .insert(rows);
+
+      if (insertError) {
+        return sendErrorResponse(res, 500, "Failed to store news articles");
+      }
+    }
+
+    console.log(`Stored ${articles.length} news articles (GET)`);
+    console.log(`${"=".repeat(60)}\n`);
+
+    res.json({
+      status: "ok",
+      articlesStored: articles.length,
+      rawFetched: rawArticles.length,
+      timestamp,
+    });
+  } catch (error) {
+    console.error("News fetch GET error:", error.message);
+    return sendErrorResponse(res, 500, "News fetch failed");
   }
 });
 
