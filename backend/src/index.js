@@ -2057,6 +2057,271 @@ const startServer = (ports, index = 0) => {
 };
 
 // ============================================
+// PORTFOLIO SIMULATOR API
+// ============================================
+const portfolioLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: "Too many portfolio requests, please slow down",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Helper: get or create user balance
+const getOrCreateBalance = async (userId) => {
+  const { data: existing } = await supabase
+    .from("portfolio_balances")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  if (existing) return existing;
+
+  const { data: created, error } = await supabase
+    .from("portfolio_balances")
+    .insert({ user_id: userId, balance: 1000000.00, initial_balance: 1000000.00 })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return created;
+};
+
+// GET /api/portfolio?userId=xxx — Get portfolio (balance + holdings)
+app.get("/api/portfolio", portfolioLimiter, async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ status: "error", message: "userId is required" });
+
+    const balanceRow = await getOrCreateBalance(userId);
+
+    const { data: holdings, error: hErr } = await supabase
+      .from("portfolio_holdings")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_sold", false)
+      .order("bought_at", { ascending: false });
+
+    if (hErr) throw hErr;
+
+    const { data: history, error: histErr } = await supabase
+      .from("portfolio_holdings")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_sold", true)
+      .order("sold_at", { ascending: false })
+      .limit(50);
+
+    if (histErr) throw histErr;
+
+    res.json({
+      status: "success",
+      balance: parseFloat(balanceRow.balance),
+      initialBalance: parseFloat(balanceRow.initial_balance),
+      holdings: (holdings || []).map(h => ({
+        ...h,
+        weight_grams: parseFloat(h.weight_grams),
+        buy_price_per_gram: parseFloat(h.buy_price_per_gram),
+        total_cost: parseFloat(h.total_cost),
+        sell_price_per_gram: h.sell_price_per_gram ? parseFloat(h.sell_price_per_gram) : null,
+        sell_total: h.sell_total ? parseFloat(h.sell_total) : null,
+      })),
+      history: (history || []).map(h => ({
+        ...h,
+        weight_grams: parseFloat(h.weight_grams),
+        buy_price_per_gram: parseFloat(h.buy_price_per_gram),
+        total_cost: parseFloat(h.total_cost),
+        sell_price_per_gram: h.sell_price_per_gram ? parseFloat(h.sell_price_per_gram) : null,
+        sell_total: h.sell_total ? parseFloat(h.sell_total) : null,
+      })),
+    });
+  } catch (error) {
+    console.error("Portfolio fetch error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// POST /api/portfolio/buy — Buy metal
+app.post("/api/portfolio/buy", portfolioLimiter, async (req, res) => {
+  try {
+    const { userId, metalName, carat, weightGrams } = req.body;
+    if (!userId || !metalName || !weightGrams || weightGrams <= 0) {
+      return res.status(400).json({ status: "error", message: "userId, metalName, and weightGrams (>0) are required" });
+    }
+
+    // Fetch current price
+    const resolvedCarat = isGold(metalName) ? (carat || "22") : null;
+    const latest = await getLatestForMetal({ metal: metalName, carat: resolvedCarat });
+    if (!latest || !latest.price_1g) {
+      return res.status(404).json({ status: "error", message: "Current price not available for this metal" });
+    }
+
+    const pricePerGram = latest.price_1g;
+    const totalCost = parseFloat((pricePerGram * weightGrams).toFixed(2));
+
+    // Check balance
+    const balanceRow = await getOrCreateBalance(userId);
+    const currentBalance = parseFloat(balanceRow.balance);
+
+    if (totalCost > currentBalance) {
+      return res.status(400).json({ status: "error", message: `Insufficient balance. Need ₹${totalCost.toLocaleString("en-IN")} but have ₹${currentBalance.toLocaleString("en-IN")}` });
+    }
+
+    // Deduct balance
+    const newBalance = parseFloat((currentBalance - totalCost).toFixed(2));
+    const { error: balErr } = await supabase
+      .from("portfolio_balances")
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq("user_id", userId);
+
+    if (balErr) throw balErr;
+
+    // Insert holding
+    const { data: holding, error: hErr } = await supabase
+      .from("portfolio_holdings")
+      .insert({
+        user_id: userId,
+        metal_name: metalName,
+        carat: resolvedCarat,
+        weight_grams: weightGrams,
+        buy_price_per_gram: pricePerGram,
+        total_cost: totalCost,
+      })
+      .select()
+      .single();
+
+    if (hErr) throw hErr;
+
+    res.json({
+      status: "success",
+      message: `Bought ${weightGrams}g of ${metalName}${resolvedCarat ? ` (${resolvedCarat}K)` : ""} at ₹${pricePerGram.toFixed(2)}/g`,
+      holding: {
+        ...holding,
+        weight_grams: parseFloat(holding.weight_grams),
+        buy_price_per_gram: parseFloat(holding.buy_price_per_gram),
+        total_cost: parseFloat(holding.total_cost),
+      },
+      newBalance,
+    });
+  } catch (error) {
+    console.error("Portfolio buy error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// POST /api/portfolio/sell — Sell a holding
+app.post("/api/portfolio/sell", portfolioLimiter, async (req, res) => {
+  try {
+    const { userId, holdingId } = req.body;
+    if (!userId || !holdingId) {
+      return res.status(400).json({ status: "error", message: "userId and holdingId are required" });
+    }
+
+    // Fetch holding
+    const { data: holding, error: hErr } = await supabase
+      .from("portfolio_holdings")
+      .select("*")
+      .eq("id", holdingId)
+      .eq("user_id", userId)
+      .eq("is_sold", false)
+      .single();
+
+    if (hErr || !holding) {
+      return res.status(404).json({ status: "error", message: "Holding not found" });
+    }
+
+    // Fetch current sell price
+    const latest = await getLatestForMetal({ metal: holding.metal_name, carat: holding.carat || null });
+    if (!latest || !latest.price_1g) {
+      return res.status(404).json({ status: "error", message: "Current price not available" });
+    }
+
+    const sellPricePerGram = latest.price_1g;
+    const sellTotal = parseFloat((sellPricePerGram * parseFloat(holding.weight_grams)).toFixed(2));
+
+    // Update holding as sold
+    const { error: updateErr } = await supabase
+      .from("portfolio_holdings")
+      .update({
+        is_sold: true,
+        sold_at: new Date().toISOString(),
+        sell_price_per_gram: sellPricePerGram,
+        sell_total: sellTotal,
+      })
+      .eq("id", holdingId);
+
+    if (updateErr) throw updateErr;
+
+    // Add proceeds to balance
+    const balanceRow = await getOrCreateBalance(userId);
+    const newBalance = parseFloat((parseFloat(balanceRow.balance) + sellTotal).toFixed(2));
+
+    const { error: balErr } = await supabase
+      .from("portfolio_balances")
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq("user_id", userId);
+
+    if (balErr) throw balErr;
+
+    const profit = sellTotal - parseFloat(holding.total_cost);
+
+    res.json({
+      status: "success",
+      message: `Sold ${parseFloat(holding.weight_grams)}g of ${holding.metal_name} at ₹${sellPricePerGram.toFixed(2)}/g — ${profit >= 0 ? "Profit" : "Loss"}: ₹${Math.abs(profit).toFixed(2)}`,
+      sellTotal,
+      profit: parseFloat(profit.toFixed(2)),
+      newBalance,
+    });
+  } catch (error) {
+    console.error("Portfolio sell error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// POST /api/portfolio/reset — Reset portfolio
+app.post("/api/portfolio/reset", portfolioLimiter, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ status: "error", message: "userId is required" });
+
+    // Delete all holdings for user
+    await supabase.from("portfolio_holdings").delete().eq("user_id", userId);
+
+    // Reset balance
+    await supabase
+      .from("portfolio_balances")
+      .update({ balance: 1000000.00, updated_at: new Date().toISOString() })
+      .eq("user_id", userId);
+
+    res.json({ status: "success", message: "Portfolio reset. Balance restored to ₹10,00,000." });
+  } catch (error) {
+    console.error("Portfolio reset error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// GET /api/portfolio/prices — Get all current prices for portfolio valuation
+app.get("/api/portfolio/prices", portfolioLimiter, async (req, res) => {
+  try {
+    const { latestDate, rows } = await getLatestRows({});
+    if (!rows || rows.length === 0) {
+      return res.json({ status: "success", prices: {}, date: null });
+    }
+
+    const prices = {};
+    rows.forEach(row => {
+      const key = row.carat ? `${row.metal_name}_${row.carat}K` : row.metal_name;
+      prices[key] = row.price_1g;
+    });
+
+    res.json({ status: "success", prices, date: latestDate });
+  } catch (error) {
+    console.error("Portfolio prices error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// ============================================
 // AI Chatbot Endpoint
 // ============================================
 const chatLimiter = rateLimit({

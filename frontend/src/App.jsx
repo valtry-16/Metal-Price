@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import ChatWidget from "./ChatWidget";
+import PortfolioSimulator from "./PortfolioSimulator";
+import JewelleryCalculator from "./JewelleryCalculator";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -232,6 +234,8 @@ export default function App() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryGenerating, setSummaryGenerating] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [showPortfolio, setShowPortfolio] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   
   // Alert system states
   const [showAlertsModal, setShowAlertsModal] = useState(false);
@@ -1186,6 +1190,12 @@ export default function App() {
             <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowSummary(true); }}>
               Summary
             </button>
+            <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowPortfolio(true); }}>
+              Portfolio
+            </button>
+            <button type="button" className="theme-toggle desktop-only" onClick={(e) => { e.stopPropagation(); setShowCalculator(true); }}>
+              Calculator
+            </button>
             <button 
               type="button"
               className="mobile-menu-toggle" 
@@ -1215,6 +1225,12 @@ export default function App() {
               </button>
               <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowSummary(true); setMobileMenuOpen(false); }}>
                 Summary
+              </button>
+              <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowPortfolio(true); setMobileMenuOpen(false); }}>
+                Portfolio
+              </button>
+              <button type="button" className="theme-toggle" onClick={(e) => { e.stopPropagation(); setShowCalculator(true); setMobileMenuOpen(false); }}>
+                Calculator
               </button>
             </div>
           )}
@@ -1842,6 +1858,8 @@ export default function App() {
               <button type="button" className="footer-link" onClick={() => setShowFaq(true)}>About</button>
               <button type="button" className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
               <button type="button" className="footer-link" onClick={() => setShowSummary(true)}>Daily Summary</button>
+              <button type="button" className="footer-link" onClick={() => setShowPortfolio(true)}>Portfolio</button>
+              <button type="button" className="footer-link" onClick={() => setShowCalculator(true)}>Calculator</button>
             </div>
             <div className="footer-col">
               <h4 className="footer-col-title">Contact</h4>
@@ -2218,6 +2236,8 @@ export default function App() {
           </div>
         ) : null}
       </div>
+      {showPortfolio && <PortfolioSimulator apiBase={PROD_API_URL} onClose={() => setShowPortfolio(false)} />}
+      {showCalculator && <JewelleryCalculator apiBase={PROD_API_URL} onClose={() => setShowCalculator(false)} />}
       <ChatWidget apiBase={PROD_API_URL} />
     </div>
   );

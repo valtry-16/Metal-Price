@@ -2310,3 +2310,479 @@ select {
     padding: 4px 9px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PORTFOLIO SIMULATOR
+   ═══════════════════════════════════════════════════════════════ */
+
+.portfolio-modal {
+  max-width: 720px;
+  width: 95vw;
+  max-height: 85vh;
+}
+
+.portfolio-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.portfolio-msg {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+.portfolio-error {
+  background: rgba(220, 53, 69, 0.12);
+  color: #dc3545;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.portfolio-success {
+  background: rgba(40, 167, 69, 0.12);
+  color: #28a745;
+  border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+/* Balance Card */
+.portfolio-balance-card {
+  background: linear-gradient(135deg, rgba(197, 154, 60, 0.08), rgba(197, 154, 60, 0.03));
+  border: 1px solid rgba(197, 154, 60, 0.25);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.portfolio-balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.portfolio-balance-right {
+  text-align: right;
+}
+
+.portfolio-balance-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.portfolio-balance-amount {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--panel-ink);
+}
+
+.portfolio-summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.portfolio-profit { color: #28a745 !important; font-weight: 600; }
+.portfolio-loss { color: #dc3545 !important; font-weight: 600; }
+
+/* Buy Form */
+.portfolio-buy-form {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.portfolio-buy-form h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--accent);
+}
+
+.portfolio-buy-inputs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.portfolio-select,
+.portfolio-input {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--panel-ink);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.portfolio-select:focus,
+.portfolio-input:focus {
+  border-color: var(--accent);
+}
+
+.portfolio-select { min-width: 100px; }
+.portfolio-select-sm { min-width: 70px; width: 70px; }
+.portfolio-input { width: 120px; }
+
+.portfolio-buy-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.portfolio-buy-btn:hover { opacity: 0.85; }
+.portfolio-buy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.portfolio-estimate {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+/* Tabs */
+.portfolio-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--line);
+}
+
+.portfolio-tab {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.portfolio-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.portfolio-tab:hover:not(.active) {
+  color: var(--panel-ink);
+}
+
+/* Holdings Table */
+.portfolio-holdings {
+  min-height: 80px;
+}
+
+.portfolio-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.portfolio-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.portfolio-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.portfolio-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.portfolio-td-metal {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.portfolio-sell-btn {
+  padding: 4px 12px;
+  border: 1px solid #dc3545;
+  border-radius: 6px;
+  background: transparent;
+  color: #dc3545;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.portfolio-sell-btn:hover {
+  background: #dc3545;
+  color: #fff;
+}
+
+.portfolio-sell-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.portfolio-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Chart */
+.portfolio-chart-section {
+  min-height: 100px;
+}
+
+.portfolio-chart-container {
+  height: 200px;
+  position: relative;
+}
+
+/* Footer */
+.portfolio-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.portfolio-price-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.portfolio-reset-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.portfolio-reset-btn:hover {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   JEWELLERY CALCULATOR
+   ═══════════════════════════════════════════════════════════════ */
+
+.jewellery-modal {
+  max-width: 520px;
+  width: 92vw;
+}
+
+.jewellery-desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin: -8px 0 16px;
+}
+
+.jewellery-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.jewellery-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.jewellery-row label {
+  flex: 0 0 140px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--panel-ink);
+}
+
+.jewellery-select,
+.jewellery-input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--panel-ink);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.jewellery-select:focus,
+.jewellery-input:focus {
+  border-color: var(--accent);
+}
+
+.jewellery-price-info {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 10px 14px;
+  background: rgba(197, 154, 60, 0.06);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.jewellery-price-info strong {
+  color: var(--accent);
+}
+
+.jewellery-date {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Result Card */
+.jewellery-result {
+  background: linear-gradient(135deg, rgba(197, 154, 60, 0.08), rgba(197, 154, 60, 0.03));
+  border: 1px solid rgba(197, 154, 60, 0.25);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.jewellery-result h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 0 0 12px;
+}
+
+.jewellery-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jewellery-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--panel-ink);
+}
+
+.jewellery-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
+}
+
+.jewellery-total {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.jewellery-note {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — Portfolio & Jewellery
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .portfolio-modal {
+    max-height: 90vh;
+    padding: 20px 16px;
+  }
+
+  .portfolio-balance-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .portfolio-balance-right {
+    text-align: left;
+  }
+
+  .portfolio-balance-amount {
+    font-size: 18px;
+  }
+
+  .portfolio-buy-inputs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .portfolio-select,
+  .portfolio-input {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .portfolio-select-sm { width: 100%; }
+
+  .portfolio-table { font-size: 12px; }
+
+  .portfolio-table th,
+  .portfolio-table td {
+    padding: 6px 6px;
+  }
+
+  .portfolio-footer {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .jewellery-modal {
+    padding: 20px 16px;
+  }
+
+  .jewellery-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .jewellery-row label {
+    flex: unset;
+    font-size: 12px;
+  }
+}
+
