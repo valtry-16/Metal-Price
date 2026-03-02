@@ -2544,6 +2544,40 @@ app.post("/api/portfolio/sell", portfolioLimiter, async (req, res) => {
   }
 });
 
+// POST /api/portfolio/topup — Add ₹10,000 (max balance ₹10,00,000)
+app.post("/api/portfolio/topup", portfolioLimiter, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ status: "error", message: "userId is required" });
+
+    const balanceRow = await getOrCreateBalance(userId);
+    const currentBalance = parseFloat(balanceRow.balance);
+    const MAX_BALANCE = 1000000;
+    const TOPUP_AMOUNT = 10000;
+
+    if (currentBalance >= MAX_BALANCE) {
+      return res.status(400).json({ status: "error", message: "Balance is already at the maximum of ₹10,00,000." });
+    }
+
+    const newBalance = Math.min(currentBalance + TOPUP_AMOUNT, MAX_BALANCE);
+    const added = newBalance - currentBalance;
+
+    await supabase
+      .from("portfolio_balances")
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq("user_id", userId);
+
+    res.json({
+      status: "success",
+      message: `Added ₹${added.toLocaleString("en-IN")} to your balance.`,
+      newBalance,
+    });
+  } catch (error) {
+    console.error("Portfolio topup error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
 // POST /api/portfolio/reset — Reset portfolio
 app.post("/api/portfolio/reset", portfolioLimiter, async (req, res) => {
   try {

@@ -51,6 +51,7 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [toppingUp, setToppingUp] = useState(false);
 
   // Active tab
   const [tab, setTab] = useState("holdings"); // holdings | history | performance
@@ -198,6 +199,31 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
     }
   };
 
+  // Top-up handler
+  const handleTopUp = async () => {
+    setToppingUp(true);
+    setError("");
+    setSuccessMsg("");
+    try {
+      const res = await fetch(`${apiBase}/api/portfolio/topup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setSuccessMsg(data.message);
+        setBalance(data.newBalance);
+      } else {
+        setError(data.message || "Top-up failed");
+      }
+    } catch (err) {
+      setError("Top-up failed");
+    } finally {
+      setToppingUp(false);
+    }
+  };
+
   // Reset handler
   const handleReset = async () => {
     if (!confirm("Reset your entire portfolio? All holdings will be deleted and balance restored to \u20B910,00,000.")) return;
@@ -333,6 +359,15 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
               P&L: {totalPL >= 0 ? "+" : ""}{fmt(totalPL)} ({totalPLPercent}%)
             </span>
           </div>
+          {balance < 1000000 && (
+            <button
+              onClick={handleTopUp}
+              disabled={toppingUp}
+              className="portfolio-topup-btn"
+            >
+              {toppingUp ? "Adding..." : "+ Top Up \u20B910,000"}
+            </button>
+          )}
         </div>
 
         {/* Buy Form */}

@@ -2617,6 +2617,30 @@ select {
   color: #dc3545;
 }
 
+.portfolio-topup-btn {
+  margin-top: 10px;
+  padding: 7px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), #b8892e);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+
+.portfolio-topup-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px rgba(197, 154, 60, 0.35);
+}
+
+.portfolio-topup-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -2879,7 +2903,7 @@ select {
   right: 0;
   z-index: 1000;
   height: var(--navbar-height);
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 1px solid var(--line);
@@ -2887,7 +2911,7 @@ select {
 }
 
 [data-theme="dark"] .al-navbar {
-  background: rgba(17, 16, 21, 0.85);
+  background: rgba(17, 16, 21, 0.97);
 }
 
 .al-navbar__inner {
