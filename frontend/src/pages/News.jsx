@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { PROD_API_URL, metalLabelMap } from "../utils/constants";
 import { formatMoney, sortMetals } from "../utils/helpers";
 import { cachedFetch } from "../lib/apiCache";
@@ -7,25 +8,23 @@ import relativeTime from "dayjs/plugin/relativeTime";
 
 dayjs.extend(relativeTime);
 
+const INITIAL_COUNT = 6;
+
 export default function News() {
-  const [summary, setSummary] = useState(null);
   const [prices, setPrices] = useState([]);
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      cachedFetch(`${PROD_API_URL}/daily-summary`),
-      cachedFetch(`${PROD_API_URL}/get-latest-price`),
-    ])
-      .then(([summaryData, priceData]) => {
-        if (summaryData?.summary) setSummary(summaryData);
-        if (priceData?.metals) {
+    cachedFetch(`${PROD_API_URL}/get-latest-price`)
+      .then((data) => {
+        if (data?.metals) {
           setPrices(
-            sortMetals(priceData.metals.filter((m) => !["BTC", "ETH", "HG"].includes(m.metal_name)))
+            sortMetals(data.metals.filter((m) => !["BTC", "ETH", "HG"].includes(m.metal_name)))
           );
         }
       })
@@ -46,28 +45,19 @@ export default function News() {
       .finally(() => setNewsLoading(false));
   }, []);
 
-  const renderSummary = (text) => {
-    if (!text) return null;
-    return text.split("\n").map((line, i) => {
-      if (!line.trim()) return <br key={i} />;
-      const formatted = line
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.*?)\*/g, "<em>$1</em>");
-      return <p key={i} dangerouslySetInnerHTML={{ __html: formatted }} />;
-    });
-  };
-
   const truncate = (str, len = 120) => {
     if (!str) return "";
     const cleaned = str.replace(/\[\+\d+ chars\]$/, "").trim();
     return cleaned.length > len ? cleaned.slice(0, len) + "..." : cleaned;
   };
 
+  const visibleArticles = showAll ? articles : articles.slice(0, INITIAL_COUNT);
+
   return (
     <div className="al-page al-news-page">
       <div className="al-page__header">
         <h1 className="al-page__title">Market News & Insights</h1>
-        <p className="al-page__subtitle">Real-time precious metals news and AI-powered market analysis</p>
+        <p className="al-page__subtitle">Real-time precious metals news and market analysis</p>
       </div>
 
       {loading ? (
@@ -77,32 +67,8 @@ export default function News() {
         </div>
       ) : (
         <>
-          {/* Top row: AI Summary + Sidebar */}
-          <div className="al-news__grid">
-            {/* AI Summary */}
-            <div className="al-news__summary-card">
-              <div className="al-news__summary-header">
-                <span className="al-news__summary-badge">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                  AI Summary
-                </span>
-                {summary?.date && (
-                  <span className="al-news__summary-date">
-                    {dayjs(summary.date).format("DD MMM YYYY")}
-                  </span>
-                )}
-              </div>
-              <div className="al-news__summary-content">
-                {summary?.summary ? (
-                  renderSummary(summary.summary)
-                ) : (
-                  <p className="al-news__empty">
-                    No market summary available yet. Summaries are generated daily — check back soon.
-                  </p>
-                )}
-              </div>
-            </div>
-
+          {/* Sidebar row: Prices + Tips + AI Summary link */}
+          <div className="al-news__sidebar-row">
             {/* Price Snapshot */}
             <div className="al-news__prices-card">
               <h3 className="al-news__prices-title">Today's Prices</h3>
@@ -130,9 +96,18 @@ export default function News() {
                 <li>Silver has both industrial and investment demand — watch manufacturing data.</li>
                 <li>Compare metals over time using the <strong>Comparison Tool</strong>.</li>
                 <li>Set price alerts to track threshold crossings automatically.</li>
-                <li>Use the AI chatbot on the Market page for instant metal queries.</li>
               </ul>
             </div>
+
+            {/* AI Summary CTA */}
+            <Link to="/summary" className="al-news__summary-cta">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div>
+                <h3 className="al-news__summary-cta-title">AI Market Summary</h3>
+                <p className="al-news__summary-cta-desc">Daily AI-powered analysis of precious metal markets</p>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </Link>
           </div>
 
           {/* News Articles Section */}
@@ -162,41 +137,67 @@ export default function News() {
                 <p>No news articles found at this time. Check back later.</p>
               </div>
             ) : (
-              <div className="al-news__articles-grid">
-                {articles.map((article, idx) => (
-                  <article
-                    key={idx}
-                    className="al-news__article-card"
-                    onClick={() => setSelectedArticle(article)}
-                  >
-                    <div className="al-news__article-img-wrap">
-                      <img
-                        src={article.urlToImage}
-                        alt=""
-                        className="al-news__article-img"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.style.display = "none";
-                        }}
-                      />
-                    </div>
-                    <div className="al-news__article-body">
-                      <div className="al-news__article-meta">
-                        <span className="al-news__article-source">
-                          {article.source?.name || "Unknown"}
-                        </span>
-                        <span className="al-news__article-time">
-                          {dayjs(article.publishedAt).fromNow()}
-                        </span>
+              <>
+                <div className="al-news__articles-grid">
+                  {visibleArticles.map((article, idx) => (
+                    <article
+                      key={idx}
+                      className="al-news__article-card"
+                      onClick={() => setSelectedArticle(article)}
+                    >
+                      <div className="al-news__article-img-wrap">
+                        <img
+                          src={article.urlToImage}
+                          alt=""
+                          className="al-news__article-img"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.style.display = "none";
+                          }}
+                        />
                       </div>
-                      <h3 className="al-news__article-title">{article.title}</h3>
-                      <p className="al-news__article-desc">
-                        {truncate(article.description, 140)}
-                      </p>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                      <div className="al-news__article-body">
+                        <div className="al-news__article-meta">
+                          <span className="al-news__article-source">
+                            {article.source?.name || "Unknown"}
+                          </span>
+                          <span className="al-news__article-time">
+                            {dayjs(article.publishedAt).fromNow()}
+                          </span>
+                        </div>
+                        <h3 className="al-news__article-title">{article.title}</h3>
+                        <p className="al-news__article-desc">
+                          {truncate(article.description, 140)}
+                        </p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                {!showAll && articles.length > INITIAL_COUNT && (
+                  <div className="al-news__view-more-wrap">
+                    <button
+                      className="al-news__view-more-btn"
+                      onClick={() => setShowAll(true)}
+                    >
+                      View More
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                  </div>
+                )}
+
+                {showAll && articles.length > INITIAL_COUNT && (
+                  <div className="al-news__view-more-wrap">
+                    <button
+                      className="al-news__view-more-btn"
+                      onClick={() => setShowAll(false)}
+                    >
+                      Show Less
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

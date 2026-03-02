@@ -27,6 +27,7 @@ Multi-page React SPA for real-time precious metal price tracking (INR). Built wi
 | `/calculator` | Calculator | Yes |
 | `/compare` | Compare | No |
 | `/news` | News | No |
+| `/summary` | Summary | No |
 | `/dashboard` | Dashboard | Yes |
 | `/settings` | Settings | Yes |
 

@@ -16,6 +16,7 @@ const Portfolio = lazy(() => import("./pages/Portfolio"));
 const Calculator = lazy(() => import("./pages/Calculator"));
 const Compare = lazy(() => import("./pages/Compare"));
 const News = lazy(() => import("./pages/News"));
+const Summary = lazy(() => import("./pages/Summary"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Settings = lazy(() => import("./pages/Settings"));
 
@@ -60,6 +61,7 @@ export default function App() {
                   />
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/news" element={<News />} />
+                  <Route path="/summary" element={<Summary />} />
                   <Route
                     path="/dashboard"
                     element={

@@ -41,7 +41,7 @@ const TOOLS = [
   { title: "Portfolio Simulator", desc: "Virtual metal trading", path: "/portfolio", icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>) },
   { title: "Jewellery Calculator", desc: "Price with making & GST", path: "/calculator", icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>) },
   { title: "Metal Comparison", desc: "Side-by-side analysis", path: "/compare", icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>) },
-  { title: "AI Chatbot", desc: "Ask anything about metals", path: "/market", icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>) },
+  { title: "AI Chatbot", desc: "Ask anything about metals", path: "#chatbot", icon: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>) },
 ];
 
 export default function Home() {
@@ -147,16 +147,34 @@ export default function Home() {
           </p>
         </div>
         <div className="al-tools-grid">
-          {TOOLS.map((t) => (
-            <Link key={t.title} to={t.path} className="al-tool-card">
-              <span className="al-tool-card__icon">{t.icon}</span>
-              <div>
-                <h3 className="al-tool-card__title">{t.title}</h3>
-                <p className="al-tool-card__desc">{t.desc}</p>
-              </div>
-              <svg className="al-tool-card__arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </Link>
-          ))}
+          {TOOLS.map((t) =>
+            t.path === "#chatbot" ? (
+              <button
+                key={t.title}
+                className="al-tool-card"
+                onClick={() => {
+                  const fab = document.querySelector(".chat-fab");
+                  if (fab) fab.click();
+                }}
+              >
+                <span className="al-tool-card__icon">{t.icon}</span>
+                <div>
+                  <h3 className="al-tool-card__title">{t.title}</h3>
+                  <p className="al-tool-card__desc">{t.desc}</p>
+                </div>
+                <svg className="al-tool-card__arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            ) : (
+              <Link key={t.title} to={t.path} className="al-tool-card">
+                <span className="al-tool-card__icon">{t.icon}</span>
+                <div>
+                  <h3 className="al-tool-card__title">{t.title}</h3>
+                  <p className="al-tool-card__desc">{t.desc}</p>
+                </div>
+                <svg className="al-tool-card__arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </Link>
+            )
+          )}
         </div>
       </section>
 

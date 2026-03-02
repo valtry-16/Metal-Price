@@ -215,7 +215,8 @@ const {
   RUN_WELCOME_EMAIL_SECRET,
   GENERATE_SUMMARY_SECRET,
   NEWS_API_KEY,
-  RUN_NEWS_SECRET
+  RUN_NEWS_SECRET,
+  GEMINI_API_KEY
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -881,7 +882,7 @@ app.post("/fetch-news", authLimiter, async (req, res) => {
 // GET /fetch-news — GET version for external cron services
 app.get("/fetch-news", async (req, res) => {
   try {
-    const secret = req.query.secret;
+    const secret = req.query.secret || req.header("x-run-news-secret");
     if (!RUN_NEWS_SECRET || !secret || secret !== RUN_NEWS_SECRET) {
       return sendErrorResponse(res, 401, "Unauthorized");
     }
@@ -2059,24 +2060,34 @@ Rules:
 - Keep it concise, factual, professional
 - Do NOT add any information not present in the data`;
 
-    // ── Step 6: Call Auric LLM ──
-    const HF_API_URL = "https://valtry-auric-bot.hf.space/v1/chat/completions";
-    const hfResponse = await axios.post(
-      HF_API_URL,
+    // ── Step 6: Call Gemini 2.0 Flash ──
+    if (!GEMINI_API_KEY) {
+      console.error("❌ GEMINI_API_KEY is not configured");
+      return;
+    }
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiResponse = await axios.post(
+      geminiUrl,
       {
-        model: "auric-ai",
-        stream: false,
-        messages: [
-          { role: "system", content: "You are a market summary writer for Auric Ledger. Write a brief, factual daily summary using ONLY the pre-computed price data provided. Copy exact numbers — never calculate or estimate. All prices are in Indian Rupees (₹)." },
-          { role: "user", content: summaryPrompt },
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are a market summary writer for Auric Ledger. Write a brief, factual daily summary using ONLY the pre-computed price data provided. Copy exact numbers — never calculate or estimate. All prices are in Indian Rupees (₹).\n\n${summaryPrompt}`,
+              },
+            ],
+          },
         ],
-        max_tokens: 1024,
-        temperature: 0.2,
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1024,
+        },
       },
-      { headers: { "Content-Type": "application/json" }, timeout: 180000 }
+      { headers: { "Content-Type": "application/json" }, timeout: 60000 }
     );
 
-    const summary = hfResponse.data?.choices?.[0]?.message?.content;
+    const summary = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!summary) {
       console.error("❌ Empty response from HF model");
       return;
