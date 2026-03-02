@@ -52,6 +52,7 @@ export function AuthProvider({ children }) {
       password,
       options: {
         data: { display_name: username },
+        emailRedirectTo: window.location.origin,
       },
     });
   };

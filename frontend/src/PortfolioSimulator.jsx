@@ -10,6 +10,7 @@ import {
   Filler,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { useAuth } from "./contexts/AuthContext";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
 
@@ -30,17 +31,9 @@ const fmt = (n) =>
     ? `\u20B9${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : "N/A";
 
-const getUserId = () => {
-  let id = localStorage.getItem("auric-portfolio-uid");
-  if (!id) {
-    id = "user_" + Math.random().toString(36).slice(2, 12) + "_" + Date.now().toString(36);
-    localStorage.setItem("auric-portfolio-uid", id);
-  }
-  return id;
-};
-
 export default function PortfolioSimulator({ apiBase, onClose, embedded = false }) {
-  const userId = useMemo(() => getUserId(), []);
+  const { user } = useAuth();
+  const userId = user?.id;
 
   const [balance, setBalance] = useState(1000000);
   const [holdings, setHoldings] = useState([]);
@@ -74,6 +67,7 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
 
   // Fetch portfolio data
   const fetchPortfolio = useCallback(async () => {
+    if (!userId) return;
     try {
       const res = await fetch(`${apiBase}/api/portfolio?userId=${encodeURIComponent(userId)}`);
       const data = await res.json();
@@ -105,13 +99,14 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
 
   // Initial load
   useEffect(() => {
+    if (!userId) return;
     const init = async () => {
       setLoading(true);
       await Promise.all([fetchPortfolio(), fetchPrices()]);
       setLoading(false);
     };
     init();
-  }, [fetchPortfolio, fetchPrices]);
+  }, [fetchPortfolio, fetchPrices, userId]);
 
   // Auto-refresh prices every 60s
   useEffect(() => {

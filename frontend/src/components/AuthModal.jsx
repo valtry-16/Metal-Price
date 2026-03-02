@@ -42,8 +42,13 @@ export default function AuthModal({ onClose }) {
     if (result.error) {
       setError(result.error.message);
     } else if (mode === "signup") {
-      setSuccess("Account created! Check your email to confirm, then sign in.");
-      setMode("login");
+      // When email confirmation is disabled, Supabase returns a session directly
+      if (result.data?.session) {
+        onClose();
+      } else {
+        setSuccess("Account created! You can now sign in.");
+        setMode("login");
+      }
     } else {
       onClose();
     }
