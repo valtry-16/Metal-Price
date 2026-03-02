@@ -45,9 +45,24 @@ export function AuthProvider({ children }) {
     return supabase.auth.signInWithPassword({ email, password });
   };
 
-  const signUpWithEmail = async (email, password) => {
+  const signUpWithEmail = async (email, password, username) => {
     if (!supabase) return { error: { message: "Supabase not configured" } };
-    return supabase.auth.signUp({ email, password });
+    return supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: username },
+      },
+    });
+  };
+
+  const updateProfile = async (updates) => {
+    if (!supabase) return { error: { message: "Supabase not configured" } };
+    const { data, error } = await supabase.auth.updateUser({
+      data: updates,
+    });
+    if (!error && data?.user) setUser(data.user);
+    return { data, error };
   };
 
   const signOut = async () => {
@@ -55,6 +70,18 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
+  };
+
+  /** Get the best display name for the current user */
+  const getDisplayName = () => {
+    if (!user) return "User";
+    const meta = user.user_metadata || {};
+    return meta.display_name || meta.full_name || meta.name || user.email?.split("@")[0] || "User";
+  };
+
+  /** Get avatar URL (Google provides one, manual users won't have one) */
+  const getAvatarUrl = () => {
+    return user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
   };
 
   return (
@@ -66,8 +93,11 @@ export function AuthProvider({ children }) {
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
+        updateProfile,
         signOut,
         isAuthenticated: !!user,
+        getDisplayName,
+        getAvatarUrl,
       }}
     >
       {children}

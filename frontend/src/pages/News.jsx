@@ -53,7 +53,10 @@ export default function News() {
           {/* AI Summary */}
           <div className="al-news__summary-card">
             <div className="al-news__summary-header">
-              <span className="al-news__summary-badge">🤖 AI Summary</span>
+              <span className="al-news__summary-badge">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                AI Summary
+              </span>
               {summary?.date && (
                 <span className="al-news__summary-date">
                   {dayjs(summary.date).format("DD MMM YYYY")}
@@ -89,7 +92,10 @@ export default function News() {
 
           {/* Market Tips */}
           <div className="al-news__tips-card">
-            <h3 className="al-news__tips-title">💡 Quick Tips</h3>
+            <h3 className="al-news__tips-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>
+              Quick Tips
+            </h3>
             <ul className="al-news__tips-list">
               <li>Gold prices tend to rise during periods of economic uncertainty.</li>
               <li>Silver has both industrial and investment demand — watch manufacturing data.</li>

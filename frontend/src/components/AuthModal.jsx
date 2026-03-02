@@ -6,12 +6,17 @@ export default function AuthModal({ onClose }) {
   const [mode, setMode] = useState("login"); // login | signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
 
   const handleEmailAuth = async (e) => {
     e.preventDefault();
+    if (mode === "signup" && !username.trim()) {
+      setError("Please enter a display name.");
+      return;
+    }
     if (!email || !password) {
       setError("Please fill in all fields.");
       return;
@@ -25,13 +30,17 @@ export default function AuthModal({ onClose }) {
     setSuccess("");
     setLoading(true);
 
-    const fn = mode === "signup" ? signUpWithEmail : signInWithEmail;
-    const { error: authError } = await fn(email, password);
+    let result;
+    if (mode === "signup") {
+      result = await signUpWithEmail(email, password, username.trim());
+    } else {
+      result = await signInWithEmail(email, password);
+    }
 
     setLoading(false);
 
-    if (authError) {
-      setError(authError.message);
+    if (result.error) {
+      setError(result.error.message);
     } else if (mode === "signup") {
       setSuccess("Account created! Check your email to confirm, then sign in.");
       setMode("login");
@@ -77,6 +86,18 @@ export default function AuthModal({ onClose }) {
 
         {/* Email Form */}
         <form className="al-auth-form" onSubmit={handleEmailAuth}>
+          {mode === "signup" && (
+            <div className="al-auth-field">
+              <label>Display Name</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+              />
+            </div>
+          )}
           <div className="al-auth-field">
             <label>Email</label>
             <input

@@ -7,7 +7,7 @@ import { cachedFetch } from "../lib/apiCache";
 import dayjs from "dayjs";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, getDisplayName, getAvatarUrl } = useAuth();
   const [summary, setSummary] = useState(null);
   const [portfolioData, setPortfolioData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,9 +26,8 @@ export default function Dashboard() {
     });
   }, []);
 
-  const displayName =
-    user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split("@")[0] || "User";
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  const displayName = getDisplayName();
+  const avatarUrl = getAvatarUrl();
 
   const balance = portfolioData?.balance ?? 1000000;
   const activeHoldings = portfolioData?.holdings?.filter((h) => !h.is_sold) || [];
@@ -52,7 +51,7 @@ export default function Dashboard() {
           <div className="al-dashboard__welcome">
             <div className="al-dashboard__avatar">
               {avatarUrl ? (
-                <img src={avatarUrl} alt="" />
+                <img src={avatarUrl} alt={displayName} />
               ) : (
                 <span>{displayName[0].toUpperCase()}</span>
               )}
@@ -68,7 +67,10 @@ export default function Dashboard() {
 
           {/* Portfolio Summary */}
           <div className="al-dashboard__card">
-            <h3 className="al-dashboard__card-title">💼 Portfolio</h3>
+            <h3 className="al-dashboard__card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+              Portfolio
+            </h3>
             <div className="al-dashboard__stat-row">
               <div className="al-dashboard__stat">
                 <span className="al-dashboard__stat-label">Virtual Balance</span>
@@ -84,13 +86,17 @@ export default function Dashboard() {
               </div>
             </div>
             <Link to="/portfolio" className="al-btn al-btn--ghost al-btn--sm" style={{ marginTop: "12px" }}>
-              View Portfolio →
+              View Portfolio
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </Link>
           </div>
 
           {/* Latest Insight */}
           <div className="al-dashboard__card">
-            <h3 className="al-dashboard__card-title">🤖 Latest Market Insight</h3>
+            <h3 className="al-dashboard__card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Latest Market Insight
+            </h3>
             {summary?.summary ? (
               <p className="al-dashboard__insight-preview">
                 {summary.summary.substring(0, 250)}...
@@ -99,18 +105,34 @@ export default function Dashboard() {
               <p className="al-dashboard__insight-empty">No summary available today.</p>
             )}
             <Link to="/news" className="al-btn al-btn--ghost al-btn--sm" style={{ marginTop: "12px" }}>
-              Read Full Summary →
+              Read Full Summary
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </Link>
           </div>
 
           {/* Quick Links */}
           <div className="al-dashboard__card">
-            <h3 className="al-dashboard__card-title">⚡ Quick Actions</h3>
+            <h3 className="al-dashboard__card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Quick Actions
+            </h3>
             <div className="al-dashboard__quick-links">
-              <Link to="/market" className="al-dashboard__quick-link">📈 Market</Link>
-              <Link to="/calculator" className="al-dashboard__quick-link">💎 Calculator</Link>
-              <Link to="/compare" className="al-dashboard__quick-link">⚖️ Compare</Link>
-              <Link to="/settings" className="al-dashboard__quick-link">⚙️ Settings</Link>
+              <Link to="/market" className="al-dashboard__quick-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Market
+              </Link>
+              <Link to="/calculator" className="al-dashboard__quick-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Calculator
+              </Link>
+              <Link to="/compare" className="al-dashboard__quick-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                Compare
+              </Link>
+              <Link to="/settings" className="al-dashboard__quick-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Settings
+              </Link>
             </div>
           </div>
         </div>

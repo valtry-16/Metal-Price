@@ -29,9 +29,9 @@ const detectApiBase = async () => {
   
   if (IS_DEV) {
     if (isMobile) {
-      console.log("📱 Mobile device detected - Using production API:", PROD_API_URL);
+      console.log("Mobile device detected - Using production API:", PROD_API_URL);
     } else {
-      console.log("💻 Desktop device - Using production API:", PROD_API_URL);
+      console.log("Desktop device - Using production API:", PROD_API_URL);
     }
   }
   
@@ -160,7 +160,7 @@ export default function Market() {
   // Save email and send to backend
   const saveEmail = async (email) => {
     if (!email || !email.includes("@")) {
-      showToast("❌ Please enter a valid email");
+      showToast("Please enter a valid email");
       return;
     }
 
@@ -186,10 +186,10 @@ export default function Market() {
       localStorage.setItem("auric-email-mask", masked);
       setUserEmail(rememberEmail ? email : "");
       setSavedEmailMask(masked);
-      showToast("✅ Daily price emails enabled for " + masked);
+      showToast("Daily price emails enabled for " + masked);
     } catch (error) {
       console.error("Email subscription error:", error);
-      showToast("❌ Failed to subscribe email: " + error.message);
+      showToast("Failed to subscribe email: " + error.message);
     } finally {
       setEmailLoading(false);
     }
@@ -246,14 +246,14 @@ export default function Market() {
     const updated = [...alerts, alert];
     saveAlerts(updated);
     setNewAlert({ metal: "", type: "price_threshold", direction: "below", value: "", enabled: true });
-    showToast(`✅ Alert created for ${formatMetalLabel({ metal_name: newAlert.metal })}`);
+    showToast(`Alert created for ${formatMetalLabel({ metal_name: newAlert.metal })}`);
   };
 
   // Delete alert
   const deleteAlert = (id) => {
     const updated = alerts.filter((a) => a.id !== id);
     saveAlerts(updated);
-    showToast("🗑️ Alert deleted");
+    showToast("Alert deleted");
   };
 
   // Toggle alert
@@ -285,10 +285,10 @@ export default function Market() {
         const direction = alert.direction || "below";
         if (direction === "below" && currentPrice <= alert.value) {
           shouldTrigger = true;
-          message = `📉 ${formatMetalLabel({ metal_name: alert.metal })} dropped below ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}/g`;
+          message = `${formatMetalLabel({ metal_name: alert.metal })} dropped below ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}/g`;
         } else if (direction === "above" && currentPrice >= alert.value) {
           shouldTrigger = true;
-          message = `📈 ${formatMetalLabel({ metal_name: alert.metal })} crossed above ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}/g`;
+          message = `${formatMetalLabel({ metal_name: alert.metal })} crossed above ₹${alert.value.toFixed(2)}/g! Current: ₹${currentPrice.toFixed(2)}/g`;
         }
       } else if (alert.type === "percentage_change") {
         const comparison = comparisons[metalName];
@@ -298,7 +298,7 @@ export default function Market() {
             const pctChange = ((currentPrice - oldPrice) / oldPrice) * 100;
             if (Math.abs(pctChange) >= alert.value) {
               shouldTrigger = true;
-              const direction = pctChange > 0 ? "📈 Up" : "📉 Down";
+              const direction = pctChange > 0 ? "Up" : "Down";
               message = `${direction} ${Math.abs(pctChange).toFixed(2)}%! ${formatMetalLabel({ metal_name: alert.metal })} ${pctChange > 0 ? "increased" : "decreased"} by ${Math.abs(pctChange).toFixed(2)}%`;
             }
           }
@@ -410,7 +410,7 @@ export default function Market() {
                     currency: "INR",
                     maximumFractionDigits: 0
                   }).format(goldData.latest.price_1g);
-                  showToast(`🏆 Today's Gold Price (22K, 1g) - ${priceFormatted}`);
+                  showToast(`Today's Gold Price (22K, 1g) - ${priceFormatted}`);
                 }
               }
             } catch (err) {
@@ -933,7 +933,7 @@ export default function Market() {
       link.download = filename;
       link.click();
       
-      setStatus({ loading: false, error: "", message: "✅ PDF downloaded successfully!" });
+      setStatus({ loading: false, error: "", message: "PDF downloaded successfully!" });
       setExportLoading(false);
       
       // Clear success message after 3 seconds
@@ -943,7 +943,7 @@ export default function Market() {
       
     } catch (error) {
       console.error("PDF export error:", error);
-      setStatus({ loading: false, error: `❌ PDF failed: ${error.message}`, message: "" });
+      setStatus({ loading: false, error: `PDF failed: ${error.message}`, message: "" });
       setExportLoading(false);
     }
   };
@@ -1132,7 +1132,7 @@ export default function Market() {
 
         {status.error ? (
           <div className="error-banner">
-            <strong>⚠️ Data Unavailable</strong>
+            <strong>Data Unavailable</strong>
             <div>{status.error}</div>
           </div>
         ) : null}
@@ -1201,7 +1201,7 @@ export default function Market() {
               Download CSV
             </button>
             <button className="export-btn" type="button" onClick={handleExportPdf} disabled={exportLoading}>
-              {exportLoading ? "⏳ Generating..." : "Download PDF"}
+              {exportLoading ? "Generating..." : "Download PDF"}
             </button>
           </div>
         </section>
@@ -1253,7 +1253,7 @@ export default function Market() {
               </div>
               <div className="faq-section">
                 <div className="faq-item">
-                  <h3>🚀 Auric Ledger v1.1.0</h3>
+                  <h3>Auric Ledger v1.1.0</h3>
                   <p>
                     <strong>Premium Precious Metals Price Tracker</strong><br/>
                     A production-ready full-stack AI-powered application for tracking real-time prices of 9 precious metals and commodities 
@@ -1263,40 +1263,40 @@ export default function Market() {
                 </div>
                 
                 <div className="faq-item">
-                  <h3>✨ Key Features</h3>
+                  <h3>Key Features</h3>
                   <p>
-                    <strong style={{ color: "var(--accent)" }}>📊 Real-Time Pricing:</strong> Live prices for Gold, Silver, Platinum, Palladium, 
+                    <strong style={{ color: "var(--accent)" }}>Real-Time Pricing:</strong> Live prices for Gold, Silver, Platinum, Palladium, 
                     Copper, Nickel, Zinc, Aluminium, and Lead converted to INR with duty (6%) and GST (3%)<br/>
-                    <strong style={{ color: "var(--accent)" }}>🧠 AI Daily Summary:</strong> Auto-generated AI market analysis each day with key insights, trends, and recommendations<br/>
-                    <strong style={{ color: "var(--accent)" }}>💬 AI Chatbot (Auric AI):</strong> Ask questions about metals, prices, and market trends — powered by a custom AI model<br/>
-                    <strong style={{ color: "var(--accent)" }}>🔔 Smart Alerts:</strong> Set price thresholds — get notified via browser + email when prices cross above or below your limit<br/>
-                    <strong style={{ color: "var(--accent)" }}>📱 PWA App:</strong> Install as native app on desktop, Android, and iOS. Works offline with automatic sync<br/>
-                    <strong style={{ color: "var(--accent)" }}>🤖 Telegram Bot:</strong> Get prices, charts, summaries, AI chat, and daily updates via Telegram bot with 9 powerful commands<br/>
-                    <strong style={{ color: "var(--accent)" }}>📈 Analytics:</strong> 7-day weekly trends and monthly historical data with interactive charts<br/>
-                    <strong style={{ color: "var(--accent)" }}>💾 Export:</strong> Download CSV data or premium PDF reports with price breakdowns<br/>
-                    <strong style={{ color: "var(--accent)" }}>📧 Email Updates:</strong> Subscribe for daily prices with a welcome email sent within minutes<br/>
-                    <strong style={{ color: "var(--accent)" }}>🌙 Dark Mode:</strong> Eye-friendly dark theme with persistent preferences<br/>
-                    <strong style={{ color: "var(--accent)" }}>⚡ Automated:</strong> Daily cron job at 9:00 AM IST for price updates and AI summary generation
+                    <strong style={{ color: "var(--accent)" }}>AI Daily Summary:</strong> Auto-generated AI market analysis each day with key insights, trends, and recommendations<br/>
+                    <strong style={{ color: "var(--accent)" }}>AI Chatbot (Auric AI):</strong> Ask questions about metals, prices, and market trends — powered by a custom AI model<br/>
+                    <strong style={{ color: "var(--accent)" }}>Smart Alerts:</strong> Set price thresholds — get notified via browser + email when prices cross above or below your limit<br/>
+                    <strong style={{ color: "var(--accent)" }}>PWA App:</strong> Install as native app on desktop, Android, and iOS. Works offline with automatic sync<br/>
+                    <strong style={{ color: "var(--accent)" }}>Telegram Bot:</strong> Get prices, charts, summaries, AI chat, and daily updates via Telegram bot with 9 powerful commands<br/>
+                    <strong style={{ color: "var(--accent)" }}>Analytics:</strong> 7-day weekly trends and monthly historical data with interactive charts<br/>
+                    <strong style={{ color: "var(--accent)" }}>Export:</strong> Download CSV data or premium PDF reports with price breakdowns<br/>
+                    <strong style={{ color: "var(--accent)" }}>Email Updates:</strong> Subscribe for daily prices with a welcome email sent within minutes<br/>
+                    <strong style={{ color: "var(--accent)" }}>Dark Mode:</strong> Eye-friendly dark theme with persistent preferences<br/>
+                    <strong style={{ color: "var(--accent)" }}>Automated:</strong> Daily cron job at 9:00 AM IST for price updates and AI summary generation
                   </p>
                 </div>
 
                 <div className="faq-item">
-                  <h3>🤖 Telegram Bot Features</h3>
+                  <h3>Telegram Bot Features</h3>
                   <p>
-                    <strong style={{ color: "var(--accent)" }}>📱 Instant Prices:</strong> Get current and yesterday's prices for all 9 metals on demand<br/>
-                    <strong style={{ color: "var(--accent)" }}>📊 Smart Charts:</strong> View 7-day, 30-day, or custom month charts for any metal<br/>
-                    <strong style={{ color: "var(--accent)" }}>🧠 AI Summary:</strong> Get the daily AI-generated market summary via /summary command<br/>
-                    <strong style={{ color: "var(--accent)" }}>💬 AI Chat:</strong> Ask the AI about metals and prices via /ask command<br/>
-                    <strong style={{ color: "var(--accent)" }}>🔔 Daily Updates:</strong> Subscribe to automatic 9 AM price updates with change indicators (↑↓)<br/>
-                    <strong style={{ color: "var(--accent)" }}>🎨 Color-Coded:</strong> Each metal has unique color emoji for quick visual identification<br/>
-                    <strong style={{ color: "var(--accent)" }}>💹 Price Changes:</strong> Daily updates show exact price changes and percentages from yesterday<br/><br/>
+                    <strong style={{ color: "var(--accent)" }}>Instant Prices:</strong> Get current and yesterday's prices for all 9 metals on demand<br/>
+                    <strong style={{ color: "var(--accent)" }}>Smart Charts:</strong> View 7-day, 30-day, or custom month charts for any metal<br/>
+                    <strong style={{ color: "var(--accent)" }}>AI Summary:</strong> Get the daily AI-generated market summary via /summary command<br/>
+                    <strong style={{ color: "var(--accent)" }}>AI Chat:</strong> Ask the AI about metals and prices via /ask command<br/>
+                    <strong style={{ color: "var(--accent)" }}>Daily Updates:</strong> Subscribe to automatic 9 AM price updates with change indicators (↑↓)<br/>
+                    <strong style={{ color: "var(--accent)" }}>Color-Coded:</strong> Each metal has unique color emoji for quick visual identification<br/>
+                    <strong style={{ color: "var(--accent)" }}>Price Changes:</strong> Daily updates show exact price changes and percentages from yesterday<br/><br/>
                     <strong>Commands:</strong> /start, /prices, /yesterday, /summary, /chart, /download, /ask, /subscribe, /unsubscribe<br/>
                     <strong>Bot Link:</strong> <a href="https://t.me/AuricLedgerBot" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", textDecoration: "underline" }}>t.me/AuricLedgerBot</a>
                   </p>
                 </div>
 
                 <div className="faq-item">
-                  <h3>🏗️ Technical Stack</h3>
+                  <h3>Technical Stack</h3>
                   <p>
                     <strong>Frontend:</strong> React 19 + Vite with jsPDF for report generation, Chart.js for analytics<br/>
                     <strong>Backend:</strong> Node.js + Express with cron scheduling and rate limiting<br/>
@@ -1307,31 +1307,31 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🎯 What We've Accomplished</h3>
+                  <h3>What We've Accomplished</h3>
                   <p>
-                    ✅ Migrated from gold-api.com to apised.com for broader metal coverage<br/>
-                    ✅ Implemented all 9 metal symbols with proper naming and color themes<br/>
-                    ✅ Built cron pipelines with external scheduling and secure secrets<br/>
-                    ✅ Created PWA with service worker for offline functionality and installable app<br/>
-                    ✅ Generated 8 app icons (72px to 512px) for all device types<br/>
-                    ✅ Fixed notification ticker with proper metal ordering and comparisons<br/>
-                    ✅ Added dark/light theme toggle with localStorage persistence<br/>
-                    ✅ Built comprehensive PDF & CSV export functionality<br/>
-                    ✅ Implemented responsive mobile design with hamburger menu<br/>
-                    ✅ Added detailed About + Privacy pages with updated policies<br/>
-                    ✅ Integrated Telegram bot with 9 commands including /summary and /ask<br/>
-                    ✅ Built interactive chart system (7-day, 30-day, custom month)<br/>
-                    ✅ Added price change tracking with color-coded indicators<br/>
-                    ✅ Added welcome emails with retry-safe background delivery<br/>
-                    ✅ Hardened security with CORS, rate limits, CSP, and data masking<br/>
-                    ✅ Built AI daily market summary with auto-generation and real-time SSE updates<br/>
-                    ✅ Integrated Auric AI chatbot with streaming responses and RAG knowledge base<br/>
-                    ✅ Revamped alert system with threshold-based price crossing detection
+                    • Migrated from gold-api.com to apised.com for broader metal coverage<br/>
+                    • Implemented all 9 metal symbols with proper naming and color themes<br/>
+                    • Built cron pipelines with external scheduling and secure secrets<br/>
+                    • Created PWA with service worker for offline functionality and installable app<br/>
+                    • Generated 8 app icons (72px to 512px) for all device types<br/>
+                    • Fixed notification ticker with proper metal ordering and comparisons<br/>
+                    • Added dark/light theme toggle with localStorage persistence<br/>
+                    • Built comprehensive PDF & CSV export functionality<br/>
+                    • Implemented responsive mobile design with hamburger menu<br/>
+                    • Added detailed About + Privacy pages with updated policies<br/>
+                    • Integrated Telegram bot with 9 commands including /summary and /ask<br/>
+                    • Built interactive chart system (7-day, 30-day, custom month)<br/>
+                    • Added price change tracking with color-coded indicators<br/>
+                    • Added welcome emails with retry-safe background delivery<br/>
+                    • Hardened security with CORS, rate limits, CSP, and data masking<br/>
+                    • Built AI daily market summary with auto-generation and real-time SSE updates<br/>
+                    • Integrated Auric AI chatbot with streaming responses and RAG knowledge base<br/>
+                    • Revamped alert system with threshold-based price crossing detection
                   </p>
                 </div>
 
                 <div className="faq-item">
-                  <h3>💰 Price Calculation Formula</h3>
+                  <h3>Price Calculation Formula</h3>
                   <p>
                     <strong>Base Formula:</strong><br/>
                     Final Price = (USD Price ÷ 31.1035g/oz) × USD→INR Rate × 1.06 (Duty) × 1.03 (GST)<br/><br/>
@@ -1343,7 +1343,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>📊 Supported Metals</h3>
+                  <h3>Supported Metals</h3>
                   <p>
                     <strong style={{ color: "var(--accent)" }}>XAU</strong> - Gold (18K, 22K, 24K carats)<br/>
                     <strong style={{ color: "var(--accent)" }}>XAG</strong> - Silver<br/>
@@ -1358,7 +1358,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>⏰ Update Schedule</h3>
+                  <h3>Update Schedule</h3>
                   <p>
                     <strong>Daily Fetch:</strong> 9:00 AM IST via automated cron job<br/>
                     <strong>Manual Update:</strong> Fetch latest prices on demand via /fetch-today-prices endpoint<br/>
@@ -1368,7 +1368,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🔒 Privacy & Security</h3>
+                  <h3>Privacy & Security</h3>
                   <p>
                     Your preferences (theme, selected metal, units, alerts) are stored locally in your browser<br/>
                     Email subscription status is shown with a masked address unless you opt in to remember it<br/>
@@ -1379,7 +1379,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>📱 Installation Guide</h3>
+                  <h3>Installation Guide</h3>
                   <p>
                     <strong>Desktop (Chrome/Edge/Firefox):</strong> Click install button in address bar<br/>
                     <strong>Android Chrome:</strong> Menu → "Add to Home screen"<br/>
@@ -1389,7 +1389,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>👨‍💻 Developer</h3>
+                  <h3>Developer</h3>
                   <p>
                     <strong>Built by: Sabithulla</strong><br/>
                     A full-stack developer passionate about financial technology and data visualization<br/>
@@ -1416,7 +1416,7 @@ export default function Market() {
               </div>
               <div className="faq-section">
                 <div className="faq-item">
-                  <h3>🔐 Overview</h3>
+                  <h3>Overview</h3>
                   <p>
                     Auric Ledger respects your privacy. We collect only what is required to deliver price updates and alerts.
                     We do not sell your data or share it for advertising.
@@ -1424,7 +1424,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>📋 Data We Collect</h3>
+                  <h3>Data We Collect</h3>
                   <p>
                     <strong>Email (optional):</strong> Only if you subscribe to daily emails or price alerts. Stored securely on our server to send updates.<br/>
                     <strong>Local Preferences:</strong> Theme, selected metal, units, and alert settings stored locally in your browser.<br/>
@@ -1434,7 +1434,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🔒 How We Use Your Data</h3>
+                  <h3>How We Use Your Data</h3>
                   <p>
                     <strong>Daily Emails:</strong> Used only to deliver metal price updates.<br/>
                     <strong>Price Alerts:</strong> Alert configurations are stored locally in your browser. Email alerts are sent only if you provide your email.<br/>
@@ -1444,7 +1444,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🧠 Local Storage</h3>
+                  <h3>Local Storage</h3>
                   <p>
                     We use localStorage to save your preferences (theme, filters, alerts). You can clear these at any time by removing site data in your browser.
                     The masked email display is stored locally to help you remember your subscription status.
@@ -1452,7 +1452,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🌐 Third-Party Services</h3>
+                  <h3>Third-Party Services</h3>
                   <p>
                     <strong>Metals API:</strong> Price data is fetched from apised.com.<br/>
                     <strong>Exchange Rates:</strong> USD to INR rates from frankfurter.app.<br/>
@@ -1464,7 +1464,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🛡️ Security Practices</h3>
+                  <h3>Security Practices</h3>
                   <p>
                     HTTPS is enforced for all data transmission. We apply rate limiting, input validation, and security headers to prevent abuse.
                     Sensitive data is masked in logs and never exposed to the frontend.
@@ -1472,7 +1472,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🧹 Data Retention & Deletion</h3>
+                  <h3>Data Retention & Deletion</h3>
                   <p>
                     You can unsubscribe at any time. When you remove your email in the app, it clears local storage and you can request deletion from our database.
                     We do not retain unnecessary data beyond service delivery.
@@ -1480,7 +1480,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>📞 Contact</h3>
+                  <h3>Contact</h3>
                   <p>
                     For privacy questions or deletion requests, contact the developer: <strong>Sabithulla</strong>.<br/>
                     Email: <a href="mailto:auricledger@gmail.com" style={{ color: "var(--accent)", textDecoration: "underline" }}>auricledger@gmail.com</a>
@@ -1589,7 +1589,7 @@ export default function Market() {
               </div>
               <div className="faq-section">
                 <div className="faq-item">
-                  <h3>📌 Create New Alert</h3>
+                  <h3>Create New Alert</h3>
                   <div style={{ display: "grid", gap: "10px", marginTop: "12px" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Select Metal</label>
@@ -1631,8 +1631,8 @@ export default function Market() {
                           fontSize: "14px"
                         }}
                       >
-                        <option value="price_threshold">📊 Price Threshold (₹/g)</option>
-                        <option value="percentage_change">📈 Price Change (%)</option>
+                        <option value="price_threshold">Price Threshold (₹/g)</option>
+                        <option value="percentage_change">Price Change (%)</option>
                       </select>
                     </div>
                     {newAlert.type === "price_threshold" && (
@@ -1651,8 +1651,8 @@ export default function Market() {
                             fontSize: "14px"
                           }}
                         >
-                          <option value="below">⬇️ Below this price</option>
-                          <option value="above">⬆️ Above this price</option>
+                          <option value="below">Below this price</option>
+                          <option value="above">Above this price</option>
                         </select>
                       </div>
                     )}
@@ -1689,7 +1689,7 @@ export default function Market() {
                         fontSize: "14px"
                       }}
                     >
-                      ➕ Create Alert
+                      Create Alert
                     </button>
                     {notificationPermission !== "granted" && (
                       <button
@@ -1712,7 +1712,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>📧 Daily Email Notifications</h3>
+                  <h3>Daily Email Notifications</h3>
                   <p style={{ marginBottom: "12px" }}>Get daily price updates for all metals at your email</p>
                   <div style={{ display: "grid", gap: "10px" }}>
                     {userEmail || savedEmailMask ? (
@@ -1724,7 +1724,7 @@ export default function Market() {
                         color: "var(--panel-ink)"
                       }}>
                         <p style={{ margin: 0, fontSize: "14px" }}>
-                          ✅ Emails enabled for: <strong>{userEmail || savedEmailMask}</strong>
+                          Emails enabled for: <strong>{userEmail || savedEmailMask}</strong>
                         </p>
                         {!userEmail && savedEmailMask && (
                           <p style={{ margin: "6px 0 0", fontSize: "12px", color: "var(--muted)" }}>
@@ -1736,7 +1736,7 @@ export default function Market() {
                             setUserEmail("");
                             setSavedEmailMask("");
                             setRememberEmail(false);
-                            showToast("📧 Email notifications disabled");
+                            showToast("Email notifications disabled");
                             localStorage.removeItem("auric-email");
                             localStorage.removeItem("auric-email-mask");
                           }}
@@ -1789,7 +1789,7 @@ export default function Market() {
                             fontSize: "14px"
                           }}
                         >
-                          {emailLoading ? "⏳ Subscribing..." : "📧 Subscribe to Daily Emails"}
+                          {emailLoading ? "Subscribing..." : "Subscribe to Daily Emails"}
                         </button>
                         <label style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "12px", color: "var(--muted)" }}>
                           <input
@@ -1805,7 +1805,7 @@ export default function Market() {
                 </div>
 
                 <div className="faq-item">
-                  <h3>🤖 Telegram Bot Notifications</h3>
+                  <h3>Telegram Bot Notifications</h3>
                   <p style={{ marginBottom: "12px" }}>Get instant updates and interactive charts via Telegram</p>
                   <div style={{
                     padding: "12px",
@@ -1814,7 +1814,7 @@ export default function Market() {
                     borderRadius: "8px"
                   }}>
                     <p style={{ margin: "0 0 10px 0", fontSize: "14px", color: "var(--panel-ink)" }}>
-                      💬 Chat with our bot for prices, charts, and daily updates
+                      Chat with our bot for prices, charts, and daily updates
                     </p>
                     <a 
                       href="https://t.me/AuricLedgerBot" 
@@ -1832,7 +1832,7 @@ export default function Market() {
                         fontSize: "14px"
                       }}
                     >
-                      📱 Open Telegram Bot
+                      Open Telegram Bot
                     </a>
                     <p style={{ margin: "10px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
                       Commands: /prices, /yesterday, /summary, /chart, /ask, /subscribe
@@ -1846,7 +1846,7 @@ export default function Market() {
                   </div>
                 ) : (
                   <div className="faq-item">
-                    <h3>📋 Your Alerts ({alerts.length})</h3>
+                    <h3>Your Alerts ({alerts.length})</h3>
                     <div style={{ display: "grid", gap: "10px", marginTop: "12px" }}>
                       {alerts.map((alert) => (
                         <div
@@ -1910,7 +1910,7 @@ export default function Market() {
                 )}
 
                 <div className="faq-item">
-                  <h3>ℹ️ How Alerts Work</h3>
+                  <h3>How Alerts Work</h3>
                   <p>
                     <strong style={{ color: "var(--accent)" }}>Price Threshold:</strong> Set a price limit — get alerted when the metal price crosses below or above your threshold. Example: Gold is ₹9,000/g, you set ₹8,500 below → alert fires when Gold drops to ₹8,500 or lower.<br/>
                     <strong style={{ color: "var(--accent)" }}>Price Change %:</strong> Get notified when a metal's daily price change exceeds your set percentage<br/>
