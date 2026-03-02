@@ -743,6 +743,54 @@ const getAvailableMonths = async ({ metal, carat }) => {
   return Array.from(months).sort();
 };
 
+// ============================================
+// NEWS API — Proxy for precious metals news
+// ============================================
+let newsCache = { data: null, timestamp: 0 };
+const NEWS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+app.get("/news-articles", async (req, res) => {
+  try {
+    const now = Date.now();
+    if (newsCache.data && now - newsCache.timestamp < NEWS_CACHE_TTL) {
+      return res.json(newsCache.data);
+    }
+
+    const NEWS_API_KEY = process.env.NEWS_API_KEY;
+    if (!NEWS_API_KEY) {
+      return res.status(500).json({ error: "News API key not configured" });
+    }
+
+    const fromDate = dayjs().subtract(7, "day").format("YYYY-MM-DD");
+    const response = await axios.get("https://newsapi.org/v2/everything", {
+      params: {
+        q: '"precious metals" OR gold OR silver OR platinum OR palladium',
+        searchIn: "title,description",
+        language: "en",
+        sortBy: "publishedAt",
+        pageSize: 20,
+        from: fromDate,
+        apiKey: NEWS_API_KEY,
+      },
+      timeout: 10000,
+    });
+
+    const articles = (response.data?.articles || []).filter(
+      (a) => a.title && a.title !== "[Removed]" && a.urlToImage
+    );
+
+    const result = { articles, totalResults: articles.length };
+    newsCache = { data: result, timestamp: now };
+    res.json(result);
+  } catch (err) {
+    console.error("News API error:", err.message);
+    if (newsCache.data) {
+      return res.json(newsCache.data);
+    }
+    res.status(500).json({ error: "Failed to fetch news", message: err.message });
+  }
+});
+
 app.get("/health", (req, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
