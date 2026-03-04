@@ -1236,10 +1236,14 @@ const sendWelcomeEmail = async (email, priceData, username) => {
   if (!emailTransporter) return;
 
   const displayName = username || "Subscriber";
-  const logoUrl = "https://auric--ledger.vercel.app/metal-price-icon.svg";
 
-  // Available metals in dropdown (matching frontend dropdown)
+  // HTML-based logo (SVG not supported in email clients)
+  const logoHtml = `<table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td style="width: 56px; height: 56px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 24px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">&#8377;</td></tr></table>`;
+
+  // Available metals
   const availableMetals = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
+  const preciousMetals = ['XAU', 'XAG', 'XPT', 'XPD'];
+  const industrialMetals = ['XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
   const metalNames = {
     'XAU': 'Gold', 'XAG': 'Silver', 'XPT': 'Platinum', 'XPD': 'Palladium',
     'XCU': 'Copper', 'LEAD': 'Lead', 'NI': 'Nickel', 'ZNC': 'Zinc', 'ALU': 'Aluminium'
@@ -1259,31 +1263,31 @@ const sendWelcomeEmail = async (email, priceData, username) => {
     if (!metalPrices[row.metal_name] && row.price_1g) metalPrices[row.metal_name] = row.price_1g;
   });
 
-  // Build gold carat rows
-  let goldRows = "";
+  // Gold carat rows
+  let goldCaratRows = "";
   ["24", "22", "18"].forEach((c, i) => {
     if (!goldCaratPrices[c]) return;
-    const bgColor = i % 2 === 0 ? "#fffdf5" : "#ffffff";
-    goldRows += `
+    const bgColor = i % 2 === 0 ? "#1e2a45" : "#1a2540";
+    goldCaratRows += `
       <tr style="background-color: ${bgColor};">
-        <td style="padding: 10px 16px; border-bottom: 1px solid #f0ecdf; color: #5a5a5a; font-size: 14px;">${c}K Gold</td>
-        <td style="padding: 10px 16px; border-bottom: 1px solid #f0ecdf; text-align: right; font-weight: 700; color: #2c3e50; font-size: 15px;">₹${goldCaratPrices[c].toFixed(2)}</td>
+        <td style="padding: 12px 20px; border-bottom: 1px solid #2a3a5a; color: #c9d1d9; font-size: 14px;">${c}K</td>
+        <td style="padding: 12px 20px; border-bottom: 1px solid #2a3a5a; text-align: right; font-weight: 700; color: #d4af37; font-size: 16px;">&#8377;${goldCaratPrices[c].toFixed(2)}</td>
       </tr>`;
   });
 
-  // Build price table rows
-  let priceRows = "";
-  let isAlt = false;
-  availableMetals.forEach(metal => {
+  // Build precious & industrial rows
+  const buildRow = (metal, isAlt, isPrecious) => {
     const price = metalPrices[metal];
-    const bgColor = isAlt ? "#f8f6f0" : "#ffffff";
-    priceRows += `
+    const bgColor = isAlt ? "#f9f8f5" : "#ffffff";
+    return `
       <tr style="background-color: ${bgColor};">
-        <td style="padding: 12px 16px; border-bottom: 1px solid #e8e4db; font-weight: 600; color: #2c3e50; font-size: 14px;">${metalNames[metal]}</td>
-        <td style="padding: 12px 16px; border-bottom: 1px solid #e8e4db; text-align: right; font-weight: 700; color: #2c3e50; font-size: 15px;">${price ? `₹${price.toFixed(2)}` : "N/A"}</td>
+        <td style="padding: 13px 20px; border-bottom: 1px solid #eee; font-weight: 600; color: #2c3e50; font-size: 14px;">${metalNames[metal]}</td>
+        <td style="padding: 13px 20px; border-bottom: 1px solid #eee; text-align: right; font-weight: 700; color: ${isPrecious ? '#1a1a2e' : '#37474f'}; font-size: 15px;">${price ? `&#8377;${price.toFixed(2)}` : "N/A"}</td>
       </tr>`;
-    isAlt = !isAlt;
-  });
+  };
+
+  const preciousRows = preciousMetals.map((m, i) => buildRow(m, i % 2 === 1, true)).join("");
+  const industrialRows = industrialMetals.map((m, i) => buildRow(m, i % 2 === 1, false)).join("");
 
   const emailContent = `
     <!DOCTYPE html>
@@ -1292,62 +1296,72 @@ const sendWelcomeEmail = async (email, priceData, username) => {
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #eae6dd;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #eae6dd; padding: 20px 10px;">
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e8e4d9;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #e8e4d9; padding: 24px 10px;">
         <tr>
           <td align="center">
-            <table width="640" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.12); overflow: hidden;">
+            <table width="640" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.15); overflow: hidden;">
               
-              <!-- Premium Welcome Header -->
+              <!-- ===== HEADER ===== -->
               <tr>
-                <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 40px 30px 32px 30px; text-align: center;">
-                  <img src="${logoUrl}" alt="AL" width="52" height="52" style="display: block; margin: 0 auto 16px auto; border-radius: 50%;" />
-                  <h1 style="margin: 0; color: #d4af37; font-size: 34px; font-weight: 700; letter-spacing: 1px;">Auric Ledger</h1>
-                  <div style="display: inline-block; padding: 6px 20px; border: 1px solid #d4af37; border-radius: 50px; margin-top: 14px;">
-                    <span style="color: #d4af37; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; font-weight: 600;">Welcome Aboard</span>
-                  </div>
-                  <p style="margin: 12px 0 0 0; color: #8892b0; font-size: 12px; letter-spacing: 1px;">${dayjs().format("dddd, DD MMMM YYYY")}</p>
+                <td style="background: linear-gradient(160deg, #0d1b3e 0%, #1a2d5a 40%, #162448 100%); padding: 44px 30px 36px 30px; text-align: center;">
+                  ${logoHtml}
+                  <h1 style="margin: 16px 0 0 0; color: #d4af37; font-size: 32px; font-weight: 700; letter-spacing: 2px; font-family: Georgia, 'Times New Roman', serif;">AURIC LEDGER</h1>
+                  <p style="margin: 8px 0 0 0; color: #7889a8; font-size: 11px; letter-spacing: 3px; text-transform: uppercase;">Precious Metals Intelligence</p>
+                  <table cellpadding="0" cellspacing="0" style="margin: 18px auto 0 auto;">
+                    <tr>
+                      <td style="padding: 7px 28px; border: 1.5px solid #d4af37; border-radius: 50px;">
+                        <span style="color: #d4af37; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; font-weight: 700;">Welcome Aboard</span>
+                      </td>
+                    </tr>
+                  </table>
                 </td>
               </tr>
 
-              <!-- Personal Greeting -->
+              <!-- ===== GOLD ACCENT DIVIDER ===== -->
               <tr>
-                <td style="padding: 32px 28px 0 28px;">
-                  <h2 style="margin: 0 0 12px 0; color: #1a1a2e; font-size: 24px; font-weight: 700;">Hello, ${displayName}!</h2>
-                  <p style="margin: 0; color: #555; font-size: 15px; line-height: 1.7;">
-                    Welcome to <strong style="color: #d4af37;">Auric Ledger</strong> — your personal gateway to real-time precious metals pricing in India.
-                    We're thrilled to have you join our community of informed investors and market enthusiasts.
+                <td style="height: 4px; background: linear-gradient(90deg, #d4af37, #f0d060, #d4af37);"></td>
+              </tr>
+
+              <!-- ===== GREETING ===== -->
+              <tr>
+                <td style="padding: 36px 32px 0 32px;">
+                  <p style="margin: 0 0 4px 0; color: #b8860b; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Welcome, ${displayName}</p>
+                  <h2 style="margin: 0 0 16px 0; color: #1a1a2e; font-size: 26px; font-weight: 700; font-family: Georgia, serif; line-height: 1.3;">
+                    We're delighted to have you here.
+                  </h2>
+                  <p style="margin: 0; color: #555; font-size: 15px; line-height: 1.75;">
+                    You've joined an exclusive community of investors and market enthusiasts who trust 
+                    <strong style="color: #1a1a2e;">Auric Ledger</strong> for real-time precious metals pricing in the Indian market.
+                    Here's a snapshot of where the market stands today.
                   </p>
                 </td>
               </tr>
 
-              <!-- What You'll Receive -->
+              <!-- ===== WHAT YOU GET - 3 COLUMNS ===== -->
               <tr>
-                <td style="padding: 28px 28px 0 28px;">
-                  <h3 style="margin: 0 0 16px 0; color: #1a1a2e; font-size: 17px; font-weight: 700; letter-spacing: 0.5px;">
-                    <span style="color: #d4af37;">&#9670;</span> What You'll Receive
-                  </h3>
+                <td style="padding: 32px 32px 0 32px;">
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td width="32%" style="padding-right: 8px; vertical-align: top;">
-                        <div style="background-color: #f8f6f0; padding: 20px 14px; border-radius: 10px; text-align: center; border: 1px solid #e8e4db;">
-                          <p style="margin: 0 0 8px 0; font-size: 28px;">&#128202;</p>
-                          <p style="margin: 0 0 4px 0; color: #1a1a2e; font-size: 13px; font-weight: 700;">Daily Reports</p>
-                          <p style="margin: 0; color: #888; font-size: 11px; line-height: 1.4;">Every morning at 9:00 AM IST</p>
+                        <div style="background: linear-gradient(135deg, #0d1b3e, #162448); padding: 24px 14px; border-radius: 12px; text-align: center; border: 1px solid #2a3a5a;">
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px;">&#128202;</td></tr></table>
+                          <p style="margin: 0 0 4px 0; color: #d4af37; font-size: 13px; font-weight: 700;">Daily Reports</p>
+                          <p style="margin: 0; color: #7889a8; font-size: 11px; line-height: 1.5;">9:00 AM IST<br/>every morning</p>
                         </div>
                       </td>
                       <td width="36%" style="padding: 0 4px; vertical-align: top;">
-                        <div style="background-color: #f8f6f0; padding: 20px 14px; border-radius: 10px; text-align: center; border: 1px solid #e8e4db;">
-                          <p style="margin: 0 0 8px 0; font-size: 28px;">&#128276;</p>
-                          <p style="margin: 0 0 4px 0; color: #1a1a2e; font-size: 13px; font-weight: 700;">Price Alerts</p>
-                          <p style="margin: 0; color: #888; font-size: 11px; line-height: 1.4;">Custom notifications at your target prices</p>
+                        <div style="background: linear-gradient(135deg, #0d1b3e, #162448); padding: 24px 14px; border-radius: 12px; text-align: center; border: 1px solid #2a3a5a;">
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px;">&#128276;</td></tr></table>
+                          <p style="margin: 0 0 4px 0; color: #d4af37; font-size: 13px; font-weight: 700;">Price Alerts</p>
+                          <p style="margin: 0; color: #7889a8; font-size: 11px; line-height: 1.5;">Set targets &amp; get<br/>instant notifications</p>
                         </div>
                       </td>
                       <td width="32%" style="padding-left: 8px; vertical-align: top;">
-                        <div style="background-color: #f8f6f0; padding: 20px 14px; border-radius: 10px; text-align: center; border: 1px solid #e8e4db;">
-                          <p style="margin: 0 0 8px 0; font-size: 28px;">&#128200;</p>
-                          <p style="margin: 0 0 4px 0; color: #1a1a2e; font-size: 13px; font-weight: 700;">Market Insights</p>
-                          <p style="margin: 0; color: #888; font-size: 11px; line-height: 1.4;">Charts, trends &amp; comparisons</p>
+                        <div style="background: linear-gradient(135deg, #0d1b3e, #162448); padding: 24px 14px; border-radius: 12px; text-align: center; border: 1px solid #2a3a5a;">
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px;">&#128200;</td></tr></table>
+                          <p style="margin: 0 0 4px 0; color: #d4af37; font-size: 13px; font-weight: 700;">Market Insights</p>
+                          <p style="margin: 0; color: #7889a8; font-size: 11px; line-height: 1.5;">Charts, trends<br/>&amp; comparisons</p>
                         </div>
                       </td>
                     </tr>
@@ -1355,20 +1369,45 @@ const sendWelcomeEmail = async (email, priceData, username) => {
                 </td>
               </tr>
 
-              <!-- Gold Spotlight -->
-              ${goldRows ? `
+              <!-- ===== MARKET SNAPSHOT DATE BAR ===== -->
               <tr>
-                <td style="padding: 28px 28px 0 28px;">
-                  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fffdf5 0%, #fef9e7 100%); border-radius: 10px; border: 1px solid #f0e6c8; overflow: hidden;">
+                <td style="padding: 32px 32px 0 32px;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(90deg, #0d1b3e, #1a2d5a); border-radius: 10px; overflow: hidden;">
+                    <tr>
+                      <td width="50%" style="padding: 16px 24px; text-align: center; border-right: 1px solid #2a3a5a;">
+                        <p style="margin: 0; color: #7889a8; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;">Market Date</p>
+                        <p style="margin: 4px 0 0 0; color: #f0f0f0; font-size: 15px; font-weight: 700;">${dayjs().format("DD MMM YYYY")}</p>
+                      </td>
+                      <td width="50%" style="padding: 16px 24px; text-align: center;">
+                        <p style="margin: 0; color: #7889a8; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px;">USD / INR</p>
+                        <p style="margin: 4px 0 0 0; color: #f0f0f0; font-size: 15px; font-weight: 700;">${priceData.usdToInr ? `&#8377;${priceData.usdToInr.toFixed(2)}` : "N/A"}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- ===== GOLD SPOTLIGHT ===== -->
+              ${goldCaratRows ? `
+              <tr>
+                <td style="padding: 28px 32px 0 32px;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #0d1b3e, #162448); border-radius: 12px; overflow: hidden; border: 1px solid #2a3a5a;">
                     <tr>
                       <td style="padding: 18px 20px 6px 20px;">
-                        <p style="margin: 0; color: #b8860b; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">&#127942; Gold Prices Today</p>
+                        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+                          <td><p style="margin: 0; color: #d4af37; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">&#9733; Gold Prices Today</p></td>
+                          <td style="text-align: right;"><p style="margin: 0; color: #7889a8; font-size: 11px;">${dayjs().format("DD MMM YYYY")}</p></td>
+                        </tr></table>
                       </td>
                     </tr>
                     <tr>
-                      <td style="padding: 4px 20px 14px 20px;">
+                      <td style="padding: 4px 0 0 0;">
                         <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
-                          ${goldRows}
+                          <tr style="background-color: #0d1530;">
+                            <th style="padding: 10px 20px; text-align: left; color: #7889a8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Purity</th>
+                            <th style="padding: 10px 20px; text-align: right; color: #7889a8; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Per Gram</th>
+                          </tr>
+                          ${goldCaratRows}
                         </table>
                       </td>
                     </tr>
@@ -1376,60 +1415,74 @@ const sendWelcomeEmail = async (email, priceData, username) => {
                 </td>
               </tr>` : ""}
 
-              <!-- All Metal Prices -->
+              <!-- ===== PRECIOUS METALS ===== -->
               <tr>
-                <td style="padding: 28px 28px 0 28px;">
-                  <h3 style="margin: 0 0 14px 0; color: #1a1a2e; font-size: 17px; font-weight: 700; letter-spacing: 0.5px;">
-                    <span style="color: #d4af37;">&#9670;</span> Today's Metal Prices
+                <td style="padding: 28px 32px 0 32px;">
+                  <h3 style="margin: 0 0 12px 0; color: #1a1a2e; font-size: 16px; font-weight: 700; letter-spacing: 0.5px;">
+                    <span style="color: #d4af37;">&#9670;</span> Precious Metals
                   </h3>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 8px; overflow: hidden; border: 1px solid #e8e4db;">
-                    <tr style="background: linear-gradient(90deg, #1a1a2e, #16213e);">
-                      <th style="padding: 12px 16px; text-align: left; color: #d4af37; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Metal</th>
-                      <th style="padding: 12px 16px; text-align: right; color: #d4af37; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Price per Gram</th>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 10px; overflow: hidden; border: 1px solid #e8e4db;">
+                    <tr style="background: linear-gradient(90deg, #1a1a2e, #1a2d5a);">
+                      <th style="padding: 11px 20px; text-align: left; color: #d4af37; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Metal</th>
+                      <th style="padding: 11px 20px; text-align: right; color: #d4af37; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Price / Gram</th>
                     </tr>
-                    ${priceRows}
+                    ${preciousRows}
                   </table>
-                  <p style="color: #999; font-size: 11px; margin: 10px 0 0 0; font-style: italic;">
-                    * Prices include import duty &amp; GST, converted to INR
+                </td>
+              </tr>
+
+              <!-- ===== INDUSTRIAL METALS ===== -->
+              <tr>
+                <td style="padding: 24px 32px 0 32px;">
+                  <h3 style="margin: 0 0 12px 0; color: #1a1a2e; font-size: 16px; font-weight: 700; letter-spacing: 0.5px;">
+                    <span style="color: #607d8b;">&#9670;</span> Industrial Metals
+                  </h3>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 10px; overflow: hidden; border: 1px solid #e8e4db;">
+                    <tr style="background: linear-gradient(90deg, #37474f, #455a64);">
+                      <th style="padding: 11px 20px; text-align: left; color: #b0bec5; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Metal</th>
+                      <th style="padding: 11px 20px; text-align: right; color: #b0bec5; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Price / Gram</th>
+                    </tr>
+                    ${industrialRows}
+                  </table>
+                  <p style="color: #aaa; font-size: 10px; margin: 8px 0 0 0; font-style: italic;">
+                    * All prices include import duty &amp; GST, converted to INR
                   </p>
                 </td>
               </tr>
 
-              <!-- Exchange Rate -->
+              <!-- ===== CTA SECTION ===== -->
               <tr>
-                <td style="padding: 20px 28px 0 28px;">
-                  <div style="background-color: #f8f6f0; padding: 14px 20px; border-radius: 8px; border: 1px solid #e8e4db;">
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td style="color: #666; font-size: 13px;">USD to INR Exchange Rate</td>
-                        <td style="text-align: right; color: #1a1a2e; font-weight: 700; font-size: 15px;">${priceData.usdToInr ? `₹${priceData.usdToInr.toFixed(2)}` : "N/A"}</td>
-                      </tr>
-                    </table>
-                  </div>
-                </td>
-              </tr>
-
-              <!-- Getting Started CTA -->
-              <tr>
-                <td style="padding: 28px 28px 0 28px;">
-                  <div style="background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%); padding: 28px; border-radius: 12px; text-align: center;">
-                    <p style="margin: 0 0 6px 0; color: #d4af37; font-size: 18px; font-weight: 700;">Ready to Explore?</p>
-                    <p style="margin: 0 0 18px 0; color: #8892b0; font-size: 13px;">Track live prices, set alerts, compare metals and more</p>
-                    <a href="https://auric--ledger.vercel.app/market" style="display: inline-block; padding: 14px 36px; background: linear-gradient(135deg, #d4af37, #f0d060); color: #1a1a2e; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 14px; letter-spacing: 0.5px;">
-                      Open Market Dashboard &#8594;
-                    </a>
-                  </div>
-                </td>
-              </tr>
-
-              <!-- Footer -->
-              <tr>
-                <td style="padding: 28px 28px 20px 28px; text-align: center;">
-                  <table width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #e8e4db;">
+                <td style="padding: 32px 32px 0 32px;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(160deg, #0d1b3e 0%, #1a2d5a 100%); border-radius: 14px; overflow: hidden;">
                     <tr>
-                      <td style="text-align: center; padding-top: 20px;">
+                      <td style="padding: 32px 28px; text-align: center;">
+                        <p style="margin: 0 0 6px 0; color: #d4af37; font-size: 20px; font-weight: 700; font-family: Georgia, serif;">Ready to Explore?</p>
+                        <p style="margin: 0 0 22px 0; color: #7889a8; font-size: 13px; line-height: 1.5;">Track live prices, set custom alerts, compare metals &amp; build your portfolio</p>
+                        <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                          <tr>
+                            <td style="padding: 14px 40px; background: linear-gradient(135deg, #d4af37, #f0d060); border-radius: 8px;">
+                              <a href="https://auric--ledger.vercel.app/market" style="color: #1a1a2e; text-decoration: none; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; display: block;">
+                                Open Market Dashboard &#8594;
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- ===== FOOTER ===== -->
+              <tr>
+                <td style="padding: 32px 32px 28px 32px;">
+                  <!-- Gold line -->
+                  <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="height: 1px; background: linear-gradient(90deg, transparent, #d4af37, transparent);"></td></tr></table>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+                    <tr>
+                      <td style="text-align: center;">
                         <p style="margin: 0 0 6px 0; color: #999; font-size: 11px;">
-                          You're receiving this because you signed up on Auric Ledger.
+                          You're receiving this because you joined Auric Ledger on ${dayjs().format("DD MMM YYYY")}.
                         </p>
                         <p style="margin: 0; color: #bbb; font-size: 10px;">
                           &copy; ${dayjs().format("YYYY")} Auric Ledger &bull; <span style="color: #d4af37;">Your trusted source for precious metals pricing</span>
@@ -1582,7 +1635,7 @@ app.post("/trigger-price-alert", async (req, res) => {
                     <!-- Urgent Alert Header -->
                     <tr>
                       <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 32px 28px 24px 28px; text-align: center;">
-                        <img src="https://auric--ledger.vercel.app/metal-price-icon.svg" alt="AL" width="44" height="44" style="display: block; margin: 0 auto 12px auto; border-radius: 50%;" />
+                        <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 22px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">&#8377;</td></tr></table>
                         <div style="display: inline-block; padding: 6px 20px; background-color: ${alertColor}22; border: 1px solid ${alertColor}; border-radius: 50px; margin-bottom: 14px;">
                           <span style="color: ${alertColor}; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">${alertIcon} Price Alert</span>
                         </div>
@@ -1957,7 +2010,7 @@ const sendDailyPriceEmails = async (priceData) => {
                 <!-- Premium Header -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 36px 30px 28px 30px; text-align: center;">
-                    <img src="https://auric--ledger.vercel.app/metal-price-icon.svg" alt="AL" width="44" height="44" style="display: block; margin: 0 auto 12px auto; border-radius: 50%;" />
+                    <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 22px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">&#8377;</td></tr></table>
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center">
