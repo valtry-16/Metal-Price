@@ -1237,8 +1237,8 @@ const sendWelcomeEmail = async (email, priceData, username) => {
 
   const displayName = username || "Subscriber";
 
-  // HTML-based logo (SVG not supported in email clients)
-  const logoHtml = `<table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td style="width: 56px; height: 56px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">AL</td></tr></table>`;
+  // PNG logo hosted on Vercel (SVG not supported in email clients)
+  const logoHtml = `<img src="https://auric--ledger.vercel.app/metal-price-icon.png" alt="Auric Ledger" width="56" height="56" style="display: block; margin: 0 auto; border-radius: 50%; border: 0;" />`;
 
   // Available metals
   const availableMetals = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
@@ -1631,7 +1631,7 @@ app.post("/trigger-price-alert", async (req, res) => {
                     <!-- Urgent Alert Header -->
                     <tr>
                       <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 32px 28px 24px 28px; text-align: center;">
-                        <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 18px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">AL</td></tr></table>
+                        <img src="https://auric--ledger.vercel.app/metal-price-icon.png" alt="Auric Ledger" width="48" height="48" style="display: block; margin: 0 auto 14px auto; border-radius: 50%; border: 0;" />
                         <div style="display: inline-block; padding: 6px 20px; background-color: ${alertColor}22; border: 1px solid ${alertColor}; border-radius: 50px; margin-bottom: 14px;">
                           <span style="color: ${alertColor}; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Price Alert</span>
                         </div>
@@ -2006,7 +2006,7 @@ const sendDailyPriceEmails = async (priceData) => {
                 <!-- Premium Header -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 36px 30px 28px 30px; text-align: center;">
-                    <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 18px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">AL</td></tr></table>
+                    <img src="https://auric--ledger.vercel.app/metal-price-icon.png" alt="Auric Ledger" width="48" height="48" style="display: block; margin: 0 auto 14px auto; border-radius: 50%; border: 0;" />
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center">
