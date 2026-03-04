@@ -441,21 +441,30 @@ export default function Market() {
       const infoCards = [
         { label: "Metal", value: metalLabel },
         { label: "Unit", value: unit },
-        { label: "Period", value: `${dateRange.start} — ${dateRange.end}` },
+        { label: "Period", value: `${dateRange.start} - ${dateRange.end}` },
         { label: "Last Updated", value: lastUpdated || "N/A" },
       ];
 
-      const cardW = (W - 72 - 24) / 4;
+      const cardGap = 8;
+      const totalGap = cardGap * (infoCards.length - 1);
+      const cardW = (W - 72 - totalGap) / infoCards.length;
       infoCards.forEach((card, i) => {
-        const x = 36 + i * (cardW + 8);
+        const x = 36 + i * (cardW + cardGap);
         doc.setFillColor(...cardBg);
         doc.roundedRect(x, y, cardW, 42, 4, 4, "F");
         doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...muted);
         doc.text(card.label, x + 10, y + 14);
-        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink);
-        // Truncate long values
-        const truncated = card.value.length > 18 ? card.value.slice(0, 17) + "..." : card.value;
-        doc.text(truncated, x + 10, y + 30);
+        doc.setFont("helvetica", "bold");
+        // Auto-size text to fit card width
+        const maxTextW = cardW - 20;
+        let fontSize = 10;
+        doc.setFontSize(fontSize);
+        while (fontSize > 7 && doc.getTextWidth(card.value) > maxTextW) {
+          fontSize -= 0.5;
+          doc.setFontSize(fontSize);
+        }
+        doc.setTextColor(...ink);
+        doc.text(card.value, x + 10, y + 30);
       });
       y += 56;
 
@@ -520,7 +529,7 @@ export default function Market() {
 
       doc.autoTable({
         startY: y,
-        head: [["Date", "Metal", "Unit", "Price (₹)", "Daily Change"]],
+        head: [["Date", "Metal", "Unit", "Price (Rs.)", "Daily Change"]],
         body: tableBody,
         theme: "grid",
         headStyles: {
@@ -941,37 +950,36 @@ export default function Market() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Download {downloadLink.label}
               </a>
-              {navigator.share && (
-                <button
-                  className="al-market-tool-btn"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(downloadLink.url);
-                      const blob = await res.blob();
-                      const file = new File([blob], downloadLink.filename, { type: blob.type });
+              <button
+                className="al-market-tool-btn"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(downloadLink.url);
+                    const blob = await res.blob();
+                    const file = new File([blob], downloadLink.filename, { type: blob.type });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
                       await navigator.share({ title: `Auric Ledger - ${downloadLink.label} Report`, files: [file] });
-                    } catch (err) {
-                      if (err.name !== "AbortError") showToast("Sharing not supported on this device");
+                    } else if (navigator.share) {
+                      await navigator.share({ title: `Auric Ledger - ${downloadLink.label} Report`, text: `Check out this ${downloadLink.label} report from Auric Ledger`, url: window.location.href });
+                    } else {
+                      await navigator.clipboard.writeText(window.location.href);
+                      showToast("Link copied to clipboard");
                     }
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                  Share {downloadLink.label}
-                </button>
-              )}
-              {!navigator.share && (
-                <button
-                  className="al-market-tool-btn"
-                  onClick={() => {
-                    const a = document.createElement("a");
-                    a.href = downloadLink.url; a.download = downloadLink.filename; a.click();
-                    showToast("Download started");
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Copy Link
-                </button>
-              )}
+                  } catch (err) {
+                    if (err.name !== "AbortError") {
+                      try {
+                        await navigator.clipboard.writeText(window.location.href);
+                        showToast("Link copied to clipboard");
+                      } catch {
+                        showToast("Could not share — try downloading instead");
+                      }
+                    }
+                  }
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Share {downloadLink.label}
+              </button>
             </div>
           )}
         </section>

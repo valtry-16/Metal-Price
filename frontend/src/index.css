@@ -3705,16 +3705,222 @@ select {
   transform: translateX(2px);
 }
 
+/* Dashboard — Welcome meta badges */
+.al-dashboard__welcome-meta {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.al-dashboard__meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(197, 154, 60, 0.06);
+  border: 1px solid rgba(197, 154, 60, 0.12);
+  border-radius: 20px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.al-dashboard__meta-badge svg {
+  color: var(--accent);
+}
+
+/* Dashboard — Wide card */
+.al-dashboard__card--wide {
+  grid-column: 1 / -1;
+}
+
+/* Dashboard — Market snapshot grid */
+.al-dashboard__market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.al-dashboard__market-item {
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+  transition: border-color var(--transition);
+}
+
+.al-dashboard__market-item:hover {
+  border-color: var(--accent);
+}
+
+.al-dashboard__market-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.al-dashboard__market-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.al-dashboard__market-change {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.al-dashboard__market-change.up { color: var(--up); }
+.al-dashboard__market-change.down { color: var(--down); }
+.al-dashboard__market-change.neutral { color: var(--muted); }
+
+[data-theme="dark"] .al-dashboard__market-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Dashboard — Holdings list */
+.al-dashboard__holdings-list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.al-dashboard__holding-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.al-dashboard__holding-metal {
+  font-weight: 600;
+  color: var(--ink);
+  flex: 1;
+}
+
+.al-dashboard__holding-qty {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.al-dashboard__holding-cost {
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.al-dashboard__holding-more {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Dashboard — Profit/Loss line */
+.al-dashboard__profit-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.al-dashboard__profit-line .up { color: var(--up); font-weight: 700; }
+.al-dashboard__profit-line .down { color: var(--down); font-weight: 700; }
+
+/* Dashboard — Alerts list */
+.al-dashboard__alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.al-dashboard__alert-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 8px 10px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.al-dashboard__alert-row.disabled {
+  opacity: 0.5;
+}
+
+.al-dashboard__alert-metal {
+  font-weight: 600;
+  color: var(--ink);
+  min-width: 60px;
+}
+
+.al-dashboard__alert-type {
+  flex: 1;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.al-dashboard__alert-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(150, 150, 150, 0.15);
+  color: var(--muted);
+}
+
+.al-dashboard__alert-status.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--up);
+}
+
+[data-theme="dark"] .al-dashboard__alert-row {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 @media (max-width: 768px) {
   .al-dashboard__grid {
     grid-template-columns: 1fr;
   }
   .al-dashboard__welcome {
     grid-column: auto;
+    flex-wrap: wrap;
+  }
+  .al-dashboard__card--wide {
+    grid-column: auto;
+  }
+  .al-dashboard__welcome-meta {
+    margin-left: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    width: 100%;
   }
   .al-dashboard__stat-row {
     grid-template-columns: 1fr;
     gap: 16px;
+  }
+  .al-dashboard__market-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .al-dashboard__quick-links {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -3901,6 +4107,71 @@ select {
   .al-settings__profile-fields {
     width: 100%;
   }
+}
+
+/* Settings – preference grid */
+.al-settings__pref-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.al-settings__pref-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.al-settings__pref-grid select {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.al-settings__pref-grid select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Settings – data management action buttons */
+.al-settings__actions-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.al-settings__actions-row .al-btn {
+  font-size: 13px;
+  padding: 8px 18px;
+}
+
+/* Settings – save toast */
+.al-settings__toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  animation: al-fadeUp 0.3s ease-out;
+}
+
+@keyframes al-fadeUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 

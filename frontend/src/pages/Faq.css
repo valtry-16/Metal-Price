@@ -91,11 +91,13 @@
 
 .al-faq__stat-num {
   display: block;
-  font-family: "Playfair Display", "Georgia", serif;
-  font-size: 24px;
-  font-weight: 700;
+  font-family: "Inter", "SF Pro Display", system-ui, sans-serif;
+  font-size: 26px;
+  font-weight: 800;
   color: var(--accent);
   line-height: 1.2;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .al-faq__stat-label {
@@ -132,9 +134,14 @@
 }
 
 .al-faq__feature-icon {
-  font-size: 28px;
-  display: block;
-  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(197, 154, 60, 0.08);
+  margin-bottom: 12px;
 }
 
 .al-faq__feature-item h3 {

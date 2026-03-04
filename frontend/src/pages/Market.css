@@ -541,6 +541,10 @@
   flex-wrap: wrap;
 }
 
+.al-market-download-actions a {
+  text-decoration: none;
+}
+
 .al-market-download-actions .al-market-tool-btn {
   font-size: 13px;
   padding: 8px 16px;

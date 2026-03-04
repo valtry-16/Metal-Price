@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { PROD_API_URL } from "../utils/constants";
+import { PROD_API_URL, goldCarats } from "../utils/constants";
 
-const TELEGRAM_BOT_URL = "https://t.me/auric_ledger_bot";
+const TELEGRAM_BOT_URL = "https://t.me/AuricLedgerBot";
 
 export default function Settings() {
   const { user, signOut, getDisplayName, getAvatarUrl, updateProfile } = useAuth();
@@ -19,12 +19,31 @@ export default function Settings() {
   const [alertsEnabled, setAlertsEnabled] = useState(true);
   const [saved, setSaved] = useState(false);
 
+  // ─── New preference states ───────────────────────────────
+  const [defaultMetal, setDefaultMetal] = useState("XAU");
+  const [defaultCarat, setDefaultCarat] = useState("22");
+  const [defaultUnit, setDefaultUnit] = useState("1g");
+  const [numberFormat, setNumberFormat] = useState("indian");
+  const [autoRefresh, setAutoRefresh] = useState("60");
+  const [showPurityBadge, setShowPurityBadge] = useState(true);
+  const [compactNumbers, setCompactNumbers] = useState(false);
+  const [prefSaved, setPrefSaved] = useState(false);
+
   useEffect(() => {
     setDisplayName(getDisplayName());
     const savedEmail = localStorage.getItem("auric-alert-email");
     if (savedEmail) setEmailSub(savedEmail);
     const alertPref = localStorage.getItem("auric-alerts-enabled");
     if (alertPref !== null) setAlertsEnabled(alertPref !== "false");
+
+    // Load preferences
+    setDefaultMetal(localStorage.getItem("auric-metal") || "XAU");
+    setDefaultCarat(localStorage.getItem("auric-carat") || "22");
+    setDefaultUnit(localStorage.getItem("auric-unit") || "1g");
+    setNumberFormat(localStorage.getItem("auric-numfmt") || "indian");
+    setAutoRefresh(localStorage.getItem("auric-refresh") || "60");
+    setShowPurityBadge(localStorage.getItem("auric-purity-badge") !== "false");
+    setCompactNumbers(localStorage.getItem("auric-compact-num") === "true");
   }, [user]);
 
   const avatarUrl = getAvatarUrl();
@@ -80,6 +99,38 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const savePref = (key, value) => {
+    localStorage.setItem(key, value);
+    setPrefSaved(true);
+    setTimeout(() => setPrefSaved(false), 2000);
+  };
+
+  const handleClearCache = () => {
+    // Clear cached API responses
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("cache-")) keysToRemove.push(key);
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+    setPrefSaved(true);
+    setTimeout(() => setPrefSaved(false), 2000);
+  };
+
+  const handleResetPreferences = () => {
+    const prefKeys = ["auric-metal", "auric-carat", "auric-unit", "auric-numfmt", "auric-refresh", "auric-purity-badge", "auric-compact-num"];
+    prefKeys.forEach((k) => localStorage.removeItem(k));
+    setDefaultMetal("XAU");
+    setDefaultCarat("22");
+    setDefaultUnit("1g");
+    setNumberFormat("indian");
+    setAutoRefresh("60");
+    setShowPurityBadge(true);
+    setCompactNumbers(false);
+    setPrefSaved(true);
+    setTimeout(() => setPrefSaved(false), 2000);
+  };
+
   const provider = user?.app_metadata?.provider === "google" ? "Google" : "Email / Password";
 
   return (
@@ -88,6 +139,8 @@ export default function Settings() {
         <h1 className="al-page__title">Settings</h1>
         <p className="al-page__subtitle">Manage your account and preferences</p>
       </div>
+
+      {prefSaved && <div className="al-settings__toast">Preferences saved</div>}
 
       <div className="al-settings__grid">
         {/* Profile Card */}
@@ -171,9 +224,78 @@ export default function Settings() {
               <span className="al-toggle__thumb" />
             </button>
           </div>
+          <div className="al-settings__toggle-row" style={{ marginTop: 12 }}>
+            <span>Show purity badge on gold prices</span>
+            <button
+              type="button"
+              className={`al-toggle ${showPurityBadge ? "al-toggle--on" : ""}`}
+              onClick={() => { setShowPurityBadge(!showPurityBadge); savePref("auric-purity-badge", String(!showPurityBadge)); }}
+              aria-label="Toggle purity badge"
+            >
+              <span className="al-toggle__thumb" />
+            </button>
+          </div>
+          <div className="al-settings__toggle-row" style={{ marginTop: 12 }}>
+            <span>Compact numbers (e.g., 15.4K)</span>
+            <button
+              type="button"
+              className={`al-toggle ${compactNumbers ? "al-toggle--on" : ""}`}
+              onClick={() => { setCompactNumbers(!compactNumbers); savePref("auric-compact-num", String(!compactNumbers)); }}
+              aria-label="Toggle compact numbers"
+            >
+              <span className="al-toggle__thumb" />
+            </button>
+          </div>
         </div>
 
-        {/* Alerts */}
+        {/* Default Market Preferences */}
+        <div className="al-settings__card">
+          <h3 className="al-settings__card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Market Defaults
+          </h3>
+          <p className="al-settings__desc">Set your preferred metal, purity, and unit when opening the Market page.</p>
+          <div className="al-settings__pref-grid">
+            <div className="al-settings__field">
+              <label className="al-settings__label">Default Metal</label>
+              <select
+                className="al-input"
+                value={defaultMetal}
+                onChange={(e) => { setDefaultMetal(e.target.value); savePref("auric-metal", e.target.value); }}
+              >
+                <option value="XAU">Gold (XAU)</option>
+                <option value="XAG">Silver (XAG)</option>
+                <option value="XPT">Platinum (XPT)</option>
+                <option value="XPD">Palladium (XPD)</option>
+                <option value="XCU">Copper (XCU)</option>
+              </select>
+            </div>
+            <div className="al-settings__field">
+              <label className="al-settings__label">Default Gold Purity</label>
+              <select
+                className="al-input"
+                value={defaultCarat}
+                onChange={(e) => { setDefaultCarat(e.target.value); savePref("auric-carat", e.target.value); }}
+              >
+                {goldCarats.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+            <div className="al-settings__field">
+              <label className="al-settings__label">Default Unit</label>
+              <select
+                className="al-input"
+                value={defaultUnit}
+                onChange={(e) => { setDefaultUnit(e.target.value); savePref("auric-unit", e.target.value); }}
+              >
+                <option value="1g">Per Gram (1g)</option>
+                <option value="8g">Per 8 Grams (8g)</option>
+                <option value="1kg">Per Kilogram (1kg)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Notifications */}
         <div className="al-settings__card">
           <h3 className="al-settings__card-title">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -191,6 +313,30 @@ export default function Settings() {
             </button>
           </div>
           {saved && <span className="al-settings__saved">Saved</span>}
+          <div className="al-settings__field" style={{ marginTop: 14 }}>
+            <label className="al-settings__label">Number format</label>
+            <select
+              className="al-input"
+              value={numberFormat}
+              onChange={(e) => { setNumberFormat(e.target.value); savePref("auric-numfmt", e.target.value); }}
+            >
+              <option value="indian">Indian (1,23,456.78)</option>
+              <option value="international">International (123,456.78)</option>
+            </select>
+          </div>
+          <div className="al-settings__field" style={{ marginTop: 10 }}>
+            <label className="al-settings__label">Auto-refresh interval</label>
+            <select
+              className="al-input"
+              value={autoRefresh}
+              onChange={(e) => { setAutoRefresh(e.target.value); savePref("auric-refresh", e.target.value); }}
+            >
+              <option value="30">Every 30 seconds</option>
+              <option value="60">Every 1 minute</option>
+              <option value="300">Every 5 minutes</option>
+              <option value="0">Manual only</option>
+            </select>
+          </div>
         </div>
 
         {/* Email Subscription */}
@@ -240,6 +386,27 @@ export default function Settings() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
             Open Telegram Bot
           </a>
+        </div>
+
+        {/* Data Management */}
+        <div className="al-settings__card">
+          <h3 className="al-settings__card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+            Data Management
+          </h3>
+          <p className="al-settings__desc">
+            Manage cached data and local preferences stored in your browser.
+          </p>
+          <div className="al-settings__actions-row">
+            <button type="button" className="al-btn al-btn--ghost al-btn--sm" onClick={handleClearCache}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              Clear Cache
+            </button>
+            <button type="button" className="al-btn al-btn--ghost al-btn--sm" onClick={handleResetPreferences}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Reset Preferences
+            </button>
+          </div>
         </div>
 
         {/* Data & Privacy */}
