@@ -946,10 +946,10 @@ export default function Market() {
           <button className="al-market-tool-btn primary" onClick={() => setShowAlertsModal(true)}>
             <span className="al-market-tool-icon">&#9881;</span> Set Price Alert
           </button>
-          <button className="al-market-tool-btn" onClick={handleExportCsv} disabled={exportLoading || !weekly.length}>
+          <button className="al-market-tool-btn primary" onClick={handleExportCsv} disabled={exportLoading || !weekly.length}>
             <span className="al-market-tool-icon">&#8681;</span> Download CSV
           </button>
-          <button className="al-market-tool-btn" onClick={handleExportPdf} disabled={exportLoading || !weekly.length}>
+          <button className="al-market-tool-btn primary" onClick={handleExportPdf} disabled={exportLoading || !weekly.length}>
             <span className="al-market-tool-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> {exportLoading ? "Generating..." : "Download PDF"}
           </button>
           {downloadLink && (
