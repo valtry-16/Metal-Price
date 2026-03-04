@@ -1,11 +1,3 @@
-// Swap Google Fonts from print to all once loaded (CSP-safe, no inline handler)
-const fontsLink = document.getElementById("google-fonts");
-if (fontsLink) {
-  fontsLink.addEventListener("load", () => { fontsLink.media = "all"; });
-  // If already cached / loaded before this script runs
-  if (fontsLink.sheet) fontsLink.media = "all";
-}
-
 // Register Service Worker for PWA
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

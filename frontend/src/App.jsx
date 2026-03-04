@@ -4,9 +4,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import AuthModal from "./components/AuthModal";
 import ProtectedRoute from "./components/ProtectedRoute";
-import ChatWidget from "./ChatWidget";
 import { PROD_API_URL } from "./utils/constants";
 
 // Lazy-load pages for code splitting
@@ -19,6 +17,10 @@ const News = lazy(() => import("./pages/News"));
 const Summary = lazy(() => import("./pages/Summary"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Settings = lazy(() => import("./pages/Settings"));
+
+// Lazy-load non-critical interactive widgets
+const ChatWidget = lazy(() => import("./ChatWidget"));
+const AuthModal = lazy(() => import("./components/AuthModal"));
 
 function PageLoading() {
   return (
@@ -83,9 +85,15 @@ export default function App() {
             </main>
 
             <Footer />
-            <ChatWidget apiBase={PROD_API_URL} />
+            <Suspense fallback={null}>
+              <ChatWidget apiBase={PROD_API_URL} />
+            </Suspense>
 
-            {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+            {showAuth && (
+              <Suspense fallback={null}>
+                <AuthModal onClose={() => setShowAuth(false)} />
+              </Suspense>
+            )}
           </div>
         </AuthProvider>
       </ThemeProvider>
