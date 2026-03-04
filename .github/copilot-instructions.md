@@ -30,6 +30,8 @@ Multi-page React SPA for real-time precious metal price tracking (INR). Built wi
 | `/summary` | Summary | No |
 | `/dashboard` | Dashboard | Yes |
 | `/settings` | Settings | Yes |
+| `/faq` | Faq | No |
+| `/privacy` | Privacy | No |
 
 ## Development
 - Run `npm run dev` in `frontend/` for local dev server

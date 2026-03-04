@@ -1,0 +1,150 @@
+/* ═══════════════════════════════════════════════════════════════
+   Auric Ledger — FAQ / About Page
+   ═══════════════════════════════════════════════════════════════ */
+
+.al-faq {
+  padding: 32px 16px 60px;
+  display: flex;
+  justify-content: center;
+}
+
+.al-faq__shell {
+  width: min(960px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ─── Hero ─────────────────────────────────────────────────── */
+.al-faq__hero {
+  text-align: center;
+  padding: 40px 24px 32px;
+}
+
+.al-faq__logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 4px 12px rgba(197, 154, 60, 0.3));
+}
+
+.al-faq__title {
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: clamp(28px, 5vw, 40px);
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.al-faq__subtitle {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ─── Card Grid ────────────────────────────────────────────── */
+.al-faq__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  gap: 20px;
+}
+
+.al-faq__card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.al-faq__card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(197, 154, 60, 0.1);
+}
+
+.al-faq__card-icon {
+  font-size: 24px;
+  margin-bottom: 12px;
+  opacity: 0.7;
+}
+
+.al-faq__card h2 {
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: 18px;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+
+.al-faq__card p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0 0 8px;
+}
+
+.al-faq__list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.al-faq__list li {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.al-faq__formula {
+  background: rgba(197, 154, 60, 0.06);
+  border: 1px solid rgba(197, 154, 60, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  color: var(--ink);
+  margin: 10px 0;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.al-faq__link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.al-faq__link:hover {
+  text-decoration: underline;
+}
+
+/* ─── Back link ────────────────────────────────────────────── */
+.al-faq__back {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.al-faq__back-link {
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.al-faq__back-link:hover {
+  color: var(--accent);
+}
+
+/* ─── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .al-faq {
+    padding: 20px 12px 48px;
+  }
+
+  .al-faq__hero {
+    padding: 24px 16px 20px;
+  }
+
+  .al-faq__card {
+    padding: 18px;
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import Chart from "react-apexcharts";
 import { useTheme } from "../contexts/ThemeContext";
@@ -48,8 +49,6 @@ export default function Market() {
   const [summaryGenerating, setSummaryGenerating] = useState(false);
 
   // ─── Modals ─────────────────────────────────────────────────
-  const [showFaq, setShowFaq] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
 
   // ─── Alert system ───────────────────────────────────────────
@@ -803,9 +802,9 @@ export default function Market() {
 
         {/* ─── 9. Market Info Bar ───────────────────────────── */}
         <section className="al-market-info-bar">
-          <button className="al-market-info-link" onClick={() => setShowFaq(true)}>About &amp; FAQ</button>
+          <Link to="/faq" className="al-market-info-link">About &amp; FAQ</Link>
           <span className="al-market-info-sep">&bull;</span>
-          <button className="al-market-info-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
+          <Link to="/privacy" className="al-market-info-link">Privacy Policy</Link>
         </section>
 
         {/* ─── Loading Overlay ──────────────────────────────── */}
@@ -849,68 +848,6 @@ export default function Market() {
           notificationPermission={notificationPermission}
           onRequestNotificationPermission={requestNotificationPermission}
         />
-
-        {/* ─── FAQ Modal ────────────────────────────────────── */}
-        {showFaq && (
-          <div className="al-market-modal-overlay" onClick={() => setShowFaq(false)}>
-            <div className="al-market-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-              <div className="al-market-modal-header">
-                <div className="al-market-modal-header-left">
-                  <img src="/metal-price-icon.svg" alt="Auric Ledger" className="al-market-modal-logo" />
-                  <h2 className="al-market-modal-title">About Auric Ledger</h2>
-                </div>
-                <button className="al-market-modal-close" aria-label="Close" onClick={() => setShowFaq(false)}>&#x2715;</button>
-              </div>
-              <div style={{ display: "grid", gap: 16 }}>
-                <div className="al-market-modal-section">
-                  <h3>Auric Ledger v1.1.0</h3>
-                  <p>Premium Precious Metals Price Tracker. A production-ready full-stack AI-powered application for tracking real-time prices of 9 precious metals and commodities with transparent INR conversion, duty calculations, and GST applied.</p>
-                </div>
-                <div className="al-market-modal-section">
-                  <h3>Key Features</h3>
-                  <p>Real-Time Pricing, AI Daily Summary, AI Chatbot, Smart Alerts, PWA App, Telegram Bot, Analytics, Export, Email Updates, Dark Mode, Automated Cron.</p>
-                </div>
-                <div className="al-market-modal-section">
-                  <h3>Price Calculation</h3>
-                  <p>Final Price = (USD Price / 31.1035g per oz) x USD→INR Rate x 1.06 (Duty) x 1.03 (GST). Gold: 18K x0.75 | 22K x0.916 | 24K x1.0.</p>
-                </div>
-                <div className="al-market-modal-section">
-                  <h3>Developer</h3>
-                  <p>Built by <strong>Sabithulla</strong>. Version 1.1.0 | Released: February 15, 2026.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ─── Privacy Modal ────────────────────────────────── */}
-        {showPrivacy && (
-          <div className="al-market-modal-overlay" onClick={() => setShowPrivacy(false)}>
-            <div className="al-market-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-              <div className="al-market-modal-header">
-                <div className="al-market-modal-header-left">
-                  <img src="/metal-price-icon.svg" alt="Auric Ledger" className="al-market-modal-logo" />
-                  <h2 className="al-market-modal-title">Privacy Policy</h2>
-                </div>
-                <button className="al-market-modal-close" aria-label="Close" onClick={() => setShowPrivacy(false)}>&#x2715;</button>
-              </div>
-              <div style={{ display: "grid", gap: 16 }}>
-                <div className="al-market-modal-section">
-                  <h3>Overview</h3>
-                  <p>Auric Ledger respects your privacy. We collect only what is required to deliver price updates and alerts. We do not sell your data.</p>
-                </div>
-                <div className="al-market-modal-section">
-                  <h3>Data We Collect</h3>
-                  <p>Email (optional, for daily updates). Local preferences stored in your browser. Zero tracking or analytics.</p>
-                </div>
-                <div className="al-market-modal-section">
-                  <h3>Contact</h3>
-                  <p>For questions: <a href="mailto:auricledger@gmail.com" style={{ color: "var(--accent)" }}>auricledger@gmail.com</a></p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

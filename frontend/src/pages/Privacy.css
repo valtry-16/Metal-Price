@@ -1,0 +1,129 @@
+/* ═══════════════════════════════════════════════════════════════
+   Auric Ledger — Privacy Policy Page
+   ═══════════════════════════════════════════════════════════════ */
+
+.al-privacy {
+  padding: 32px 16px 60px;
+  display: flex;
+  justify-content: center;
+}
+
+.al-privacy__shell {
+  width: min(780px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ─── Hero ─────────────────────────────────────────────────── */
+.al-privacy__hero {
+  text-align: center;
+  padding: 40px 24px 24px;
+}
+
+.al-privacy__logo {
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 4px 12px rgba(197, 154, 60, 0.3));
+}
+
+.al-privacy__title {
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: clamp(28px, 5vw, 40px);
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.al-privacy__subtitle {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ─── Content ──────────────────────────────────────────────── */
+.al-privacy__content {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.al-privacy__section h2 {
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: 18px;
+  color: var(--ink);
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.al-privacy__section p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.8;
+  margin: 0 0 8px;
+}
+
+.al-privacy__list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.al-privacy__list li {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.al-privacy__list li strong {
+  color: var(--ink);
+}
+
+.al-privacy__link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.al-privacy__link:hover {
+  text-decoration: underline;
+}
+
+/* ─── Back link ────────────────────────────────────────────── */
+.al-privacy__back {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.al-privacy__back-link {
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.al-privacy__back-link:hover {
+  color: var(--accent);
+}
+
+/* ─── Responsive ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .al-privacy {
+    padding: 20px 12px 48px;
+  }
+
+  .al-privacy__hero {
+    padding: 24px 16px 16px;
+  }
+
+  .al-privacy__content {
+    padding: 20px 16px;
+    gap: 20px;
+  }
+}

@@ -30,10 +30,12 @@ export default function Footer() {
           <div className="al-footer__col">
             <h4 className="al-footer__col-title">Resources</h4>
             <Link to="/news" className="al-footer__link">Market News</Link>
+            <Link to="/faq" className="al-footer__link">About &amp; FAQ</Link>
             <Link to="/" className="al-footer__link">Home</Link>
           </div>
           <div className="al-footer__col">
-            <h4 className="al-footer__col-title">Contact</h4>
+            <h4 className="al-footer__col-title">Legal</h4>
+            <Link to="/privacy" className="al-footer__link">Privacy Policy</Link>
             <a className="al-footer__link" href="mailto:auricledger@gmail.com">auricledger@gmail.com</a>
             <span className="al-footer__note">For privacy questions or deletion requests</span>
           </div>

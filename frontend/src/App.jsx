@@ -17,6 +17,8 @@ const News = lazy(() => import("./pages/News"));
 const Summary = lazy(() => import("./pages/Summary"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Faq = lazy(() => import("./pages/Faq"));
+const Privacy = lazy(() => import("./pages/Privacy"));
 
 // Lazy-load non-critical interactive widgets
 const ChatWidget = lazy(() => import("./ChatWidget"));
@@ -63,6 +65,8 @@ export default function App() {
                   />
                   <Route path="/compare" element={<Compare />} />
                   <Route path="/news" element={<News />} />
+                  <Route path="/faq" element={<Faq />} />
+                  <Route path="/privacy" element={<Privacy />} />
                   <Route path="/summary" element={<Summary />} />
                   <Route
                     path="/dashboard"
