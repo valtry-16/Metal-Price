@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="al-footer__inner">
         <div className="al-footer__brand">
           <div className="al-footer__logo-row">
-            <img src="/metal-price-icon.svg" alt="" className="al-footer__logo" />
+            <img src="/metal-price-icon.svg" alt="Auric Ledger" className="al-footer__logo" />
             <span className="al-footer__title">Auric Ledger</span>
           </div>
           <p className="al-footer__desc">

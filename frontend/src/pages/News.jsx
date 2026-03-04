@@ -144,11 +144,14 @@ export default function News() {
                       key={idx}
                       className="al-news__article-card"
                       onClick={() => setSelectedArticle(article)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedArticle(article); } }}
+                      tabIndex={0}
+                      role="button"
                     >
                       <div className="al-news__article-img-wrap">
                         <img
                           src={article.urlToImage}
-                          alt=""
+                          alt={article.title || 'News article'}
                           className="al-news__article-img"
                           loading="lazy"
                           onError={(e) => {
@@ -204,14 +207,14 @@ export default function News() {
           {/* Article Detail Modal */}
           {selectedArticle && (
             <div className="al-news__modal-overlay" onClick={() => setSelectedArticle(null)}>
-              <div className="al-news__modal" onClick={(e) => e.stopPropagation()}>
-                <button className="al-news__modal-close" onClick={() => setSelectedArticle(null)}>
+              <div className="al-news__modal" role="dialog" aria-modal="true" aria-label="Article details" onClick={(e) => e.stopPropagation()}>
+                <button className="al-news__modal-close" onClick={() => setSelectedArticle(null)} aria-label="Close article">
                   ✕
                 </button>
                 {selectedArticle.urlToImage && (
                   <img
                     src={selectedArticle.urlToImage}
-                    alt=""
+                    alt={selectedArticle.title || 'News article'}
                     className="al-news__modal-img"
                   />
                 )}

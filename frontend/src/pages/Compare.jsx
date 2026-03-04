@@ -125,8 +125,8 @@ export default function Compare() {
       {/* Selectors */}
       <div className="al-compare__selectors">
         <div className="al-compare__selector">
-          <label>Metal A</label>
-          <select value={metalA} onChange={(e) => setMetalA(e.target.value)} className="al-select">
+          <label htmlFor="compare-metal-a">Metal A</label>
+          <select id="compare-metal-a" value={metalA} onChange={(e) => setMetalA(e.target.value)} className="al-select">
             {COMPARE_METALS.map((m) => (
               <option key={m} value={m} disabled={m === metalB}>
                 {metalLabelMap[m] || m}
@@ -136,8 +136,8 @@ export default function Compare() {
         </div>
         <div className="al-compare__vs">vs</div>
         <div className="al-compare__selector">
-          <label>Metal B</label>
-          <select value={metalB} onChange={(e) => setMetalB(e.target.value)} className="al-select">
+          <label htmlFor="compare-metal-b">Metal B</label>
+          <select id="compare-metal-b" value={metalB} onChange={(e) => setMetalB(e.target.value)} className="al-select">
             {COMPARE_METALS.map((m) => (
               <option key={m} value={m} disabled={m === metalA}>
                 {metalLabelMap[m] || m}

@@ -47,7 +47,7 @@ export default function Navbar({ onOpenAuth }) {
       <div className="al-navbar__inner">
         {/* Logo */}
         <Link to="/" className="al-navbar__brand">
-          <img src="/metal-price-icon.svg" alt="" className="al-navbar__logo" />
+          <img src="/metal-price-icon.svg" alt="Auric Ledger" className="al-navbar__logo" />
           <span className="al-navbar__title">Auric Ledger</span>
         </Link>
 
@@ -63,6 +63,7 @@ export default function Navbar({ onOpenAuth }) {
               type="button"
               className={`al-nav-link ${["/calculator", "/compare"].includes(location.pathname) ? "active" : ""}`}
               onClick={() => setToolsOpen(!toolsOpen)}
+              aria-expanded={toolsOpen}
             >
               Tools
               <svg className={`al-nav-chevron ${toolsOpen ? "open" : ""}`} width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="2 4 6 8 10 4" /></svg>
@@ -96,10 +97,10 @@ export default function Navbar({ onOpenAuth }) {
 
           {isAuthenticated ? (
             <div className="al-nav-dropdown" ref={profileRef}>
-              <button type="button" className="al-navbar__avatar-btn" onClick={() => setProfileOpen(!profileOpen)}>
+              <button type="button" className="al-navbar__avatar-btn" onClick={() => setProfileOpen(!profileOpen)} aria-expanded={profileOpen}>
                 <div className="al-navbar__avatar">
                   {user?.user_metadata?.avatar_url ? (
-                    <img src={user.user_metadata.avatar_url} alt="" />
+                    <img src={user.user_metadata.avatar_url} alt="User avatar" />
                   ) : (
                     <span>{(user?.email?.[0] || "U").toUpperCase()}</span>
                   )}
@@ -132,7 +133,7 @@ export default function Navbar({ onOpenAuth }) {
           )}
 
           {/* Mobile hamburger */}
-          <button type="button" className="al-navbar__hamburger mobile-only" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu">
+          <button type="button" className="al-navbar__hamburger mobile-only" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Menu" aria-expanded={mobileOpen}>
             <span className={`al-hamburger-line ${mobileOpen ? "open" : ""}`} />
             <span className={`al-hamburger-line ${mobileOpen ? "open" : ""}`} />
             <span className={`al-hamburger-line ${mobileOpen ? "open" : ""}`} />

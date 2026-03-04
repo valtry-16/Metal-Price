@@ -227,7 +227,7 @@ export default function ChatWidget({ apiBase }) {
         >
           {/* Header */}
           <div className="chat-header">
-            <img src="/metal-price-icon.svg" alt="" className="chat-header-logo" />
+            <img src="/metal-price-icon.svg" alt="Auric AI" className="chat-header-logo" />
             <div className="chat-header-info">
               <span className="chat-header-title">Auric AI</span>
               <span className="chat-header-status">
@@ -255,7 +255,7 @@ export default function ChatWidget({ apiBase }) {
               return (
                 <div key={i} className={`chat-msg chat-msg--${m.role}`}>
                   {m.role === "bot" && (
-                    <img src="/metal-price-icon.svg" alt="" className="chat-avatar" />
+                    <img src="/metal-price-icon.svg" alt="Bot" className="chat-avatar" />
                   )}
                   <div className={`chat-bubble${isStreamingMsg ? " chat-bubble--streaming" : ""}`}>
                     {m.text}
@@ -266,7 +266,7 @@ export default function ChatWidget({ apiBase }) {
             })}
             {loading && messages[messages.length - 1]?.role === "bot" && !messages[messages.length - 1]?.text && (
               <div className="chat-msg chat-msg--bot">
-                <img src="/metal-price-icon.svg" alt="" className="chat-avatar" />
+                <img src="/metal-price-icon.svg" alt="Bot" className="chat-avatar" />
                 <div className="chat-bubble chat-bubble--typing">
                   <span /><span /><span />
                 </div>
@@ -298,6 +298,7 @@ export default function ChatWidget({ apiBase }) {
               onKeyDown={handleKey}
               disabled={loading}
               maxLength={500}
+              aria-label="Ask about metal prices"
             />
             <button
               className="chat-send-btn"

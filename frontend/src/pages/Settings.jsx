@@ -111,8 +111,9 @@ export default function Settings() {
             </div>
             <div className="al-settings__profile-fields">
               <div className="al-settings__field">
-                <label className="al-settings__label">Display Name</label>
+                <label htmlFor="settings-name" className="al-settings__label">Display Name</label>
                 <input
+                  id="settings-name"
                   type="text"
                   className="al-input"
                   value={displayName}
@@ -121,8 +122,9 @@ export default function Settings() {
                 />
               </div>
               <div className="al-settings__field">
-                <label className="al-settings__label">Email</label>
+                <label htmlFor="settings-email" className="al-settings__label">Email</label>
                 <input
+                  id="settings-email"
                   type="email"
                   className="al-input"
                   value={user?.email || ""}
@@ -130,8 +132,9 @@ export default function Settings() {
                 />
               </div>
               <div className="al-settings__field">
-                <label className="al-settings__label">Provider</label>
+                <label htmlFor="settings-provider" className="al-settings__label">Provider</label>
                 <input
+                  id="settings-provider"
                   type="text"
                   className="al-input"
                   value={provider}
@@ -198,7 +201,9 @@ export default function Settings() {
           </h3>
           <p className="al-settings__desc">Subscribe to daily market updates via email.</p>
           <div className="al-settings__email-row">
+            <label htmlFor="settings-email-sub" className="sr-only">Email for updates</label>
             <input
+              id="settings-email-sub"
               type="email"
               className="al-input"
               value={emailSub}

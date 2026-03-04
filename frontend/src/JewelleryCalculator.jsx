@@ -100,8 +100,8 @@ export default function JewelleryCalculator({ apiBase, onClose, embedded = false
         {/* Inputs */}
         <div className="jewellery-form">
           <div className="jewellery-row">
-            <label>Metal</label>
-            <select value={metal} onChange={(e) => setMetal(e.target.value)} className="jewellery-select">
+            <label htmlFor="calc-metal">Metal</label>
+            <select id="calc-metal" value={metal} onChange={(e) => setMetal(e.target.value)} className="jewellery-select">
               {METALS.map((m) => (
                 <option key={m.symbol} value={m.symbol}>{m.name}</option>
               ))}
@@ -110,8 +110,8 @@ export default function JewelleryCalculator({ apiBase, onClose, embedded = false
 
           {isGold && (
             <div className="jewellery-row">
-              <label>Purity</label>
-              <select value={purity} onChange={(e) => setPurity(e.target.value)} className="jewellery-select">
+              <label htmlFor="calc-purity">Purity</label>
+              <select id="calc-purity" value={purity} onChange={(e) => setPurity(e.target.value)} className="jewellery-select">
                 {GOLD_PURITIES.map((p) => (
                   <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
@@ -120,8 +120,9 @@ export default function JewelleryCalculator({ apiBase, onClose, embedded = false
           )}
 
           <div className="jewellery-row">
-            <label>Weight (grams)</label>
+            <label htmlFor="calc-weight">Weight (grams)</label>
             <input
+              id="calc-weight"
               type="number"
               placeholder="e.g. 10"
               value={weight}
@@ -133,8 +134,9 @@ export default function JewelleryCalculator({ apiBase, onClose, embedded = false
           </div>
 
           <div className="jewellery-row">
-            <label>Making Charges (%)</label>
+            <label htmlFor="calc-making">Making Charges (%)</label>
             <input
+              id="calc-making"
               type="number"
               placeholder="e.g. 8"
               value={makingCharge}
@@ -146,8 +148,9 @@ export default function JewelleryCalculator({ apiBase, onClose, embedded = false
           </div>
 
           <div className="jewellery-row">
-            <label>GST (%)</label>
+            <label htmlFor="calc-gst">GST (%)</label>
             <input
+              id="calc-gst"
               type="number"
               placeholder="e.g. 3"
               value={gstPercent}

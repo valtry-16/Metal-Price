@@ -62,14 +62,14 @@ export default function AuthModal({ onClose }) {
 
   return (
     <div className="al-modal-overlay" onClick={onClose}>
-      <div className="al-auth-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="al-auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="al-modal-close" onClick={onClose} aria-label="Close">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
 
         <div className="al-auth-modal__header">
-          <img src="/metal-price-icon.svg" alt="" className="al-auth-modal__logo" />
-          <h2 className="al-auth-modal__title">
+          <img src="/metal-price-icon.svg" alt="Auric Ledger" className="al-auth-modal__logo" />
+          <h2 id="auth-modal-title" className="al-auth-modal__title">
             {mode === "login" ? "Welcome Back" : "Create Account"}
           </h2>
           <p className="al-auth-modal__subtitle">
@@ -93,8 +93,9 @@ export default function AuthModal({ onClose }) {
         <form className="al-auth-form" onSubmit={handleEmailAuth}>
           {mode === "signup" && (
             <div className="al-auth-field">
-              <label>Display Name</label>
+              <label htmlFor="auth-display-name">Display Name</label>
               <input
+                id="auth-display-name"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -104,8 +105,9 @@ export default function AuthModal({ onClose }) {
             </div>
           )}
           <div className="al-auth-field">
-            <label>Email</label>
+            <label htmlFor="auth-email">Email</label>
             <input
+              id="auth-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -114,8 +116,9 @@ export default function AuthModal({ onClose }) {
             />
           </div>
           <div className="al-auth-field">
-            <label>Password</label>
+            <label htmlFor="auth-password">Password</label>
             <input
+              id="auth-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
