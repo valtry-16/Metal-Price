@@ -2079,13 +2079,12 @@ Write a comprehensive daily market summary for **Auric Ledger** using ONLY the e
 - Keep paragraphs readable — no walls of text
 - Do NOT add external information, news, or predictions not supported by the data`;
 
-    // ── Step 6: Call Gemini 2.0 Flash (with retry on 429) ──
+    // ── Step 6: Call Gemini 2.0 Flash (with retry + fallback model) ──
     if (!GEMINI_API_KEY) {
       console.error("❌ GEMINI_API_KEY is not configured");
       return;
     }
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
     const geminiPayload = {
       contents: [
         {
@@ -2109,26 +2108,46 @@ Write a comprehensive daily market summary for **Auric Ledger** using ONLY the e
       },
     };
 
+    // Try multiple models in order — if primary is rate-limited, fall back
+    const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
     let geminiResponse = null;
-    const MAX_RETRIES = 3;
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        geminiResponse = await axios.post(
-          geminiUrl,
-          geminiPayload,
-          { headers: { "Content-Type": "application/json" }, timeout: 60000 }
-        );
-        break; // success — exit retry loop
-      } catch (apiErr) {
-        const status = apiErr.response?.status;
-        if (status === 429 && attempt < MAX_RETRIES) {
-          const waitSec = attempt * 30; // 30s, 60s
-          console.warn(`⏳ Gemini 429 rate-limited. Retry ${attempt}/${MAX_RETRIES} in ${waitSec}s...`);
-          await new Promise((r) => setTimeout(r, waitSec * 1000));
-        } else {
-          throw apiErr; // not retryable or last attempt — propagate
+
+    for (const model of MODELS) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const MAX_RETRIES = 3;
+      let succeeded = false;
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          geminiResponse = await axios.post(
+            geminiUrl,
+            geminiPayload,
+            { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+          );
+          console.log(`✅ Gemini response received from ${model}`);
+          succeeded = true;
+          break; // success — exit retry loop
+        } catch (apiErr) {
+          const status = apiErr.response?.status;
+          if (status === 429 && attempt < MAX_RETRIES) {
+            const waitSec = attempt * 30; // 30s, 60s
+            console.warn(`⏳ ${model} 429 rate-limited. Retry ${attempt}/${MAX_RETRIES} in ${waitSec}s...`);
+            await new Promise((r) => setTimeout(r, waitSec * 1000));
+          } else if (status === 429) {
+            console.warn(`⚠️ ${model} exhausted all retries (429). Trying next model...`);
+            break; // move to fallback model
+          } else {
+            throw apiErr; // non-429 error — propagate immediately
+          }
         }
       }
+
+      if (succeeded) break;
+    }
+
+    if (!geminiResponse) {
+      console.error("❌ All Gemini models rate-limited. Summary generation failed.");
+      return;
     }
 
     const summary = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
