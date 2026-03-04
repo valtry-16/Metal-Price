@@ -216,7 +216,7 @@ const {
   GENERATE_SUMMARY_SECRET,
   NEWS_API_KEY,
   RUN_NEWS_SECRET,
-  GEMINI_API_KEY
+  GROQ_API_KEY
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -2079,80 +2079,75 @@ Write a comprehensive daily market summary for **Auric Ledger** using ONLY the e
 - Keep paragraphs readable — no walls of text
 - Do NOT add external information, news, or predictions not supported by the data`;
 
-    // ── Step 6: Call Gemini 2.0 Flash (with retry + fallback model) ──
-    if (!GEMINI_API_KEY) {
-      console.error("❌ GEMINI_API_KEY is not configured");
-      return;
-    }
+    // ── Step 6: Call Groq (primary) with HF Space fallback ──
+    const systemMessage = "You are the senior market analyst at Auric Ledger, India's premium precious metals intelligence platform. You write authoritative, detailed daily market summaries for Indian investors, jewellers, and metal traders. Your tone is professional yet accessible — like a Bloomberg brief tailored for the Indian metals market. You ONLY use pre-computed price data provided to you. You never fabricate numbers, never use USD, and always reference Gold 22K as the primary benchmark since it is the standard jewellery purity in India. All prices are in Indian Rupees (₹). You use markdown formatting (bold, headers) for readability.";
 
-    const geminiPayload = {
-      contents: [
-        {
-          parts: [
-            {
-              text: summaryPrompt,
-            },
-          ],
-        },
-      ],
-      systemInstruction: {
-        parts: [
+    const chatMessages = [
+      { role: "system", content: systemMessage },
+      { role: "user", content: summaryPrompt },
+    ];
+
+    let summary = null;
+
+    // ── Primary: Groq API ──
+    if (GROQ_API_KEY) {
+      try {
+        console.log("📡 Calling Groq llama-3.3-70b-versatile...");
+        const groqResponse = await axios.post(
+          "https://api.groq.com/openai/v1/chat/completions",
           {
-            text: "You are the senior market analyst at Auric Ledger, India's premium precious metals intelligence platform. You write authoritative, detailed daily market summaries for Indian investors, jewellers, and metal traders. Your tone is professional yet accessible — like a Bloomberg brief tailored for the Indian metals market. You ONLY use pre-computed price data provided to you. You never fabricate numbers, never use USD, and always reference Gold 22K as the primary benchmark since it is the standard jewellery purity in India. All prices are in Indian Rupees (₹). You use markdown formatting (bold, headers) for readability.",
+            model: "llama-3.3-70b-versatile",
+            messages: chatMessages,
+            temperature: 0.35,
+            max_tokens: 2048,
           },
-        ],
-      },
-      generationConfig: {
-        temperature: 0.35,
-        maxOutputTokens: 2048,
-      },
-    };
-
-    // Try multiple models in order — if primary is rate-limited, fall back
-    const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
-    let geminiResponse = null;
-
-    for (const model of MODELS) {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-      const MAX_RETRIES = 3;
-      let succeeded = false;
-
-      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        try {
-          geminiResponse = await axios.post(
-            geminiUrl,
-            geminiPayload,
-            { headers: { "Content-Type": "application/json" }, timeout: 60000 }
-          );
-          console.log(`✅ Gemini response received from ${model}`);
-          succeeded = true;
-          break; // success — exit retry loop
-        } catch (apiErr) {
-          const status = apiErr.response?.status;
-          if (status === 429 && attempt < MAX_RETRIES) {
-            const waitSec = attempt * 30; // 30s, 60s
-            console.warn(`⏳ ${model} 429 rate-limited. Retry ${attempt}/${MAX_RETRIES} in ${waitSec}s...`);
-            await new Promise((r) => setTimeout(r, waitSec * 1000));
-          } else if (status === 429) {
-            console.warn(`⚠️ ${model} exhausted all retries (429). Trying next model...`);
-            break; // move to fallback model
-          } else {
-            throw apiErr; // non-429 error — propagate immediately
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+            },
+            timeout: 60000,
           }
+        );
+        summary = groqResponse.data?.choices?.[0]?.message?.content;
+        if (summary) {
+          console.log("✅ Summary received from Groq");
         }
+      } catch (groqErr) {
+        console.warn("⚠️ Groq failed:", groqErr.response?.status || groqErr.message, "— falling back to HF Space");
       }
-
-      if (succeeded) break;
+    } else {
+      console.warn("⚠️ GROQ_API_KEY not set — skipping to HF Space fallback");
     }
 
-    if (!geminiResponse) {
-      console.error("❌ All Gemini models rate-limited. Summary generation failed.");
-      return;
-    }
-
-    const summary = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // ── Fallback: HuggingFace Space ──
     if (!summary) {
-      console.error("❌ Empty response from Gemini");
+      try {
+        console.log("📡 Calling HF Space fallback...");
+        const hfResponse = await axios.post(
+          "https://valtry-auric-bot.hf.space/v1/chat/completions",
+          {
+            model: "auric-ai",
+            messages: chatMessages,
+            temperature: 0.35,
+            max_tokens: 2048,
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+            timeout: 120000,
+          }
+        );
+        summary = hfResponse.data?.choices?.[0]?.message?.content;
+        if (summary) {
+          console.log("✅ Summary received from HF Space fallback");
+        }
+      } catch (hfErr) {
+        console.error("❌ HF Space fallback also failed:", hfErr.response?.status || hfErr.message);
+      }
+    }
+
+    if (!summary) {
+      console.error("❌ All summary providers failed. No summary generated.");
       return;
     }
 
