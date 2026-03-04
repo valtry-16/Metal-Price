@@ -51,6 +51,10 @@ export default function Market() {
   // ─── Modals ─────────────────────────────────────────────────
   const [showAlertsModal, setShowAlertsModal] = useState(false);
 
+  // ─── User preferences ──────────────────────────────────────
+  const [showPurityBadge, setShowPurityBadge] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   // ─── Alert system ───────────────────────────────────────────
   const [alerts, setAlerts] = useState([]);
   const [toasts, setToasts] = useState([]);
@@ -710,6 +714,37 @@ export default function Market() {
     })();
   }, [selectedMonth]);
 
+  // Load user preferences (purity badge)
+  useEffect(() => {
+    setShowPurityBadge(localStorage.getItem("auric-purity-badge") !== "false");
+  }, []);
+
+  // Auto-refresh interval
+  useEffect(() => {
+    const interval = parseInt(localStorage.getItem("auric-refresh") || "60", 10);
+    if (!interval || !selectedMetal) return;
+    const id = setInterval(() => setRefreshKey((k) => k + 1), interval * 1000);
+    return () => clearInterval(id);
+  }, [selectedMetal]);
+
+  useEffect(() => {
+    if (refreshKey === 0 || !selectedMetal) return;
+    (async () => {
+      try {
+        const caratParam = isGold ? `&carat=${carat}` : "";
+        const monthParam = selectedMonth ? `&month=${selectedMonth}` : "";
+        const res = await fetch(`${apiBase}/market-data?metal=${encodeURIComponent(selectedMetal)}${caratParam}${monthParam}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setLatest(data.latest || null);
+        setComparison(data.comparison || null);
+        setWeekly(data.weekly || []);
+        setMonthly(data.monthly || []);
+        if (data.latest?.price_1g) checkAlerts(selectedMetal, data.latest.price_1g);
+      } catch {}
+    })();
+  }, [refreshKey]);
+
   // Cleanup blob URLs
   useEffect(() => {
     return () => { if (downloadLink?.url) URL.revokeObjectURL(downloadLink.url); };
@@ -730,7 +765,7 @@ export default function Market() {
                 <span className="al-market-hero-metal-name">
                   {metalLabelMap[selectedMetal] || selectedMetal}
                 </span>
-                {isGold && <span className="al-market-hero-purity">{carat}K</span>}
+                {isGold && showPurityBadge && <span className="al-market-hero-purity">{carat}K</span>}
                 <span className="al-market-hero-unit">{unit === "1g" ? "per gram" : unit === "8g" ? "per 8g" : "per kg"}</span>
               </div>
 
@@ -893,7 +928,7 @@ export default function Market() {
         </section>
 
         {/* ─── 6. Purity Prices ─────────────────────────────── */}
-        {isGold && latest?.carat_prices && (
+        {isGold && showPurityBadge && latest?.carat_prices && (
           <section className="al-market-purity">
             <div className="al-market-purity-title">Gold Purity Prices</div>
             <div className="al-market-purity-grid">

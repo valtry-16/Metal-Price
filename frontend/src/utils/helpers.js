@@ -1,17 +1,43 @@
 // ─── Currency / Number Formatting ───────────────────────────────
 
-export const formatMoney = (value) =>
-  new Intl.NumberFormat("en-IN", {
+const getNumLocale = () =>
+  localStorage.getItem("auric-numfmt") === "international" ? "en-US" : "en-IN";
+
+const isCompact = () =>
+  localStorage.getItem("auric-compact-num") === "true";
+
+export const formatMoney = (value) => {
+  const v = value ?? 0;
+  if (isCompact() && Math.abs(v) >= 1000) {
+    return new Intl.NumberFormat(getNumLocale(), {
+      style: "currency",
+      currency: "INR",
+      notation: "compact",
+      compactDisplay: "short",
+      maximumFractionDigits: 1,
+    }).format(v);
+  }
+  return new Intl.NumberFormat(getNumLocale(), {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,
-  }).format(value ?? 0);
+  }).format(v);
+};
 
 export const formatNumberPlain = (value) => {
-  const formatted = new Intl.NumberFormat("en-IN", {
+  const v = value ?? 0;
+  if (isCompact() && Math.abs(v) >= 1000) {
+    const formatted = new Intl.NumberFormat(getNumLocale(), {
+      notation: "compact",
+      compactDisplay: "short",
+      maximumFractionDigits: 1,
+    }).format(v);
+    return `Rs.${formatted}`;
+  }
+  const formatted = new Intl.NumberFormat(getNumLocale(), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value ?? 0);
+  }).format(v);
   return `Rs.${formatted}`;
 };
 
