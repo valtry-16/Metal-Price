@@ -30,6 +30,11 @@ export default function Summary() {
     if (!text) return null;
     return text.split("\n").map((line, i) => {
       if (!line.trim()) return <br key={i} />;
+      // Convert ## headings
+      const headingMatch = line.match(/^#{1,3}\s+(.*)/);
+      if (headingMatch) {
+        return <h3 key={i} className="al-summary__heading" dangerouslySetInnerHTML={{ __html: headingMatch[1].replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />;
+      }
       const formatted = line
         .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.*?)\*/g, "<em>$1</em>");

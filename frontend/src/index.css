@@ -4897,6 +4897,21 @@ select {
   padding: 32px;
 }
 
+.al-summary__heading {
+  font-family: "Playfair Display", serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 20px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.al-summary__card p {
+  margin: 0 0 10px;
+  line-height: 1.7;
+}
+
 .al-summary__header {
   display: flex;
   align-items: center;

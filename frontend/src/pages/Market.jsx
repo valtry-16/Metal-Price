@@ -995,16 +995,24 @@ export default function Market() {
                     <div className="hero__summary-body">
                       {dailySummary.summary.split("\n").map((line, i) => {
                         if (!line.trim()) return <div key={i} className="summary-spacer" />;
+                        // Convert ## headings
+                        const headingMatch = line.match(/^#{1,3}\s+(.*)/);
+                        if (headingMatch) {
+                          const hParts = headingMatch[1].split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
+                            if (seg.startsWith("**") && seg.endsWith("**")) return <strong key={j}>{seg.slice(2, -2)}</strong>;
+                            return seg;
+                          });
+                          return <p key={i} className="summary-heading">{hParts}</p>;
+                        }
                         const parts = line.split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
                           if (seg.startsWith("**") && seg.endsWith("**")) {
                             return <strong key={j}>{seg.slice(2, -2)}</strong>;
                           }
                           return seg;
                         });
-                        const isHeading = /^(Market Overview|Outlook)[:\s]/i.test(line.trim());
                         const isMetalLine = line.includes("₹") && (/\/g|\/kg|per gram|per kg|per 8g/i.test(line));
                         return (
-                          <p key={i} className={isHeading ? "summary-heading" : isMetalLine ? "summary-metal" : ""}>
+                          <p key={i} className={isMetalLine ? "summary-metal" : ""}>
                             {parts}
                           </p>
                         );
@@ -1537,16 +1545,24 @@ export default function Market() {
                     <div className="summary-modal-body">
                       {dailySummary.summary.split("\n").map((line, i) => {
                         if (!line.trim()) return <div key={i} className="summary-spacer" />;
+                        // Convert ## headings
+                        const headingMatch = line.match(/^#{1,3}\s+(.*)/);
+                        if (headingMatch) {
+                          const hParts = headingMatch[1].split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
+                            if (seg.startsWith("**") && seg.endsWith("**")) return <strong key={j}>{seg.slice(2, -2)}</strong>;
+                            return seg;
+                          });
+                          return <p key={i} className="summary-heading">{hParts}</p>;
+                        }
                         const parts = line.split(/(\*\*[^*]+\*\*)/).map((seg, j) => {
                           if (seg.startsWith("**") && seg.endsWith("**")) {
                             return <strong key={j}>{seg.slice(2, -2)}</strong>;
                           }
                           return seg;
                         });
-                        const isHeading = /^(Market Overview|Outlook)[:\s]/i.test(line.trim());
                         const isMetalLine = line.includes("₹") && (/\/g|\/kg|per gram|per kg|per 8g/i.test(line));
                         return (
-                          <p key={i} className={isHeading ? "summary-heading" : isMetalLine ? "summary-metal" : ""}>
+                          <p key={i} className={isMetalLine ? "summary-metal" : ""}>
                             {parts}
                           </p>
                         );
