@@ -12,8 +12,19 @@ export default function Dashboard() {
   const [portfolioData, setPortfolioData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  /** Strip markdown syntax for plain-text preview */
+  const stripMarkdown = (md) =>
+    md
+      .replace(/^#{1,6}\s+/gm, "")     // ## headings
+      .replace(/\*\*(.*?)\*\*/g, "$1")  // **bold**
+      .replace(/\*(.*?)\*/g, "$1")      // *italic*
+      .replace(/~~(.*?)~~/g, "$1")      // ~~strike~~
+      .replace(/`(.*?)`/g, "$1")        // `code`
+      .replace(/\n{2,}/g, " ")          // collapse newlines
+      .trim();
+
   useEffect(() => {
-    const uid = localStorage.getItem("auric-portfolio-uid");
+    const uid = user?.id;
     Promise.all([
       cachedFetch(`${PROD_API_URL}/daily-summary`),
       uid
@@ -24,7 +35,7 @@ export default function Dashboard() {
       setPortfolioData(p);
       setLoading(false);
     });
-  }, []);
+  }, [user]);
 
   const displayName = getDisplayName();
   const avatarUrl = getAvatarUrl();
@@ -99,12 +110,12 @@ export default function Dashboard() {
             </h3>
             {summary?.summary ? (
               <p className="al-dashboard__insight-preview">
-                {summary.summary.substring(0, 250)}...
+                {stripMarkdown(summary.summary).substring(0, 250)}...
               </p>
             ) : (
               <p className="al-dashboard__insight-empty">No summary available today.</p>
             )}
-            <Link to="/news" className="al-btn al-btn--ghost al-btn--sm" style={{ marginTop: "12px" }}>
+            <Link to="/summary" className="al-btn al-btn--ghost al-btn--sm" style={{ marginTop: "12px" }}>
               Read Full Summary
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </Link>
