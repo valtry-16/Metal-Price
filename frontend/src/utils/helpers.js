@@ -103,6 +103,8 @@ export const buildChartData = (points, series) => {
   return { labels, datasets };
 };
 
+const chartFont = { family: '"Inter", "Segoe UI", system-ui, sans-serif' };
+
 export const buildChartOptions = (range) => ({
   responsive: true,
   maintainAspectRatio: true,
@@ -110,12 +112,12 @@ export const buildChartOptions = (range) => ({
   responsiveAnimationDuration: 0,
   plugins: { legend: { display: false } },
   scales: {
-    x: { grid: { display: false }, ticks: { color: "#5d6b7a" } },
+    x: { grid: { display: false }, ticks: { color: "#5d6b7a", font: chartFont } },
     y: {
       min: range.min,
       max: range.max,
       grid: { color: "rgba(200,200,200,0.15)" },
-      ticks: { color: "#5d6b7a" },
+      ticks: { color: "#5d6b7a", font: chartFont },
     },
   },
 });

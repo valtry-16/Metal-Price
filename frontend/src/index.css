@@ -1118,15 +1118,17 @@ select {
 }
 
 .chart-title h2 {
-  font-family: "Playfair Display", "Georgia", serif;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   font-size: 22px;
+  font-weight: 600;
   color: var(--panel-ink);
 }
 
 .chart-carat {
-  font-family: "Poppins", "Segoe UI", sans-serif;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
   font-size: 0.95em;
-  letter-spacing: 0.6px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 .chart-meta {

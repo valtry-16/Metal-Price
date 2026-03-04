@@ -283,6 +283,8 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
     ],
   };
 
+  const chartFont = { family: '"Inter", "Segoe UI", system-ui, sans-serif' };
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -295,10 +297,10 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: "#5d6b7a", maxTicksLimit: 8 } },
+      x: { grid: { display: false }, ticks: { color: "#5d6b7a", maxTicksLimit: 8, font: chartFont } },
       y: {
         grid: { color: "rgba(93,107,122,0.15)" },
-        ticks: { color: "#5d6b7a", callback: (v) => `\u20B9${(v / 1000).toFixed(0)}K` },
+        ticks: { color: "#5d6b7a", callback: (v) => `\u20B9${(v / 1000).toFixed(0)}K`, font: chartFont },
       },
     },
   };

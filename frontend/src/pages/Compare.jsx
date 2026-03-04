@@ -93,15 +93,17 @@ export default function Compare() {
     };
   }, [weeklyA, weeklyB, metalA, metalB]);
 
+  const chartFont = { family: '"Inter", "Segoe UI", system-ui, sans-serif' };
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: true,
     plugins: {
-      legend: { display: true, position: "top", labels: { usePointStyle: true, padding: 16 } },
+      legend: { display: true, position: "top", labels: { usePointStyle: true, padding: 16, font: chartFont } },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: "var(--muted)" } },
-      y: { grid: { color: "rgba(200,200,200,0.12)" }, ticks: { color: "var(--muted)" } },
+      x: { grid: { display: false }, ticks: { color: "var(--muted)", font: chartFont } },
+      y: { grid: { color: "rgba(200,200,200,0.12)" }, ticks: { color: "var(--muted)", font: chartFont } },
     },
   };
 
