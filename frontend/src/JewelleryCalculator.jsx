@@ -90,7 +90,7 @@ export default function JewelleryCalculator({ apiBase, onClose, embedded = false
     <>
         <div className="modal-header">
           <h2>Jewellery Calculator</h2>
-          {!embedded && <button className="modal-close" onClick={onClose}>&times;</button>}
+          {!embedded && <button className="modal-close" aria-label="Close" onClick={onClose}>&times;</button>}
         </div>
 
         <p className="jewellery-desc">
@@ -215,7 +215,7 @@ export default function JewelleryCalculator({ apiBase, onClose, embedded = false
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content jewellery-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content jewellery-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         {content}
       </div>
     </div>

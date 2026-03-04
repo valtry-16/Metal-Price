@@ -962,6 +962,7 @@ export default function Market() {
       <div className="shell">
         <header className="hero">
           <div className="hero__left">
+            <h1 className="sr-only">Live Precious Metal Prices</h1>
             <p className="hero__tagline">
               Beautifully simple pricing insights, updated in real time.
             </p>
@@ -1025,26 +1026,27 @@ export default function Market() {
           </div>
           <div className="hero__panel">
             <div className="control-grid">
-              <label>
+              <label htmlFor="metal-search">
                 Metal
                 <input
+                  id="metal-search"
                   type="text"
                   className="search-metals"
                   placeholder="Search metals..."
                   value={metalSearch}
                   onChange={(e) => setMetalSearch(e.target.value)}
                 />
-                <select value={selectedMetal} onChange={(event) => handleSetSelectedMetal(event.target.value)}>
-                  {filteredMetals.map((metal) => (
-                    <option key={`${metal.metal_name}-${metal.carat || "na"}`} value={metal.metal_name}>
-                      {formatMetalLabel(metal)}
-                    </option>
-                  ))}
-                  {!filteredMetals.length && metals.length > 0 && (
-                    <option disabled>No metals match "{metalSearch}"</option>
-                  )}
-                </select>
               </label>
+              <select aria-label="Select metal" value={selectedMetal} onChange={(event) => handleSetSelectedMetal(event.target.value)}>
+                {filteredMetals.map((metal) => (
+                  <option key={`${metal.metal_name}-${metal.carat || "na"}`} value={metal.metal_name}>
+                    {formatMetalLabel(metal)}
+                  </option>
+                ))}
+                {!filteredMetals.length && metals.length > 0 && (
+                  <option disabled>No metals match "{metalSearch}"</option>
+                )}
+              </select>
 
               {isGold ? (
                 <label>
@@ -1089,7 +1091,7 @@ export default function Market() {
         </header>
 
         {metals.length > 0 && (
-          <div className="live-ticker">
+          <div className="live-ticker" role="marquee" aria-label="Live metal price ticker">
             <div className="ticker-wrapper">
               <div className="ticker-content">
                 {sortMetals(metals.filter(m => !['BTC', 'ETH', 'HG'].includes(m.metal_name)))
@@ -1206,7 +1208,6 @@ export default function Market() {
           </div>
           <div className="export-actions">
             <button className="export-btn" type="button" onClick={() => setShowAlertsModal(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               Set Price Alert
             </button>
             <button className="export-btn" type="button" onClick={handleExportCsv} disabled={exportLoading}>
@@ -1253,13 +1254,13 @@ export default function Market() {
 
         {showFaq ? (
           <div className="modal-overlay" onClick={() => setShowFaq(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
                   <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
                   <h2>About Auric Ledger</h2>
                 </div>
-                <button className="modal-close" onClick={() => setShowFaq(false)}>
+                <button className="modal-close" aria-label="Close" onClick={() => setShowFaq(false)}>
                   ✕
                 </button>
               </div>
@@ -1416,13 +1417,13 @@ export default function Market() {
 
         {showPrivacy ? (
           <div className="modal-overlay" onClick={() => setShowPrivacy(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
                   <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
                   <h2>Privacy Policy</h2>
                 </div>
-                <button className="modal-close" onClick={() => setShowPrivacy(false)}>
+                <button className="modal-close" aria-label="Close" onClick={() => setShowPrivacy(false)}>
                   ✕
                 </button>
               </div>
@@ -1506,13 +1507,13 @@ export default function Market() {
         {/* Summary Modal */}
         {showSummary ? (
           <div className="modal-overlay" onClick={() => setShowSummary(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
                   <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
                   <h2>Daily Market Summary</h2>
                 </div>
-                <button className="modal-close" onClick={() => setShowSummary(false)}>
+                <button className="modal-close" aria-label="Close" onClick={() => setShowSummary(false)}>
                   ✕
                 </button>
               </div>
@@ -1597,13 +1598,13 @@ export default function Market() {
         {/* Alerts Modal */}
         {showAlertsModal ? (
           <div className="modal-overlay" onClick={() => setShowAlertsModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
                   <img src="/metal-price-icon.svg" alt="Auric Ledger" style={{ width: "36px", height: "36px" }} />
                   <h2>Price Alerts</h2>
                 </div>
-                <button className="modal-close" onClick={() => setShowAlertsModal(false)}>
+                <button className="modal-close" aria-label="Close" onClick={() => setShowAlertsModal(false)}>
                   ✕
                 </button>
               </div>
@@ -1612,8 +1613,9 @@ export default function Market() {
                   <h3>Create New Alert</h3>
                   <div style={{ display: "grid", gap: "10px", marginTop: "12px" }}>
                     <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Select Metal</label>
+                      <label htmlFor="alert-metal" style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Select Metal</label>
                       <select
+                        id="alert-metal"
                         value={newAlert.metal}
                         onChange={(e) => setNewAlert({ ...newAlert, metal: e.target.value })}
                         style={{
@@ -1637,8 +1639,9 @@ export default function Market() {
                       </select>
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Alert Type</label>
+                      <label htmlFor="alert-type" style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Alert Type</label>
                       <select
+                        id="alert-type"
                         value={newAlert.type}
                         onChange={(e) => setNewAlert({ ...newAlert, type: e.target.value })}
                         style={{
@@ -1657,8 +1660,9 @@ export default function Market() {
                     </div>
                     {newAlert.type === "price_threshold" && (
                       <div>
-                        <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Alert When Price Goes</label>
+                        <label htmlFor="alert-direction" style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>Alert When Price Goes</label>
                         <select
+                          id="alert-direction"
                           value={newAlert.direction}
                           onChange={(e) => setNewAlert({ ...newAlert, direction: e.target.value })}
                           style={{
@@ -1677,10 +1681,11 @@ export default function Market() {
                       </div>
                     )}
                     <div>
-                      <label style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>
+                      <label htmlFor="alert-value" style={{ display: "block", fontSize: "12px", color: "var(--muted)", marginBottom: "4px" }}>
                         {newAlert.type === "price_threshold" ? "Threshold Price in ₹/g" : "Percentage Change (%)"}
                       </label>
                       <input
+                        id="alert-value"
                         type="number"
                         placeholder={newAlert.type === "price_threshold" ? "e.g., 7500" : "e.g., 2.5"}
                         value={newAlert.value}

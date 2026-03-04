@@ -334,7 +334,7 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
     <>
         <div className="modal-header">
           <h2>Portfolio Simulator</h2>
-          {!embedded && <button className="modal-close" onClick={onClose}>&times;</button>}
+          {!embedded && <button className="modal-close" aria-label="Close" onClick={onClose}>&times;</button>}
         </div>
 
         {/* Messages */}
@@ -374,19 +374,20 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
         <div className="portfolio-buy-form">
           <h3>Buy Metal</h3>
           <div className="portfolio-buy-inputs">
-            <select value={buyMetal} onChange={(e) => setBuyMetal(e.target.value)} className="portfolio-select">
+            <select aria-label="Select metal" value={buyMetal} onChange={(e) => setBuyMetal(e.target.value)} className="portfolio-select">
               {METALS.map((m) => (
                 <option key={m.symbol} value={m.symbol}>{m.name}</option>
               ))}
             </select>
             {isGold && (
-              <select value={buyCarat} onChange={(e) => setBuyCarat(e.target.value)} className="portfolio-select portfolio-select-sm">
+              <select aria-label="Select carat" value={buyCarat} onChange={(e) => setBuyCarat(e.target.value)} className="portfolio-select portfolio-select-sm">
                 <option value="24">24K</option>
                 <option value="22">22K</option>
                 <option value="18">18K</option>
               </select>
             )}
             <input
+              aria-label="Weight in grams"
               type="number"
               placeholder="Weight (grams)"
               value={buyWeight}
@@ -536,7 +537,7 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content portfolio-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content portfolio-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         {content}
       </div>
     </div>
