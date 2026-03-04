@@ -801,6 +801,13 @@ export default function Market() {
           summaryGenerating={summaryGenerating}
         />
 
+        {/* ─── 9. Market Info Bar ───────────────────────────── */}
+        <section className="al-market-info-bar">
+          <button className="al-market-info-link" onClick={() => setShowFaq(true)}>About &amp; FAQ</button>
+          <span className="al-market-info-sep">&bull;</span>
+          <button className="al-market-info-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
+        </section>
+
         {/* ─── Loading Overlay ──────────────────────────────── */}
         {status.loading && (
           <div className="al-market-loading" role="status" aria-live="polite">

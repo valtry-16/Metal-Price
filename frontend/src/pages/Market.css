@@ -679,6 +679,36 @@
 .al-market-skeleton-line.w80 { width: 80%; }
 .al-market-skeleton-line.w90 { width: 90%; }
 
+/* ─── Info Bar (FAQ / Privacy links) ──────────────────────────── */
+.al-market-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.al-market-info-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color var(--transition);
+}
+
+.al-market-info-link:hover {
+  color: var(--accent);
+}
+
+.al-market-info-sep {
+  color: var(--line);
+  font-size: 10px;
+}
+
 /* ─── Loading Overlay ─────────────────────────────────────────── */
 .al-market-loading {
   position: fixed;
