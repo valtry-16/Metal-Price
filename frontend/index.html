@@ -12,10 +12,13 @@
     <meta property="og:description" content="Track real-time prices of Gold, Silver, Platinum, Palladium, Copper, Nickel, Zinc, Aluminium, and Lead in INR" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://auric--ledger.vercel.app/" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self'; connect-src 'self' https://metal-price.onrender.com https://*.supabase.co http://localhost:4000 http://localhost:5173 data:; manifest-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' https://www.googletagmanager.com https://www.google-analytics.com; connect-src 'self' https://metal-price.onrender.com https://*.supabase.co https://www.google-analytics.com https://analytics.google.com http://localhost:4000 http://localhost:5173 data:; manifest-src 'self'" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" />
     
+    <!-- Google Search Console verification -->
+    <meta name="google-site-verification" content="PASTE_YOUR_SEARCH_CONSOLE_CODE_HERE" />
+
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -39,5 +42,14 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script type="module" src="/src/register-sw.js"></script>
+
+    <!-- Google Analytics (GA4) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
   </body>
 </html>
