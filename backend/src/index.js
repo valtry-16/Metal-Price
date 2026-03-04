@@ -1138,6 +1138,54 @@ app.get("/monthly-history", async (req, res) => {
   }
 });
 
+// Combined market data endpoint — single call returns latest, comparison, weekly, monthly
+app.get("/market-data", async (req, res) => {
+  try {
+    const { metal, carat, month } = req.query;
+    if (!metal) {
+      return res.status(400).json({ status: "error", message: "metal is required" });
+    }
+
+    const resolvedCarat = resolveCarat(metal, carat);
+
+    // Fetch all data in parallel
+    const [latest, comparison, weeklyHistory, availableMonthsList] = await Promise.all([
+      getLatestForMetal({ metal, carat: resolvedCarat }),
+      getComparison({ metal, carat: resolvedCarat }),
+      getWeeklyHistory({ metal, carat: resolvedCarat }),
+      getAvailableMonths({ metal, carat: resolvedCarat }),
+    ]);
+
+    // Gold carat prices
+    let caratPrices = null;
+    if (latest && isGold(metal)) {
+      const { rows } = await getLatestRows({ metal });
+      caratPrices = rows.reduce((acc, row) => {
+        if (row.carat) acc[row.carat] = row.price_1g;
+        return acc;
+      }, {});
+      latest.carat_prices = caratPrices;
+    }
+
+    // Monthly history for selected or latest month
+    const selectedMonth = month || availableMonthsList[availableMonthsList.length - 1];
+    const monthlyHistory = selectedMonth
+      ? await getMonthlyHistory({ metal, carat: resolvedCarat, month: selectedMonth })
+      : [];
+
+    res.json({
+      latest,
+      comparison,
+      weekly: weeklyHistory,
+      monthly: monthlyHistory,
+      availableMonths: availableMonthsList,
+      selectedMonth,
+    });
+  } catch (error) {
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
 // Email subscription endpoint
 app.post("/subscribe-email", emailLimiter, [
   // Input validation and sanitization
