@@ -81,9 +81,9 @@ export default function Home() {
               View Market
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </Link>
-            <Link to="/faq" className="al-btn al-btn--ghost al-btn--lg">
+            <a href="#tools" className="al-btn al-btn--ghost al-btn--lg" onClick={(e) => { e.preventDefault(); document.getElementById('tools')?.scrollIntoView({ behavior: 'smooth' }); }}>
               Explore Tools
-            </Link>
+            </a>
           </div>
         </div>
 
@@ -139,7 +139,7 @@ export default function Home() {
       </section>
 
       {/* ─── Tools CTA ────────────────────────────── */}
-      <section className="al-section al-section--alt">
+      <section id="tools" className="al-section al-section--alt">
         <div className="al-section__header">
           <span className="al-section__badge">Tools</span>
           <h2 className="al-section__title">Powerful tools at your fingertips</h2>
