@@ -1238,7 +1238,7 @@ const sendWelcomeEmail = async (email, priceData, username) => {
   const displayName = username || "Subscriber";
 
   // HTML-based logo (SVG not supported in email clients)
-  const logoHtml = `<table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td style="width: 56px; height: 56px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 24px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">&#8377;</td></tr></table>`;
+  const logoHtml = `<table cellpadding="0" cellspacing="0" style="margin: 0 auto;"><tr><td style="width: 56px; height: 56px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">AL</td></tr></table>`;
 
   // Available metals
   const availableMetals = ['XAU', 'XAG', 'XPT', 'XPD', 'XCU', 'LEAD', 'NI', 'ZNC', 'ALU'];
@@ -1345,21 +1345,21 @@ const sendWelcomeEmail = async (email, priceData, username) => {
                     <tr>
                       <td width="32%" style="padding-right: 8px; vertical-align: top;">
                         <div style="background: linear-gradient(135deg, #0d1b3e, #162448); padding: 24px 14px; border-radius: 12px; text-align: center; border: 1px solid #2a3a5a;">
-                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px;">&#128202;</td></tr></table>
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 18px; color: #d4af37; font-family: Georgia, serif; font-weight: 700;">D</td></tr></table>
                           <p style="margin: 0 0 4px 0; color: #d4af37; font-size: 13px; font-weight: 700;">Daily Reports</p>
                           <p style="margin: 0; color: #7889a8; font-size: 11px; line-height: 1.5;">9:00 AM IST<br/>every morning</p>
                         </div>
                       </td>
                       <td width="36%" style="padding: 0 4px; vertical-align: top;">
                         <div style="background: linear-gradient(135deg, #0d1b3e, #162448); padding: 24px 14px; border-radius: 12px; text-align: center; border: 1px solid #2a3a5a;">
-                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px;">&#128276;</td></tr></table>
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 18px; color: #d4af37; font-family: Georgia, serif; font-weight: 700;">A</td></tr></table>
                           <p style="margin: 0 0 4px 0; color: #d4af37; font-size: 13px; font-weight: 700;">Price Alerts</p>
                           <p style="margin: 0; color: #7889a8; font-size: 11px; line-height: 1.5;">Set targets &amp; get<br/>instant notifications</p>
                         </div>
                       </td>
                       <td width="32%" style="padding-left: 8px; vertical-align: top;">
                         <div style="background: linear-gradient(135deg, #0d1b3e, #162448); padding: 24px 14px; border-radius: 12px; text-align: center; border: 1px solid #2a3a5a;">
-                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 20px;">&#128200;</td></tr></table>
+                          <table cellpadding="0" cellspacing="0" style="margin: 0 auto 10px auto;"><tr><td style="width: 40px; height: 40px; background-color: #d4af3720; border-radius: 50%; text-align: center; vertical-align: middle; font-size: 18px; color: #d4af37; font-family: Georgia, serif; font-weight: 700;">M</td></tr></table>
                           <p style="margin: 0 0 4px 0; color: #d4af37; font-size: 13px; font-weight: 700;">Market Insights</p>
                           <p style="margin: 0; color: #7889a8; font-size: 11px; line-height: 1.5;">Charts, trends<br/>&amp; comparisons</p>
                         </div>
@@ -1395,7 +1395,7 @@ const sendWelcomeEmail = async (email, priceData, username) => {
                     <tr>
                       <td style="padding: 18px 20px 6px 20px;">
                         <table width="100%" cellpadding="0" cellspacing="0"><tr>
-                          <td><p style="margin: 0; color: #d4af37; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">&#9733; Gold Prices Today</p></td>
+                          <td><p style="margin: 0; color: #d4af37; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">Gold Prices Today</p></td>
                           <td style="text-align: right;"><p style="margin: 0; color: #7889a8; font-size: 11px;">${dayjs().format("DD MMM YYYY")}</p></td>
                         </tr></table>
                       </td>
@@ -1538,20 +1538,16 @@ app.post("/trigger-price-alert", async (req, res) => {
           ? (direction === "below" ? "Price Dropped Below Threshold" : "Price Crossed Above Threshold")
           : "Percentage Change Alert Triggered";
 
-        const alertIcon = isThreshold
-          ? (direction === "below" ? "📉" : "📈")
-          : "⚡";
-
         const alertColor = isThreshold
-          ? (direction === "below" ? "#dc2626" : "#16a34a")
+          ? (direction === "below" ? "#16a34a" : "#dc2626")
           : "#d4af37";
 
         const alertBgLight = isThreshold
-          ? (direction === "below" ? "#fef2f2" : "#f0fdf4")
+          ? (direction === "below" ? "#f0fdf4" : "#fef2f2")
           : "#fffbeb";
 
         const alertBorderColor = isThreshold
-          ? (direction === "below" ? "#fca5a5" : "#86efac")
+          ? (direction === "below" ? "#86efac" : "#fca5a5")
           : "#fde68a";
 
         // Fetch 7-day context for the alerted metal
@@ -1584,7 +1580,7 @@ app.post("/trigger-price-alert", async (req, res) => {
             <tr>
               <td style="padding: 0 28px 24px 28px;">
                 <div style="background-color: #f8f6f0; padding: 20px; border-radius: 10px; border: 1px solid #e8e4db;">
-                  <p style="margin: 0 0 12px 0; color: #1a1a2e; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">📊 7-Day Price Range (${weeklyContext.days} days)</p>
+                  <p style="margin: 0 0 12px 0; color: #1a1a2e; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">7-Day Price Range (${weeklyContext.days} days)</p>
                   <table width="100%" cellpadding="0" cellspacing="0">
                     <tr>
                       <td style="color: #dc2626; font-size: 12px; font-weight: 600; width: 80px;">₹${weeklyContext.low.toFixed(2)}</td>
@@ -1635,9 +1631,9 @@ app.post("/trigger-price-alert", async (req, res) => {
                     <!-- Urgent Alert Header -->
                     <tr>
                       <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 32px 28px 24px 28px; text-align: center;">
-                        <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 22px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">&#8377;</td></tr></table>
+                        <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 18px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">AL</td></tr></table>
                         <div style="display: inline-block; padding: 6px 20px; background-color: ${alertColor}22; border: 1px solid ${alertColor}; border-radius: 50px; margin-bottom: 14px;">
-                          <span style="color: ${alertColor}; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">${alertIcon} Price Alert</span>
+                          <span style="color: ${alertColor}; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Price Alert</span>
                         </div>
                         <h1 style="margin: 0; color: #d4af37; font-size: 32px; font-weight: 700; letter-spacing: 1px;">Auric Ledger</h1>
                         <p style="margin: 6px 0 0 0; color: #8892b0; font-size: 12px; letter-spacing: 1px;">${dayjs().format("dddd, DD MMMM YYYY")} &bull; ${dayjs().format("HH:mm")} IST</p>
@@ -1694,7 +1690,7 @@ app.post("/trigger-price-alert", async (req, res) => {
                             <td width="36%" style="padding: 0 4px;">
                               <div style="background-color: #f8f6f0; padding: 16px; border-radius: 10px; text-align: center; border: 1px solid #e8e4db;">
                                 <p style="margin: 0; color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">${isThreshold ? "Direction" : "Movement"}</p>
-                                <p style="margin: 6px 0 0 0; color: ${alertColor}; font-size: 13px; font-weight: 700;">${isThreshold ? (direction === "below" ? "▼ Dropped Below" : "▲ Crossed Above") : `${alertIcon} Threshold Hit`}</p>
+                                <p style="margin: 6px 0 0 0; color: ${alertColor}; font-size: 13px; font-weight: 700;">${isThreshold ? (direction === "below" ? "Dropped Below" : "Crossed Above") : "Threshold Hit"}</p>
                               </div>
                             </td>
                             <td width="32%" style="padding-left: 8px;">
@@ -1717,7 +1713,7 @@ app.post("/trigger-price-alert", async (req, res) => {
                           <tr>
                             <td width="48%" style="padding-right: 8px; vertical-align: top;">
                               <div style="background-color: #f0fdf4; padding: 16px; border-radius: 10px; border: 1px solid #bbf7d0; height: 100%;">
-                                <p style="margin: 0 0 6px 0; color: #166534; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">✅ Recommended</p>
+                                <p style="margin: 0 0 6px 0; color: #166534; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Recommended</p>
                                 <p style="margin: 0; color: #15803d; font-size: 12px; line-height: 1.5;">
                                   Review the current market trend on the app before making any trade decisions.
                                 </p>
@@ -1726,7 +1722,7 @@ app.post("/trigger-price-alert", async (req, res) => {
                             <td width="4%"></td>
                             <td width="48%" style="padding-left: 8px; vertical-align: top;">
                               <div style="background-color: #eff6ff; padding: 16px; border-radius: 10px; border: 1px solid #bfdbfe; height: 100%;">
-                                <p style="margin: 0 0 6px 0; color: #1e40af; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">🔔 Manage Alerts</p>
+                                <p style="margin: 0 0 6px 0; color: #1e40af; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Manage Alerts</p>
                                 <p style="margin: 0; color: #1d4ed8; font-size: 12px; line-height: 1.5;">
                                   You can modify or delete this alert anytime from the Market page settings.
                                 </p>
@@ -1940,7 +1936,7 @@ const sendDailyPriceEmails = async (priceData) => {
     });
     const sentimentLabel = gainers > losers ? "Bullish" : (losers > gainers ? "Bearish" : "Mixed");
     const sentimentColor = gainers > losers ? "#16a34a" : (losers > gainers ? "#dc2626" : "#d4af37");
-    const sentimentIcon = gainers > losers ? "📈" : (losers > gainers ? "📉" : "➡️");
+    const sentimentIcon = gainers > losers ? "▲" : (losers > gainers ? "▼" : "—");
 
     // Build precious metals rows
     const buildMetalRow = (metal, isAlt) => {
@@ -2010,7 +2006,7 @@ const sendDailyPriceEmails = async (priceData) => {
                 <!-- Premium Header -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 36px 30px 28px 30px; text-align: center;">
-                    <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 22px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">&#8377;</td></tr></table>
+                    <table cellpadding="0" cellspacing="0" style="margin: 0 auto 14px auto;"><tr><td style="width: 48px; height: 48px; background: linear-gradient(135deg, #d4af37 0%, #f0d060 50%, #d4af37 100%); border-radius: 50%; text-align: center; vertical-align: middle; font-size: 18px; font-weight: 800; color: #1a1a2e; font-family: Georgia, 'Times New Roman', serif; border: 2px solid #f0d060;">AL</td></tr></table>
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center">
@@ -2063,7 +2059,7 @@ const sendDailyPriceEmails = async (priceData) => {
                           <table width="100%" cellpadding="0" cellspacing="0">
                             <tr>
                               <td>
-                                <p style="margin: 0; color: #b8860b; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">🏆 Gold Spotlight</p>
+                                <p style="margin: 0; color: #b8860b; font-size: 11px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">Gold Spotlight</p>
                               </td>
                               <td style="text-align: right;">
                                 <span style="display: inline-block; background-color: ${changeBadge('XAU').changeColor}22; color: ${changeBadge('XAU').changeColor}; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;">${changeBadge('XAU').arrow} ${changeBadge('XAU').pctStr}</span>
@@ -2152,7 +2148,7 @@ const sendDailyPriceEmails = async (priceData) => {
                       <tr>
                         <td width="48%" style="vertical-align: top;">
                           <div style="background-color: #f0fdf4; padding: 16px; border-radius: 8px; border: 1px solid #bbf7d0;">
-                            <p style="margin: 0 0 6px 0; color: #166534; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">💡 Quick Tip</p>
+                            <p style="margin: 0 0 6px 0; color: #166534; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Quick Tip</p>
                             <p style="margin: 0; color: #15803d; font-size: 12px; line-height: 1.5;">
                               Set custom price alerts in the app to get notified instantly when metals hit your target price.
                             </p>
@@ -2161,7 +2157,7 @@ const sendDailyPriceEmails = async (priceData) => {
                         <td width="4%"></td>
                         <td width="48%" style="vertical-align: top;">
                           <div style="background-color: #fffbeb; padding: 16px; border-radius: 8px; border: 1px solid #fde68a;">
-                            <p style="margin: 0 0 6px 0; color: #92400e; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">📊 Disclaimer</p>
+                            <p style="margin: 0 0 6px 0; color: #92400e; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Disclaimer</p>
                             <p style="margin: 0; color: #a16207; font-size: 12px; line-height: 1.5;">
                               Prices include import duty &amp; GST. For investment decisions, consult your financial advisor.
                             </p>
