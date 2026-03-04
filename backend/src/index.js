@@ -2079,39 +2079,57 @@ Write a comprehensive daily market summary for **Auric Ledger** using ONLY the e
 - Keep paragraphs readable — no walls of text
 - Do NOT add external information, news, or predictions not supported by the data`;
 
-    // ── Step 6: Call Gemini 2.0 Flash ──
+    // ── Step 6: Call Gemini 2.0 Flash (with retry on 429) ──
     if (!GEMINI_API_KEY) {
       console.error("❌ GEMINI_API_KEY is not configured");
       return;
     }
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-    const geminiResponse = await axios.post(
-      geminiUrl,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                text: summaryPrompt,
-              },
-            ],
-          },
-        ],
-        systemInstruction: {
+    const geminiPayload = {
+      contents: [
+        {
           parts: [
             {
-              text: "You are the senior market analyst at Auric Ledger, India's premium precious metals intelligence platform. You write authoritative, detailed daily market summaries for Indian investors, jewellers, and metal traders. Your tone is professional yet accessible — like a Bloomberg brief tailored for the Indian metals market. You ONLY use pre-computed price data provided to you. You never fabricate numbers, never use USD, and always reference Gold 22K as the primary benchmark since it is the standard jewellery purity in India. All prices are in Indian Rupees (₹). You use markdown formatting (bold, headers) for readability.",
+              text: summaryPrompt,
             },
           ],
         },
-        generationConfig: {
-          temperature: 0.35,
-          maxOutputTokens: 2048,
-        },
+      ],
+      systemInstruction: {
+        parts: [
+          {
+            text: "You are the senior market analyst at Auric Ledger, India's premium precious metals intelligence platform. You write authoritative, detailed daily market summaries for Indian investors, jewellers, and metal traders. Your tone is professional yet accessible — like a Bloomberg brief tailored for the Indian metals market. You ONLY use pre-computed price data provided to you. You never fabricate numbers, never use USD, and always reference Gold 22K as the primary benchmark since it is the standard jewellery purity in India. All prices are in Indian Rupees (₹). You use markdown formatting (bold, headers) for readability.",
+          },
+        ],
       },
-      { headers: { "Content-Type": "application/json" }, timeout: 60000 }
-    );
+      generationConfig: {
+        temperature: 0.35,
+        maxOutputTokens: 2048,
+      },
+    };
+
+    let geminiResponse = null;
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        geminiResponse = await axios.post(
+          geminiUrl,
+          geminiPayload,
+          { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+        );
+        break; // success — exit retry loop
+      } catch (apiErr) {
+        const status = apiErr.response?.status;
+        if (status === 429 && attempt < MAX_RETRIES) {
+          const waitSec = attempt * 30; // 30s, 60s
+          console.warn(`⏳ Gemini 429 rate-limited. Retry ${attempt}/${MAX_RETRIES} in ${waitSec}s...`);
+          await new Promise((r) => setTimeout(r, waitSec * 1000));
+        } else {
+          throw apiErr; // not retryable or last attempt — propagate
+        }
+      }
+    }
 
     const summary = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!summary) {
