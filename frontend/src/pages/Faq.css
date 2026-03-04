@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   Auric Ledger — FAQ / About Page
+   Auric Ledger — FAQ / About Page (Production)
    ═══════════════════════════════════════════════════════════════ */
 
 .al-faq {
@@ -39,72 +39,262 @@
   font-size: 15px;
   color: var(--muted);
   margin: 0;
+  max-width: 600px;
+  margin-inline: auto;
+  line-height: 1.6;
 }
 
-/* ─── Card Grid ────────────────────────────────────────────── */
-.al-faq__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
-  gap: 20px;
+/* ─── Section headings ─────────────────────────────────────── */
+.al-faq__section-heading {
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: 22px;
+  color: var(--ink);
+  margin: 0 0 20px;
+  text-align: center;
 }
 
-.al-faq__card {
+/* ─── About Card ───────────────────────────────────────────── */
+.al-faq__about-card {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
-  padding: 24px;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  padding: 28px;
 }
 
-.al-faq__card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 16px rgba(197, 154, 60, 0.1);
-}
-
-.al-faq__card-icon {
-  font-size: 24px;
-  margin-bottom: 12px;
-  opacity: 0.7;
-}
-
-.al-faq__card h2 {
+.al-faq__about-heading {
   font-family: "Playfair Display", "Georgia", serif;
-  font-size: 18px;
+  font-size: 20px;
   color: var(--ink);
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 
-.al-faq__card p {
+.al-faq__about-card > p {
   font-size: 14px;
   color: var(--muted);
   line-height: 1.7;
-  margin: 0 0 8px;
+  margin: 0 0 20px;
 }
 
-.al-faq__list {
-  margin: 0;
-  padding: 0 0 0 18px;
+.al-faq__stats-row {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
 }
 
-.al-faq__list li {
-  font-size: 14px;
+.al-faq__stat {
+  text-align: center;
+  padding: 16px 8px;
+  background: rgba(197, 154, 60, 0.04);
+  border: 1px solid rgba(197, 154, 60, 0.12);
+  border-radius: var(--radius-sm);
+}
+
+.al-faq__stat-num {
+  display: block;
+  font-family: "Playfair Display", "Georgia", serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.2;
+}
+
+.al-faq__stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* ─── Features Grid ────────────────────────────────────────── */
+.al-faq__features-section {
+  padding: 0;
+}
+
+.al-faq__features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+}
+
+.al-faq__feature-item {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.al-faq__feature-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(197, 154, 60, 0.08);
+}
+
+.al-faq__feature-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.al-faq__feature-item h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.al-faq__feature-item p {
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.6;
+  margin: 0;
+}
+
+/* ─── Formula Card ─────────────────────────────────────────── */
+.al-faq__formula-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 28px;
 }
 
 .al-faq__formula {
   background: rgba(197, 154, 60, 0.06);
   border: 1px solid rgba(197, 154, 60, 0.15);
   border-radius: var(--radius-sm);
-  padding: 12px 16px;
-  font-size: 13px;
+  padding: 16px 20px;
+  font-size: 14px;
   font-family: "SF Mono", "Fira Code", monospace;
   color: var(--ink);
-  margin: 10px 0;
-  line-height: 1.6;
+  margin: 0 0 16px;
+  line-height: 1.7;
+  text-align: center;
   word-break: break-word;
+}
+
+.al-faq__formula-notes p {
+  font-size: 14px;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.al-faq__purity-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.al-faq__purity-grid span {
+  text-align: center;
+  padding: 8px;
+  background: rgba(197, 154, 60, 0.04);
+  border: 1px solid rgba(197, 154, 60, 0.1);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.al-faq__formula-note {
+  font-size: 13px !important;
+  color: var(--muted) !important;
+  line-height: 1.6;
+  margin-top: 8px !important;
+}
+
+/* ─── FAQ Accordion ────────────────────────────────────────── */
+.al-faq__accordion-section {
+  padding: 0;
+}
+
+.al-faq__accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.al-faq__accordion-item {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+
+.al-faq__accordion-item.open {
+  border-color: var(--accent);
+}
+
+.al-faq__accordion-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+
+.al-faq__accordion-q {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.al-faq__accordion-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.25s ease;
+}
+
+.al-faq__accordion-item.open .al-faq__accordion-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.al-faq__accordion-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 20px;
+}
+
+.al-faq__accordion-item.open .al-faq__accordion-body {
+  max-height: 300px;
+  padding: 0 20px 16px;
+}
+
+.al-faq__accordion-body p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ─── Footer Card ──────────────────────────────────────────── */
+.al-faq__footer-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 24px 28px;
+  text-align: center;
+}
+
+.al-faq__footer-info p {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 4px 0;
+}
+
+.al-faq__footer-info strong {
+  color: var(--ink);
 }
 
 .al-faq__link {
@@ -144,7 +334,21 @@
     padding: 24px 16px 20px;
   }
 
-  .al-faq__card {
+  .al-faq__stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .al-faq__purity-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .al-faq__about-card,
+  .al-faq__formula-card,
+  .al-faq__footer-card {
     padding: 18px;
+  }
+
+  .al-faq__accordion-trigger {
+    padding: 14px 16px;
   }
 }

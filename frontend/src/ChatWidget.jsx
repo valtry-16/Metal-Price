@@ -1,10 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import "./ChatWidget.css";
 
 const SUGGESTIONS = [
   "Today's gold & silver prices",
   "Compare 24K vs 22K gold",
   "Weekly gold trend",
   "Cheapest metal right now",
+  "Gold price prediction",
+  "Silver vs Platinum comparison",
+  "What affects gold prices?",
+  "Best metal to invest in",
 ];
 
 /** Detect mobile (<= 480px) */
@@ -30,15 +35,15 @@ export default function ChatWidget({ apiBase }) {
 
   // Mobile keyboard handling:
   // Use visualViewport to set panel height = visible area only.
-  // The panel is a flex column, so only .chat-messages scrolls.
+  // The panel is a flex column, so only .al-chat-messages scrolls.
   // We never touch body position/overflow — that causes the page to shift.
   useEffect(() => {
     if (!open || !isMobile()) return;
 
     // Prevent background scroll via touch on the overlay
     const preventBgScroll = (e) => {
-      // Allow scroll inside .chat-messages
-      if (e.target.closest(".chat-messages")) return;
+      // Allow scroll inside .al-chat-messages
+      if (e.target.closest(".al-chat-messages")) return;
       e.preventDefault();
     };
     document.addEventListener("touchmove", preventBgScroll, { passive: false });
@@ -193,7 +198,7 @@ export default function ChatWidget({ apiBase }) {
     <>
       {/* Floating toggle button with site logo */}
       <button
-        className="chat-fab"
+        className="al-chat-fab"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close chat" : "Ask Auric AI"}
         title="Ask Auric AI"
@@ -207,35 +212,35 @@ export default function ChatWidget({ apiBase }) {
           <img
             src="/metal-price-icon.svg"
             alt="Auric AI"
-            className="chat-fab-logo"
+            className="al-chat-fab-logo"
           />
         )}
       </button>
 
       {/* Label pill */}
       {!open && (
-        <span className="chat-fab-label">Ask AI</span>
+        <span className="al-chat-fab-label">Ask AI</span>
       )}
 
       {/* Chat panel */}
       {open && (
         <div
           ref={panelRef}
-          className="chat-panel"
+          className="al-chat-panel"
           role="dialog"
           aria-label="Auric AI Chat"
         >
           {/* Header */}
-          <div className="chat-header">
-            <img src="/metal-price-icon.svg" alt="Auric AI" className="chat-header-logo" />
-            <div className="chat-header-info">
-              <span className="chat-header-title">Auric AI</span>
-              <span className="chat-header-status">
-                <span className="chat-header-dot" />
+          <div className="al-chat-header">
+            <img src="/metal-price-icon.svg" alt="Auric AI" className="al-chat-header-logo" />
+            <div className="al-chat-header-info">
+              <span className="al-chat-header-title">Auric AI</span>
+              <span className="al-chat-header-status">
+                <span className="al-chat-header-dot" />
                 Online
               </span>
             </div>
-            <button className="chat-close-btn" onClick={handleClose} aria-label="Close chat">
+            <button className="al-chat-close-btn" onClick={handleClose} aria-label="Close chat">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -244,7 +249,7 @@ export default function ChatWidget({ apiBase }) {
           </div>
 
           {/* Messages */}
-          <div className="chat-messages">
+          <div className="al-chat-messages">
             {messages.map((m, i) => {
               const isStreamingMsg = loading && i === messages.length - 1 && m.role === "bot";
               const isEmpty = !m.text;
@@ -253,21 +258,21 @@ export default function ChatWidget({ apiBase }) {
               if (isStreamingMsg && isEmpty) return null;
 
               return (
-                <div key={i} className={`chat-msg chat-msg--${m.role}`}>
+                <div key={i} className={`al-chat-msg al-chat-msg--${m.role}`}>
                   {m.role === "bot" && (
-                    <img src="/metal-price-icon.svg" alt="Bot" className="chat-avatar" />
+                    <img src="/metal-price-icon.svg" alt="Bot" className="al-chat-avatar" />
                   )}
-                  <div className={`chat-bubble${isStreamingMsg ? " chat-bubble--streaming" : ""}`}>
+                  <div className={`al-chat-bubble${isStreamingMsg ? " al-chat-bubble--streaming" : ""}`}>
                     {m.text}
-                    {isStreamingMsg && <span className="chat-cursor" />}
+                    {isStreamingMsg && <span className="al-chat-cursor" />}
                   </div>
                 </div>
               );
             })}
             {loading && messages[messages.length - 1]?.role === "bot" && !messages[messages.length - 1]?.text && (
-              <div className="chat-msg chat-msg--bot">
-                <img src="/metal-price-icon.svg" alt="Bot" className="chat-avatar" />
-                <div className="chat-bubble chat-bubble--typing">
+              <div className="al-chat-msg al-chat-msg--bot">
+                <img src="/metal-price-icon.svg" alt="Bot" className="al-chat-avatar" />
+                <div className="al-chat-bubble al-chat-bubble--typing">
                   <span /><span /><span />
                 </div>
               </div>
@@ -277,9 +282,9 @@ export default function ChatWidget({ apiBase }) {
 
           {/* Suggestions (only on welcome) */}
           {messages.length === 1 && !loading && (
-            <div className="chat-suggestions">
+            <div className="al-chat-suggestions">
               {SUGGESTIONS.map((s, i) => (
-                <button key={i} className="chat-chip" onClick={() => send(s)}>
+                <button key={i} className="al-chat-chip" onClick={() => send(s)}>
                   {s}
                 </button>
               ))}
@@ -287,10 +292,10 @@ export default function ChatWidget({ apiBase }) {
           )}
 
           {/* Input */}
-          <div className="chat-input-bar">
+          <div className="al-chat-input-bar">
             <input
               ref={inputRef}
-              className="chat-input"
+              className="al-chat-input"
               type="text"
               placeholder="Ask about metal prices..."
               value={input}
@@ -301,7 +306,7 @@ export default function ChatWidget({ apiBase }) {
               aria-label="Ask about metal prices"
             />
             <button
-              className="chat-send-btn"
+              className="al-chat-send-btn"
               onClick={() => send()}
               disabled={loading || !input.trim()}
               aria-label="Send message"

@@ -355,9 +355,10 @@ export default function Market() {
     try {
       setExportLoading(true);
       const { jsPDF } = await loadPdfLibs();
-      const rows = buildExportRows();
       const stats = weeklyStats;
+      const mStats = monthlyStats;
       const dateRange = { start: dayjs(weekly[0].date).format("DD MMM YYYY"), end: dayjs(weekly[weekly.length - 1].date).format("DD MMM YYYY") };
+      const metalLabel = `${formatMetalLabel({ metal_name: selectedMetal })}${isGold ? ` (${carat}K)` : ""}`;
 
       // Convert SVG to PNG for PDF
       let logoPngUrl = null;
@@ -379,53 +380,201 @@ export default function Market() {
       } catch {}
 
       const doc = new jsPDF({ unit: "pt", format: "a4" });
-      const bgColor = darkMode ? [26, 24, 32] : [250, 247, 241];
-      const textColor = darkMode ? [245, 241, 234] : [24, 24, 30];
-      const mutedColor = darkMode ? [169, 173, 184] : [90, 90, 96];
-      const accentColor = darkMode ? [212, 169, 84] : [197, 154, 60];
-      const tableHeadBg = darkMode ? [42, 107, 95] : [181, 134, 11];
-      const tableAltRowBg = darkMode ? [31, 28, 38] : [249, 247, 242];
-      const tableTextColor = darkMode ? [245, 241, 234] : [40, 40, 40];
+      const W = 595, H = 842;
 
-      doc.setFillColor(...bgColor); doc.rect(0, 0, 595, 842, "F");
-      if (logoPngUrl) { try { doc.addImage(logoPngUrl, "PNG", 32, 22, 36, 36); } catch {} }
-      doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(...textColor); doc.text("Auric Ledger", 75, 42);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(...mutedColor); doc.text("Precision metal pricing for modern markets", 75, 60);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(...textColor); doc.text("Auric Ledger Report", 40, 115);
-      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...mutedColor);
-      doc.text("https://auric-ledger.vercel.app/", 40, 130);
+      // Color palette
+      const gold = darkMode ? [212, 169, 84] : [197, 154, 60];
+      const goldLight = darkMode ? [212, 169, 84, 0.15] : [197, 154, 60, 0.1];
+      const bg = darkMode ? [22, 21, 28] : [255, 255, 255];
+      const headerBg = darkMode ? [30, 28, 36] : [248, 245, 238];
+      const ink = darkMode ? [245, 241, 234] : [24, 24, 30];
+      const muted = darkMode ? [160, 160, 175] : [100, 100, 110];
+      const green = [34, 197, 94];
+      const red = [239, 68, 68];
+      const tableHead = darkMode ? [42, 40, 52] : [45, 40, 35];
+      const tableAlt = darkMode ? [28, 26, 34] : [252, 250, 246];
+      const cardBg = darkMode ? [32, 30, 40] : [250, 248, 243];
+      const lineSep = darkMode ? [50, 48, 60] : [225, 220, 210];
 
-      let y = 150;
-      doc.setFontSize(11); doc.setTextColor(...textColor);
-      [`Metal: ${formatMetalLabel({ metal_name: selectedMetal })}${isGold ? ` (${carat}K)` : ""}`, `Unit: ${unit}`,
-        `Date Range: ${dateRange.start} to ${dateRange.end}`, `Last Updated: ${lastUpdated}`,
-        `Generated: ${dayjs().format("DD MMM YYYY, HH:mm")}`
-      ].forEach((line) => { doc.text(line, 40, y); y += 16; });
+      // ── Page background
+      doc.setFillColor(...bg);
+      doc.rect(0, 0, W, H, "F");
 
+      // ── Gold accent top bar
+      doc.setFillColor(...gold);
+      doc.rect(0, 0, W, 4, "F");
+
+      // ── Header section with subtle bg
+      doc.setFillColor(...headerBg);
+      doc.rect(0, 4, W, 82, "F");
+
+      // Logo & branding
+      if (logoPngUrl) { try { doc.addImage(logoPngUrl, "PNG", 36, 16, 40, 40); } catch {} }
+      doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(...ink);
+      doc.text("Auric Ledger", 84, 38);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...muted);
+      doc.text("Precision Metal Pricing for Modern Markets", 84, 52);
+
+      // Report type badge
+      doc.setFillColor(...gold);
+      doc.roundedRect(W - 182, 18, 142, 28, 4, 4, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(255, 255, 255);
+      doc.text("MARKET REPORT", W - 152, 36);
+
+      // Date info
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...muted);
+      doc.text(`Generated: ${dayjs().format("DD MMM YYYY, HH:mm IST")}`, W - 182, 60);
+      doc.text(`auric-ledger.vercel.app`, W - 182, 72);
+
+      // ── Separator
+      doc.setDrawColor(...lineSep);
+      doc.setLineWidth(0.5);
+      let y = 90;
+
+      // ── Report Info Section
+      y += 10;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...gold);
+      doc.text("Report Parameters", 36, y);
+      y += 20;
+
+      // Info cards row
+      const infoCards = [
+        { label: "Metal", value: metalLabel },
+        { label: "Unit", value: unit },
+        { label: "Period", value: `${dateRange.start} — ${dateRange.end}` },
+        { label: "Last Updated", value: lastUpdated || "N/A" },
+      ];
+
+      const cardW = (W - 72 - 24) / 4;
+      infoCards.forEach((card, i) => {
+        const x = 36 + i * (cardW + 8);
+        doc.setFillColor(...cardBg);
+        doc.roundedRect(x, y, cardW, 42, 4, 4, "F");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...muted);
+        doc.text(card.label, x + 10, y + 14);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...ink);
+        // Truncate long values
+        const truncated = card.value.length > 18 ? card.value.slice(0, 17) + "..." : card.value;
+        doc.text(truncated, x + 10, y + 30);
+      });
+      y += 56;
+
+      // ── Statistics Section
+      doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...gold);
+      doc.text("Price Statistics", 36, y);
+      y += 18;
+
+      // Stats cards with color coded values
+      const statBoxW = (W - 72 - 30) / 4;
+      const changeColor = unitComparison?.difference >= 0 ? green : red;
+      const changeSign = unitComparison?.difference >= 0 ? "+" : "";
+
+      const statCards = [
+        { label: "7-Day Low", value: formatNumberPlain(stats.min), color: red },
+        { label: "7-Day High", value: formatNumberPlain(stats.max), color: green },
+        { label: "7-Day Average", value: formatNumberPlain(stats.avg), color: gold },
+        { label: "24h Change", value: unitComparison ? `${changeSign}${formatNumberPlain(unitComparison.difference)} (${changeSign}${unitComparison.percentage_change.toFixed(2)}%)` : "N/A", color: changeColor },
+      ];
+
+      statCards.forEach((s, i) => {
+        const x = 36 + i * (statBoxW + 10);
+        doc.setFillColor(...cardBg);
+        doc.roundedRect(x, y, statBoxW, 52, 4, 4, "F");
+        // Left accent bar
+        doc.setFillColor(...s.color);
+        doc.roundedRect(x, y, 3, 52, 2, 2, "F");
+        doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...muted);
+        doc.text(s.label, x + 12, y + 16);
+        doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...s.color);
+        doc.text(s.value, x + 12, y + 36);
+      });
+      y += 66;
+
+      // Monthly stats if available
+      if (mStats && mStats.min != null) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...muted);
+        doc.text(`30-Day Range: ${formatNumberPlain(mStats.min)} — ${formatNumberPlain(mStats.max)}  |  Avg: ${formatNumberPlain(mStats.avg)}`, 36, y);
+        y += 16;
+      }
+
+      // ── Price Table
+      y += 6;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...gold);
+      doc.text("7-Day Price History", 36, y);
       y += 8;
-      doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...textColor); doc.text("7-Day Summary", 40, y); y += 18;
-      doc.setFont("helvetica", "normal"); doc.setFontSize(11);
-      [`Low: ${formatNumberPlain(stats.min)}`, `High: ${formatNumberPlain(stats.max)}`, `Average: ${formatNumberPlain(stats.avg)}`].forEach((l) => { doc.text(l, 40, y); y += 16; });
-      if (unitComparison) { doc.text(`Change vs Yesterday: ${formatNumberPlain(unitComparison.difference)} (${unitComparison.percentage_change.toFixed(2)}%)`, 40, y); y += 16; }
 
-      y += 8;
-      doc.autoTable({
-        startY: y,
-        head: [["Date", "Metal", "Unit", "Price (Rs.)"]],
-        body: weekly.map((e) => [dayjs(e.date).format("DD MMM YYYY"), `${formatMetalLabel({ metal_name: selectedMetal })}${isGold ? ` (${carat}K)` : ""}`, unit, formatNumberPlain(e[selectedPriceKey] || 0)]),
-        theme: "grid",
-        headStyles: { fillColor: tableHeadBg, textColor: [255, 255, 255], fontStyle: "bold", halign: "left", fontSize: 11 },
-        styles: { font: "helvetica", fontSize: 10, cellPadding: 8, textColor: tableTextColor, fillColor: bgColor, lineColor: 180 },
-        columnStyles: { 0: { halign: "left" }, 1: { halign: "left" }, 2: { halign: "center" }, 3: { halign: "right" } },
-        alternateRowStyles: { fillColor: tableAltRowBg },
-        margin: { left: 40, right: 40 },
+      // Build table with daily change column
+      const tableBody = weekly.map((e, idx) => {
+        const price = e[selectedPriceKey] || 0;
+        const prevPrice = idx > 0 ? (weekly[idx - 1][selectedPriceKey] || 0) : null;
+        const change = prevPrice != null ? price - prevPrice : null;
+        const changePct = prevPrice ? ((change / prevPrice) * 100).toFixed(2) : null;
+        return [
+          dayjs(e.date).format("DD MMM YYYY"),
+          metalLabel,
+          unit,
+          formatNumberPlain(price),
+          change != null ? `${change >= 0 ? "+" : ""}${formatNumberPlain(change)} (${change >= 0 ? "+" : ""}${changePct}%)` : "—",
+        ];
       });
 
-      doc.setFontSize(9); doc.setTextColor(...mutedColor);
-      doc.text("Auric Ledger", 40, 820);
-      doc.text(`Page 1 of ${doc.getNumberOfPages()}`, 520, 820);
+      doc.autoTable({
+        startY: y,
+        head: [["Date", "Metal", "Unit", "Price (₹)", "Daily Change"]],
+        body: tableBody,
+        theme: "grid",
+        headStyles: {
+          fillColor: tableHead,
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "left",
+          fontSize: 9,
+          cellPadding: 8,
+        },
+        styles: {
+          font: "helvetica",
+          fontSize: 9,
+          cellPadding: 7,
+          textColor: ink,
+          fillColor: bg,
+          lineColor: lineSep,
+          lineWidth: 0.3,
+        },
+        columnStyles: {
+          0: { halign: "left", cellWidth: 95 },
+          1: { halign: "left" },
+          2: { halign: "center", cellWidth: 50 },
+          3: { halign: "right", cellWidth: 100 },
+          4: { halign: "right", cellWidth: 120 },
+        },
+        alternateRowStyles: { fillColor: tableAlt },
+        margin: { left: 36, right: 36 },
+        didParseCell: function (data) {
+          if (data.section === "body" && data.column.index === 4 && data.cell.raw !== "—") {
+            const isUp = data.cell.raw.startsWith("+");
+            data.cell.styles.textColor = isUp ? green : red;
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
 
-      const filename = `metal-prices-${selectedMetal}-${unit}-${dayjs().format("YYYYMMDD")}.pdf`;
+      // ── Footer
+      const footerY = H - 30;
+      doc.setDrawColor(...lineSep);
+      doc.setLineWidth(0.5);
+      doc.line(36, footerY - 10, W - 36, footerY - 10);
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...muted);
+      doc.text("Auric Ledger — Precious Metal Price Intelligence", 36, footerY);
+      doc.text("Disclaimer: Prices are indicative. Not financial advice.", 36, footerY + 10);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Page 1 of ${doc.getNumberOfPages()}`, W - 90, footerY);
+
+      // ── Bottom gold accent bar
+      doc.setFillColor(...gold);
+      doc.rect(0, H - 4, W, 4, "F");
+
+      const filename = `auric-ledger-${selectedMetal}-${unit}-${dayjs().format("YYYYMMDD")}.pdf`;
       const pdfBlob = doc.output("blob");
       if (downloadLink?.url) URL.revokeObjectURL(downloadLink.url);
       const url = URL.createObjectURL(pdfBlob);
@@ -784,11 +933,45 @@ export default function Market() {
             <span className="al-market-tool-icon">&#8681;</span> Download CSV
           </button>
           <button className="al-market-tool-btn" onClick={handleExportPdf} disabled={exportLoading || !weekly.length}>
-            <span className="al-market-tool-icon">&#128196;</span> {exportLoading ? "Generating..." : "Download PDF"}
+            <span className="al-market-tool-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> {exportLoading ? "Generating..." : "Download PDF"}
           </button>
           {downloadLink && (
-            <div className="al-market-download-fallback">
-              <a href={downloadLink.url} download={downloadLink.filename}>Download {downloadLink.label}</a>
+            <div className="al-market-download-actions">
+              <a href={downloadLink.url} download={downloadLink.filename} className="al-market-tool-btn primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download {downloadLink.label}
+              </a>
+              {navigator.share && (
+                <button
+                  className="al-market-tool-btn"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(downloadLink.url);
+                      const blob = await res.blob();
+                      const file = new File([blob], downloadLink.filename, { type: blob.type });
+                      await navigator.share({ title: `Auric Ledger - ${downloadLink.label} Report`, files: [file] });
+                    } catch (err) {
+                      if (err.name !== "AbortError") showToast("Sharing not supported on this device");
+                    }
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  Share {downloadLink.label}
+                </button>
+              )}
+              {!navigator.share && (
+                <button
+                  className="al-market-tool-btn"
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = downloadLink.url; a.download = downloadLink.filename; a.click();
+                    showToast("Download started");
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy Link
+                </button>
+              )}
             </div>
           )}
         </section>

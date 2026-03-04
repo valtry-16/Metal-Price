@@ -105,6 +105,7 @@ export default function Home() {
                   <div key={m.metal_name} className="al-price-card">
                     <span className="al-price-card__name">
                       {metalLabelMap[m.metal_name] || m.metal_name}
+                      {m.metal_name === "XAU" && <span className="al-price-card__purity"> 22K</span>}
                     </span>
                     <span className="al-price-card__price">
                       {m.price_1g ? formatMoney(m.price_1g) : "—"}

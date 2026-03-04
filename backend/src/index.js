@@ -805,11 +805,11 @@ app.post("/fetch-news", authLimiter, async (req, res) => {
     console.log(`[${timestamp}] Starting daily news fetch...`);
     console.log(`${"=".repeat(60)}`);
 
-    // Fetch news from NewsAPI (max 100 per page on free plan)
+    // Fetch news from NewsAPI — India-focused gold, precious metals & crypto
     const fromDate = dayjs().subtract(7, "day").format("YYYY-MM-DD");
     const response = await axios.get("https://newsapi.org/v2/everything", {
       params: {
-        q: '"precious metals" OR gold OR silver OR platinum OR palladium',
+        q: '(gold OR silver OR "precious metals" OR platinum OR palladium OR crypto OR bitcoin) AND (India OR MCX OR INR OR rupee OR Mumbai OR "Indian market")',
         searchIn: "title,description",
         language: "en",
         sortBy: "publishedAt",
@@ -1050,6 +1050,10 @@ app.get("/get-latest-price", async (req, res) => {
         const existing = metalMap[row.metal_name];
         // Prefer non-carat row, or first seen row
         if (!existing || (existing.carat && !row.carat)) {
+          metalMap[row.metal_name] = row;
+        }
+        // For gold, prefer 22K carat as the display price
+        if (existing && isGold(row.metal_name) && row.carat === "22") {
           metalMap[row.metal_name] = row;
         }
       }
@@ -3172,6 +3176,65 @@ app.get("/api/portfolio/prices", portfolioLimiter, async (req, res) => {
     res.json({ status: "success", prices, date: latestDate });
   } catch (error) {
     console.error("Portfolio prices error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// GET /api/prices-on-date — Get prices for a specific date (for calculator historical mode)
+app.get("/api/prices-on-date", portfolioLimiter, async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ status: "error", message: "Valid date (YYYY-MM-DD) required" });
+    }
+
+    // Find closest date on or before the requested date
+    const { data: closest, error: dateErr } = await supabase
+      .from("metal_prices")
+      .select("date")
+      .lte("date", date)
+      .order("date", { ascending: false })
+      .limit(1);
+    if (dateErr) throw dateErr;
+
+    const targetDate = closest?.[0]?.date;
+    if (!targetDate) {
+      return res.json({ status: "success", prices: {}, date: null, message: "No data available for this date" });
+    }
+
+    const { data: rows, error } = await supabase
+      .from("metal_prices")
+      .select("*")
+      .eq("date", targetDate);
+    if (error) throw error;
+
+    const prices = {};
+    (rows || []).forEach(row => {
+      const key = row.carat ? `${row.metal_name}_${row.carat}K` : row.metal_name;
+      prices[key] = row.price_1g;
+    });
+
+    res.json({ status: "success", prices, date: targetDate });
+  } catch (error) {
+    console.error("Prices on date error:", error.message);
+    res.status(500).json({ status: "error", message: error.message });
+  }
+});
+
+// GET /api/available-dates — Get list of dates with price data
+app.get("/api/available-dates", portfolioLimiter, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("metal_prices")
+      .select("date")
+      .order("date", { ascending: false })
+      .limit(90);
+    if (error) throw error;
+
+    const dates = [...new Set((data || []).map(r => r.date))];
+    res.json({ status: "success", dates });
+  } catch (error) {
+    console.error("Available dates error:", error.message);
     res.status(500).json({ status: "error", message: error.message });
   }
 });

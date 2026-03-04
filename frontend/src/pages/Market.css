@@ -533,6 +533,23 @@
   text-decoration: underline;
 }
 
+.al-market-download-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.al-market-download-actions .al-market-tool-btn {
+  font-size: 13px;
+  padding: 8px 16px;
+}
+
+.al-market-download-actions .al-market-tool-btn svg {
+  flex-shrink: 0;
+}
+
 /* ─── Market Insight (AI Summary) ──────────────────────────────── */
 .al-market-insight {
   background: var(--panel);

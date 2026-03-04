@@ -1,22 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Tooltip,
-  Legend,
-  Filler,
-} from "chart.js";
-import { Line, Bar } from "react-chartjs-2";
+import Chart from "react-apexcharts";
 import dayjs from "dayjs";
 import { PROD_API_URL, metalLabelMap, metalThemes } from "../utils/constants";
 import { formatMoney, getMetalTheme } from "../utils/helpers";
 import { cachedFetch } from "../lib/apiCache";
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
+import { useTheme } from "../contexts/ThemeContext";
 
 const COMPARE_METALS = ["XAU", "XAG", "XPT", "XPD", "XCU", "NI", "ZNC", "ALU", "LEAD"];
 
@@ -196,125 +184,81 @@ export default function Compare() {
 
   // ─── Chart data ────────────────────────────────────────────────
 
-  const chartFont = { family: '"Inter", "Segoe UI", system-ui, sans-serif' };
+  const { darkMode } = useTheme();
   const themeA = getMetalTheme(metalA);
   const themeB = getMetalTheme(metalB);
 
-  const lineChartData = useMemo(() => {
+  const chartLabels = useMemo(() => {
     const allDates = [...new Set([...historyA, ...historyB].map((p) => p.date))].sort();
-    const labels = allDates.map((d) => dayjs(d).format("DD MMM"));
+    return allDates.map((d) => dayjs(d).format("DD MMM"));
+  }, [historyA, historyB]);
 
-    const mapDataRaw = (history) => {
-      const byDate = {};
-      history.forEach((p) => (byDate[p.date] = p[priceKeyForUnit] ?? p.price_1g));
-      return allDates.map((d) => byDate[d] ?? null);
-    };
+  const chartDatesAll = useMemo(() =>
+    [...new Set([...historyA, ...historyB].map((p) => p.date))].sort()
+  , [historyA, historyB]);
 
-    let dataA = mapDataRaw(historyA);
-    let dataB = mapDataRaw(historyB);
+  const mapDataRaw = useCallback((history, dates) => {
+    const byDate = {};
+    history.forEach((p) => (byDate[p.date] = p[priceKeyForUnit] ?? p.price_1g));
+    return dates.map((d) => byDate[d] ?? null);
+  }, [priceKeyForUnit]);
 
+  const lineSeriesA = useMemo(() => mapDataRaw(historyA, chartDatesAll), [historyA, chartDatesAll, mapDataRaw]);
+  const lineSeriesB = useMemo(() => mapDataRaw(historyB, chartDatesAll), [historyB, chartDatesAll, mapDataRaw]);
+
+  const apexLineSeries = useMemo(() => {
+    let dataA = lineSeriesA;
+    let dataB = lineSeriesB;
     if (chartMode === "normalized") {
       dataA = normalizeToPercent(dataA);
       dataB = normalizeToPercent(dataB);
     }
+    return [
+      { name: metalLabelMap[metalA] || metalA, data: dataA },
+      { name: metalLabelMap[metalB] || metalB, data: dataB },
+    ];
+  }, [lineSeriesA, lineSeriesB, chartMode, metalA, metalB]);
 
+  const apexLineOptions = useMemo(() => {
+    const allVals = [...(chartMode === "normalized" ? normalizeToPercent(lineSeriesA) : lineSeriesA), ...(chartMode === "normalized" ? normalizeToPercent(lineSeriesB) : lineSeriesB)].filter(Number.isFinite);
+    const mn = allVals.length ? Math.min(...allVals) : 0;
+    const mx = allVals.length ? Math.max(...allVals) : 1;
+    const pad = Math.max((mx - mn) * 0.12, 1);
     return {
-      labels,
-      datasets: [
-        {
-          label: metalLabelMap[metalA] || metalA,
-          data: dataA,
-          borderColor: themeA.primary,
-          backgroundColor: themeA.light,
-          tension: 0.3,
-          fill: chartMode === "absolute",
-          pointRadius: 3,
-          borderWidth: 2,
-        },
-        {
-          label: metalLabelMap[metalB] || metalB,
-          data: dataB,
-          borderColor: themeB.primary,
-          backgroundColor: themeB.light,
-          tension: 0.3,
-          fill: chartMode === "absolute",
-          pointRadius: 3,
-          borderWidth: 2,
-        },
-      ],
+      chart: { type: "area", height: 340, toolbar: { show: false }, fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif', zoom: { enabled: false }, animations: { enabled: true, easing: "easeinout", speed: 600 } },
+      colors: [themeA.primary, themeB.primary],
+      fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 100] } },
+      stroke: { curve: "smooth", width: 3 },
+      markers: { size: 4, strokeColors: darkMode ? "#1c1a24" : "#ffffff", strokeWidth: 2 },
+      xaxis: { categories: chartLabels, labels: { style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" } }, axisBorder: { show: false }, axisTicks: { show: false } },
+      yaxis: {
+        min: chartMode === "normalized" ? undefined : Math.max(0, mn - pad),
+        max: chartMode === "normalized" ? undefined : mx + pad,
+        labels: { formatter: (v) => chartMode === "normalized" ? `${v?.toFixed(1)}%` : formatMoney(v), style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" } },
+      },
+      grid: { borderColor: darkMode ? "#2e2b38" : "rgba(200,200,200,0.2)", strokeDashArray: 4 },
+      tooltip: { theme: darkMode ? "dark" : "light", y: { formatter: (v) => chartMode === "normalized" ? `${v?.toFixed(2)}%` : formatMoney(v) } },
+      legend: { position: "top", labels: { colors: darkMode ? "#e0dcd4" : "#333" } },
+      dataLabels: { enabled: false },
     };
-  }, [historyA, historyB, metalA, metalB, chartMode, priceKeyForUnit, themeA, themeB]);
+  }, [chartLabels, darkMode, themeA, themeB, lineSeriesA, lineSeriesB, chartMode]);
 
-  const barChartData = useMemo(() => {
-    const metrics = ["Current Price", "Period High", "Period Low", "Period Average"];
-    const valsA = [statsA.current, statsA.high, statsA.low, statsA.average];
-    const valsB = [statsB.current, statsB.high, statsB.low, statsB.average];
-    return {
-      labels: metrics,
-      datasets: [
-        {
-          label: metalLabelMap[metalA] || metalA,
-          data: valsA,
-          backgroundColor: themeA.primary + "CC",
-          borderColor: themeA.primary,
-          borderWidth: 1,
-          borderRadius: 6,
-        },
-        {
-          label: metalLabelMap[metalB] || metalB,
-          data: valsB,
-          backgroundColor: themeB.primary + "CC",
-          borderColor: themeB.primary,
-          borderWidth: 1,
-          borderRadius: 6,
-        },
-      ],
-    };
-  }, [statsA, statsB, metalA, metalB, themeA, themeB]);
+  const apexBarSeries = useMemo(() => [
+    { name: metalLabelMap[metalA] || metalA, data: [statsA.current, statsA.high, statsA.low, statsA.average] },
+    { name: metalLabelMap[metalB] || metalB, data: [statsB.current, statsB.high, statsB.low, statsB.average] },
+  ], [statsA, statsB, metalA, metalB]);
 
-  const lineChartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: "index", intersect: false },
-    plugins: {
-      legend: { display: true, position: "top", labels: { usePointStyle: true, padding: 16, font: chartFont } },
-      tooltip: {
-        callbacks: {
-          label: (ctx) =>
-            chartMode === "normalized"
-              ? `${ctx.dataset.label}: ${ctx.raw?.toFixed(2)}%`
-              : `${ctx.dataset.label}: ${formatMoney(ctx.raw)}`,
-        },
-      },
-    },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: "var(--muted)", font: chartFont } },
-      y: {
-        grid: { color: "rgba(200,200,200,0.12)" },
-        ticks: {
-          color: "var(--muted)",
-          font: chartFont,
-          callback: (v) => (chartMode === "normalized" ? `${v.toFixed(1)}%` : formatMoney(v)),
-        },
-      },
-    },
-  }), [chartMode]);
-
-  const barChartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: true, position: "top", labels: { usePointStyle: true, padding: 16, font: chartFont } },
-      tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatMoney(ctx.raw)}` } },
-    },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: "var(--muted)", font: chartFont } },
-      y: {
-        grid: { color: "rgba(200,200,200,0.12)" },
-        ticks: { color: "var(--muted)", font: chartFont, callback: (v) => formatMoney(v) },
-      },
-    },
-  }), []);
+  const apexBarOptions = useMemo(() => ({
+    chart: { type: "bar", height: 340, toolbar: { show: false }, fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif' },
+    colors: [themeA.primary, themeB.primary],
+    plotOptions: { bar: { borderRadius: 6, columnWidth: "55%", dataLabels: { position: "top" } } },
+    xaxis: { categories: ["Current Price", "Period High", "Period Low", "Period Average"], labels: { style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" } } },
+    yaxis: { labels: { formatter: (v) => formatMoney(v), style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" } } },
+    grid: { borderColor: darkMode ? "#2e2b38" : "rgba(200,200,200,0.2)", strokeDashArray: 4 },
+    tooltip: { theme: darkMode ? "dark" : "light", y: { formatter: (v) => formatMoney(v) } },
+    legend: { position: "top", labels: { colors: darkMode ? "#e0dcd4" : "#333" } },
+    dataLabels: { enabled: false },
+  }), [themeA, themeB, darkMode]);
 
   // ─── Render helpers ────────────────────────────────────────────
 
@@ -539,9 +483,9 @@ export default function Compare() {
             </div>
             <div className="al-compare__chart">
               {chartMode === "bar" ? (
-                <Bar data={barChartData} options={barChartOptions} />
+                <Chart options={apexBarOptions} series={apexBarSeries} type="bar" height={340} />
               ) : (
-                <Line data={lineChartData} options={lineChartOptions} />
+                <Chart options={apexLineOptions} series={apexLineSeries} type="area" height={340} />
               )}
             </div>
           </div>

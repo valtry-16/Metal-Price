@@ -75,7 +75,10 @@ export default function News() {
               <div className="al-news__prices-list">
                 {prices.map((m) => (
                   <div key={m.metal_name} className="al-news__price-row">
-                    <span className="al-news__price-name">{metalLabelMap[m.metal_name] || m.metal_name}</span>
+                    <span className="al-news__price-name">
+                      {metalLabelMap[m.metal_name] || m.metal_name}
+                      {m.metal_name === "XAU" && <span className="al-news__price-purity"> 22K</span>}
+                    </span>
                     <span className="al-news__price-val">
                       {m.price_1g ? formatMoney(m.price_1g) : "—"}
                       <span className="al-news__price-unit">/g</span>

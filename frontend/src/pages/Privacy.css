@@ -112,6 +112,26 @@
   color: var(--accent);
 }
 
+/* ─── Contact Card ─────────────────────────────────────────── */
+.al-privacy__contact-card {
+  background: rgba(197, 154, 60, 0.04);
+  border: 1px solid rgba(197, 154, 60, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 20px 24px;
+  margin-top: 12px;
+}
+
+.al-privacy__contact-card p {
+  margin: 4px 0;
+}
+
+.al-privacy__response-note {
+  font-size: 13px !important;
+  color: var(--muted) !important;
+  margin-top: 8px !important;
+  font-style: italic;
+}
+
 /* ─── Responsive ───────────────────────────────────────────── */
 @media (max-width: 600px) {
   .al-privacy {

@@ -1,11 +1,18 @@
-import { useState, lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useState, lazy, Suspense, useEffect } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { PROD_API_URL } from "./utils/constants";
+
+/** Scrolls to top on every route change */
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 
 // Lazy-load pages for code splitting
 const Home = lazy(() => import("./pages/Home"));
@@ -39,6 +46,7 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
+          <ScrollToTop />
           <div className="al-app">
             <Navbar onOpenAuth={() => setShowAuth(true)} />
 
