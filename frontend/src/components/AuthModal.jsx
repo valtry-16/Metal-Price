@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { PROD_API_URL } from "../utils/constants";
 
 export default function AuthModal({ onClose }) {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
@@ -42,6 +43,15 @@ export default function AuthModal({ onClose }) {
     if (result.error) {
       setError(result.error.message);
     } else if (mode === "signup") {
+      // Auto-subscribe to email updates on signup
+      try {
+        await fetch(`${PROD_API_URL}/subscribe-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, username: username.trim() }),
+        });
+      } catch (_) { /* non-critical */ }
+
       // When email confirmation is disabled, Supabase returns a session directly
       if (result.data?.session) {
         onClose();
