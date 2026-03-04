@@ -2079,7 +2079,7 @@ Write a comprehensive daily market summary for **Auric Ledger** using ONLY the e
 - Keep paragraphs readable — no walls of text
 - Do NOT add external information, news, or predictions not supported by the data`;
 
-    // ── Step 6: Call Groq (primary) with HF Space fallback ──
+    // ── Step 6: Call Groq + HF Space in parallel, prefer Groq response ──
     const systemMessage = "You are the senior market analyst at Auric Ledger, India's premium precious metals intelligence platform. You write authoritative, detailed daily market summaries for Indian investors, jewellers, and metal traders. Your tone is professional yet accessible — like a Bloomberg brief tailored for the Indian metals market. You ONLY use pre-computed price data provided to you. You never fabricate numbers, never use USD, and always reference Gold 22K as the primary benchmark since it is the standard jewellery purity in India. All prices are in Indian Rupees (₹). You use markdown formatting (bold, headers) for readability.";
 
     const chatMessages = [
@@ -2087,13 +2087,11 @@ Write a comprehensive daily market summary for **Auric Ledger** using ONLY the e
       { role: "user", content: summaryPrompt },
     ];
 
-    let summary = null;
+    // Fire both requests simultaneously
+    console.log("📡 Sending summary prompt to Groq + HF Space in parallel...");
 
-    // ── Primary: Groq API ──
-    if (GROQ_API_KEY) {
-      try {
-        console.log("📡 Calling Groq llama-3.3-70b-versatile...");
-        const groqResponse = await axios.post(
+    const groqPromise = GROQ_API_KEY
+      ? axios.post(
           "https://api.groq.com/openai/v1/chat/completions",
           {
             model: "llama-3.3-70b-versatile",
@@ -2108,46 +2106,49 @@ Write a comprehensive daily market summary for **Auric Ledger** using ONLY the e
             },
             timeout: 60000,
           }
-        );
-        summary = groqResponse.data?.choices?.[0]?.message?.content;
-        if (summary) {
-          console.log("✅ Summary received from Groq");
-        }
-      } catch (groqErr) {
-        console.warn("⚠️ Groq failed:", groqErr.response?.status || groqErr.message, "— falling back to HF Space");
+        ).then((res) => {
+          const text = res.data?.choices?.[0]?.message?.content;
+          console.log(text ? "✅ Groq response received" : "⚠️ Groq returned empty");
+          return text || null;
+        }).catch((err) => {
+          console.warn("⚠️ Groq failed:", err.response?.status || err.message);
+          return null;
+        })
+      : Promise.resolve(null);
+
+    const hfPromise = axios.post(
+      "https://valtry-auric-bot.hf.space/v1/chat/completions",
+      {
+        model: "auric-ai",
+        messages: chatMessages,
+        temperature: 0.35,
+        max_tokens: 2048,
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 120000,
       }
-    } else {
-      console.warn("⚠️ GROQ_API_KEY not set — skipping to HF Space fallback");
+    ).then((res) => {
+      const text = res.data?.choices?.[0]?.message?.content;
+      console.log(text ? "✅ HF Space response received" : "⚠️ HF Space returned empty");
+      return text || null;
+    }).catch((err) => {
+      console.warn("⚠️ HF Space failed:", err.response?.status || err.message);
+      return null;
+    });
+
+    const [groqSummary, hfSummary] = await Promise.all([groqPromise, hfPromise]);
+
+    // Prefer Groq, fall back to HF
+    const summary = groqSummary || hfSummary;
+    if (groqSummary) {
+      console.log("📝 Using Groq summary");
+    } else if (hfSummary) {
+      console.log("📝 Using HF Space summary (Groq unavailable)");
     }
 
-    // ── Fallback: HuggingFace Space ──
     if (!summary) {
-      try {
-        console.log("📡 Calling HF Space fallback...");
-        const hfResponse = await axios.post(
-          "https://valtry-auric-bot.hf.space/v1/chat/completions",
-          {
-            model: "auric-ai",
-            messages: chatMessages,
-            temperature: 0.35,
-            max_tokens: 2048,
-          },
-          {
-            headers: { "Content-Type": "application/json" },
-            timeout: 120000,
-          }
-        );
-        summary = hfResponse.data?.choices?.[0]?.message?.content;
-        if (summary) {
-          console.log("✅ Summary received from HF Space fallback");
-        }
-      } catch (hfErr) {
-        console.error("❌ HF Space fallback also failed:", hfErr.response?.status || hfErr.message);
-      }
-    }
-
-    if (!summary) {
-      console.error("❌ All summary providers failed. No summary generated.");
+      console.error("❌ Both Groq and HF Space failed. No summary generated.");
       return;
     }
 
