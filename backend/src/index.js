@@ -1362,7 +1362,7 @@ const sendWelcomeEmail = async (email, priceData) => {
                   <p style="margin: 0 0 10px 0; color: #ecf0f1; font-size: 14px;">
                     Manage your subscription preferences anytime in the app
                   </p>
-                  <a href="https://auric-ledger.vercel.app" style="display: inline-block; padding: 12px 30px; background-color: #d4af37; color: #2c3e50; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px; margin-top: 10px;">
+                  <a href="https://auric--ledger.vercel.app" style="display: inline-block; padding: 12px 30px; background-color: #d4af37; color: #2c3e50; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px; margin-top: 10px;">
                     Visit Auric Ledger
                   </a>
                   <p style="margin: 20px 0 0 0; color: #95a5a6; font-size: 12px;">
@@ -1520,7 +1520,7 @@ app.post("/trigger-price-alert", async (req, res) => {
                         <p style="margin: 0 0 10px 0; color: #ecf0f1; font-size: 14px;">
                           View detailed charts and manage your alerts
                         </p>
-                        <a href="https://auric-ledger.vercel.app" style="display: inline-block; padding: 12px 30px; background-color: #d4af37; color: #2c3e50; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px; margin-top: 10px;">
+                        <a href="https://auric--ledger.vercel.app" style="display: inline-block; padding: 12px 30px; background-color: #d4af37; color: #2c3e50; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px; margin-top: 10px;">
                           Open Auric Ledger
                         </a>
                         <p style="margin: 20px 0 0 0; color: #95a5a6; font-size: 12px;">
@@ -1730,7 +1730,7 @@ const sendDailyPriceEmails = async (priceData) => {
                     <p style="margin: 0 0 10px 0; color: #ecf0f1; font-size: 14px;">
                       Manage your subscription preferences anytime in the app
                     </p>
-                    <a href="https://auric-ledger.vercel.app" style="display: inline-block; padding: 12px 30px; background-color: #d4af37; color: #2c3e50; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px; margin-top: 10px;">
+                    <a href="https://auric--ledger.vercel.app" style="display: inline-block; padding: 12px 30px; background-color: #d4af37; color: #2c3e50; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 14px; margin-top: 10px;">
                       Visit Auric Ledger
                     </a>
                     <p style="margin: 20px 0 0 0; color: #95a5a6; font-size: 12px;">

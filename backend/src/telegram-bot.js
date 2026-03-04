@@ -615,7 +615,7 @@ if (bot) {
 
       // /download command - guide users to download PDF reports
       if (command === '/download') {
-        const downloadMessage = `<b>PDF Price Reports</b>\nDetailed market analysis\n\n━━━\n\n<b>Available Downloads</b>\n\n• Weekly Reports - 7 days history\n• Monthly Reports - Full month data\n• Trend Analysis - Charts & stats\n\n━━━\n\n<b>How to Download</b>\n\n• Visit <a href="https://auric-ledger.vercel.app">Auric Ledger</a>\n• Select a metal from dropdown\n• Click Download PDF button\n\n━━━\n\n<b>Available Metals</b>\n\nGold • Silver • Platinum • Palladium\nCopper • Lead • Nickel • Zinc • Aluminium\n\n━━━\n\n<b>Report Contents</b>\n\n• Price summaries\n• 7-day trend analysis\n• Detailed price tables`;
+        const downloadMessage = `<b>PDF Price Reports</b>\nDetailed market analysis\n\n━━━\n\n<b>Available Downloads</b>\n\n• Weekly Reports - 7 days history\n• Monthly Reports - Full month data\n• Trend Analysis - Charts & stats\n\n━━━\n\n<b>How to Download</b>\n\n• Visit <a href="https://auric--ledger.vercel.app">Auric Ledger</a>\n• Select a metal from dropdown\n• Click Download PDF button\n\n━━━\n\n<b>Available Metals</b>\n\nGold • Silver • Platinum • Palladium\nCopper • Lead • Nickel • Zinc • Aluminium\n\n━━━\n\n<b>Report Contents</b>\n\n• Price summaries\n• 7-day trend analysis\n• Detailed price tables`;
         
         await bot.sendMessage(chatId, downloadMessage, { parse_mode: "HTML" });
         return;
@@ -906,7 +906,7 @@ const formatDailyPricesWithChanges = (todayPrices, yesterdayPrices) => {
     message += `<b>${name}</b>\n• ${formattedPrice}\n${changeText}\n\n`;
   });
 
-  message += `━━━\n\n<b>Last Updated</b>\n${timeStr} IST\n\n━━━\n\n<b>View Details</b>\n<a href="https://auric-ledger.vercel.app">Auric Ledger</a> - Charts & Alerts`;
+  message += `━━━\n\n<b>Last Updated</b>\n${timeStr} IST\n\n━━━\n\n<b>View Details</b>\n<a href="https://auric--ledger.vercel.app">Auric Ledger</a> - Charts & Alerts`;
   
   return message;
 };
