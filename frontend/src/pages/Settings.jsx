@@ -24,7 +24,6 @@ export default function Settings() {
   const [defaultCarat, setDefaultCarat] = useState("22");
   const [defaultUnit, setDefaultUnit] = useState("1g");
   const [numberFormat, setNumberFormat] = useState("indian");
-  const [autoRefresh, setAutoRefresh] = useState("60");
   const [showPurityBadge, setShowPurityBadge] = useState(true);
   const [compactNumbers, setCompactNumbers] = useState(false);
   const [prefSaved, setPrefSaved] = useState(false);
@@ -41,7 +40,6 @@ export default function Settings() {
     setDefaultCarat(localStorage.getItem("auric-carat") || "22");
     setDefaultUnit(localStorage.getItem("auric-unit") || "1g");
     setNumberFormat(localStorage.getItem("auric-numfmt") || "indian");
-    setAutoRefresh(localStorage.getItem("auric-refresh") || "60");
     setShowPurityBadge(localStorage.getItem("auric-purity-badge") !== "false");
     setCompactNumbers(localStorage.getItem("auric-compact-num") === "true");
   }, [user]);
@@ -118,13 +116,12 @@ export default function Settings() {
   };
 
   const handleResetPreferences = () => {
-    const prefKeys = ["auric-metal", "auric-carat", "auric-unit", "auric-numfmt", "auric-refresh", "auric-purity-badge", "auric-compact-num"];
+    const prefKeys = ["auric-metal", "auric-carat", "auric-unit", "auric-numfmt", "auric-purity-badge", "auric-compact-num"];
     prefKeys.forEach((k) => localStorage.removeItem(k));
     setDefaultMetal("XAU");
     setDefaultCarat("22");
     setDefaultUnit("1g");
     setNumberFormat("indian");
-    setAutoRefresh("60");
     setShowPurityBadge(true);
     setCompactNumbers(false);
     setPrefSaved(true);
@@ -324,19 +321,7 @@ export default function Settings() {
               <option value="international">International (123,456.78)</option>
             </select>
           </div>
-          <div className="al-settings__field" style={{ marginTop: 10 }}>
-            <label className="al-settings__label">Auto-refresh interval</label>
-            <select
-              className="al-input"
-              value={autoRefresh}
-              onChange={(e) => { setAutoRefresh(e.target.value); savePref("auric-refresh", e.target.value); }}
-            >
-              <option value="30">Every 30 seconds</option>
-              <option value="60">Every 1 minute</option>
-              <option value="300">Every 5 minutes</option>
-              <option value="0">Manual only</option>
-            </select>
-          </div>
+          <p className="al-settings__desc" style={{ marginTop: 10, fontSize: 12 }}>Prices are updated daily at 9:00 AM IST via our market data provider.</p>
         </div>
 
         {/* Email Subscription */}

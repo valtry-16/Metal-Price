@@ -53,7 +53,6 @@ export default function Market() {
 
   // ─── User preferences ──────────────────────────────────────
   const [showPurityBadge, setShowPurityBadge] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // ─── Alert system ───────────────────────────────────────────
   const [alerts, setAlerts] = useState([]);
@@ -718,32 +717,6 @@ export default function Market() {
   useEffect(() => {
     setShowPurityBadge(localStorage.getItem("auric-purity-badge") !== "false");
   }, []);
-
-  // Auto-refresh interval
-  useEffect(() => {
-    const interval = parseInt(localStorage.getItem("auric-refresh") || "60", 10);
-    if (!interval || !selectedMetal) return;
-    const id = setInterval(() => setRefreshKey((k) => k + 1), interval * 1000);
-    return () => clearInterval(id);
-  }, [selectedMetal]);
-
-  useEffect(() => {
-    if (refreshKey === 0 || !selectedMetal) return;
-    (async () => {
-      try {
-        const caratParam = isGold ? `&carat=${carat}` : "";
-        const monthParam = selectedMonth ? `&month=${selectedMonth}` : "";
-        const res = await fetch(`${apiBase}/market-data?metal=${encodeURIComponent(selectedMetal)}${caratParam}${monthParam}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setLatest(data.latest || null);
-        setComparison(data.comparison || null);
-        setWeekly(data.weekly || []);
-        setMonthly(data.monthly || []);
-        if (data.latest?.price_1g) checkAlerts(selectedMetal, data.latest.price_1g);
-      } catch {}
-    })();
-  }, [refreshKey]);
 
   // Cleanup blob URLs
   useEffect(() => {
