@@ -1,18 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Tooltip,
-  Legend,
-  Filler,
-} from "chart.js";
-import { Line } from "react-chartjs-2";
+import Chart from "react-apexcharts";
 import { useAuth } from "./contexts/AuthContext";
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler);
+import { useTheme } from "./contexts/ThemeContext";
 
 const METALS = [
   { symbol: "XAU", name: "Gold", carats: ["24", "22", "18"] },
@@ -33,6 +22,7 @@ const fmt = (n) =>
 
 export default function PortfolioSimulator({ apiBase, onClose, embedded = false }) {
   const { user } = useAuth();
+  const { darkMode } = useTheme();
   const userId = user?.id;
 
   const [balance, setBalance] = useState(1000000);
@@ -266,44 +256,64 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
     return { pricePerGram: price, total: parseFloat((price * weight).toFixed(2)) };
   }, [buyWeight, buyMetal, buyCarat, isGold, livePrices]);
 
-  // Chart data
-  const chartData = {
-    labels: snapshots.map((s) => s.time),
-    datasets: [
-      {
-        label: "Portfolio Value (\u20B9)",
-        data: snapshots.map((s) => s.value),
-        borderColor: "#c59a3c",
-        backgroundColor: "rgba(197, 154, 60, 0.1)",
-        fill: true,
-        tension: 0.3,
-        pointRadius: 3,
-        pointBackgroundColor: "#c59a3c",
+  // Chart data (ApexCharts)
+  const apexSeries = [{
+    name: "Portfolio Value (\u20B9)",
+    data: snapshots.map((s) => s.value),
+  }];
+
+  const apexOptions = useMemo(() => {
+    const values = snapshots.map((s) => s.value).filter(Number.isFinite);
+    const min = values.length ? Math.min(...values) : 0;
+    const max = values.length ? Math.max(...values) : 0;
+    const padding = Math.max((max - min) * 0.12, 1);
+
+    return {
+      chart: {
+        type: "area",
+        height: 280,
+        toolbar: { show: false },
+        fontFamily: '"Inter", "Segoe UI", system-ui, sans-serif',
+        zoom: { enabled: false },
+        animations: { enabled: true, easing: "easeinout", speed: 600 },
       },
-    ],
-  };
-
-  const chartFont = { family: '"Inter", "Segoe UI", system-ui, sans-serif' };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx) => fmt(ctx.raw),
+      colors: ["#c59a3c"],
+      fill: {
+        type: "gradient",
+        gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 100] },
+      },
+      stroke: { curve: "smooth", width: 3 },
+      markers: {
+        size: 4,
+        colors: ["#c59a3c"],
+        strokeColors: darkMode ? "#1c1a24" : "#ffffff",
+        strokeWidth: 2,
+      },
+      xaxis: {
+        categories: snapshots.map((s) => s.time),
+        labels: { style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" } },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+      },
+      yaxis: {
+        min: Math.max(0, min - padding),
+        max: max + padding,
+        labels: {
+          formatter: (v) => `\u20B9${(v / 1000).toFixed(0)}K`,
+          style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" },
         },
       },
-    },
-    scales: {
-      x: { grid: { display: false }, ticks: { color: "#5d6b7a", maxTicksLimit: 8, font: chartFont } },
-      y: {
-        grid: { color: "rgba(93,107,122,0.15)" },
-        ticks: { color: "#5d6b7a", callback: (v) => `\u20B9${(v / 1000).toFixed(0)}K`, font: chartFont },
+      grid: {
+        borderColor: darkMode ? "#2e2b38" : "rgba(200,200,200,0.2)",
+        strokeDashArray: 4,
       },
-    },
-  };
+      tooltip: {
+        theme: darkMode ? "dark" : "light",
+        y: { formatter: (val) => fmt(val) },
+      },
+      dataLabels: { enabled: false },
+    };
+  }, [snapshots, darkMode]);
 
   // Auto-clear messages
   useEffect(() => {
@@ -519,7 +529,7 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
               <div className="portfolio-empty">Make some trades to see performance chart.</div>
             ) : (
               <div className="portfolio-chart-container">
-                <Line data={chartData} options={chartOptions} />
+                <Chart type="area" series={apexSeries} options={apexOptions} height={280} />
               </div>
             )}
           </div>
