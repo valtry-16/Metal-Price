@@ -1,0 +1,90 @@
+# Auric Ledger
+
+> Auric Ledger is a free, premium web application for tracking real-time precious metal prices in Indian Rupees (INR). It provides daily price updates, interactive charts, AI-powered market summaries, portfolio simulation, price alerts, and professional PDF reports.
+
+## Website
+- URL: https://auric--ledger.vercel.app
+- Category: Finance, Precious Metals, Investment Tools
+- Language: English (India)
+- Free to use: Yes
+
+## Pages
+
+### Home
+- URL: https://auric--ledger.vercel.app/
+- Description: Landing page with overview of all features and tools
+
+### Market
+- URL: https://auric--ledger.vercel.app/market
+- Description: Live prices for Gold (24K, 22K, 18K), Silver, Platinum, Palladium, Copper, Lead, Nickel, Zinc, and Aluminium in INR. Includes 7-day and 30-day price charts, weekly data tables, price change indicators, and export tools (CSV/PDF).
+
+### Portfolio Simulator
+- URL: https://auric--ledger.vercel.app/portfolio
+- Description: Virtual portfolio simulator with ₹10,00,000 starting balance. Buy and sell metals at live prices, track P&L, view trade history, and monitor performance charts.
+
+### Calculator
+- URL: https://auric--ledger.vercel.app/calculator
+- Description: Metal price and purity calculator. Convert between weight units and calculate metal value at current prices.
+
+### Compare
+- URL: https://auric--ledger.vercel.app/compare
+- Description: Side-by-side comparison of multiple metal prices with charts and statistics.
+
+### News
+- URL: https://auric--ledger.vercel.app/news
+- Description: Latest precious metal market news aggregated from top sources.
+
+### Summary
+- URL: https://auric--ledger.vercel.app/summary
+- Description: AI-powered daily market summary with insights on price movements and trends.
+
+### Dashboard
+- URL: https://auric--ledger.vercel.app/dashboard
+- Description: Personal dashboard with price alerts, analytics, and portfolio overview (requires login).
+
+### Settings
+- URL: https://auric--ledger.vercel.app/settings
+- Description: Customize preferences — number format, default metal, purity badges, compact numbers.
+
+### FAQ
+- URL: https://auric--ledger.vercel.app/faq
+- Description: Frequently asked questions about the platform, pricing data sources, and features.
+
+### Privacy Policy
+- URL: https://auric--ledger.vercel.app/privacy
+- Description: Privacy policy and data handling practices.
+
+## Metals Tracked
+- Gold (24K, 22K, 18K)
+- Silver
+- Platinum
+- Palladium
+- Copper
+- Lead
+- Nickel
+- Zinc
+- Aluminium
+
+## Key Features
+- Daily price updates at 9:00 AM IST
+- Prices in Indian Rupees (INR) per gram
+- Interactive ApexCharts price charts (7-day, 30-day)
+- AI-generated daily market summaries
+- Portfolio simulator with virtual trading
+- Price alerts with browser notifications
+- CSV and PDF export
+- Metal price calculator
+- Side-by-side metal comparison
+- Dark and light theme
+- PWA (installable on mobile)
+- Google OAuth and email/password authentication
+
+## Tech Stack
+- Frontend: React 19, Vite, ApexCharts
+- Backend: Node.js, Express
+- Database: Supabase PostgreSQL
+- Auth: Supabase (Google OAuth + Email/Password)
+- Hosting: Vercel (frontend), Render (backend)
+
+## Contact
+- Website: https://auric--ledger.vercel.app
