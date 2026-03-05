@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/metal-price-icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/metal-price-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#B8860B" />
     <meta name="description" content="Auric Ledger — Track live Gold, Silver, Platinum, Palladium & Copper prices in Indian Rupees (INR). Daily updates at 9 AM IST, price charts, alerts, AI market summaries, portfolio tracker & PDF reports. Free precious metal price tracker for India." />
@@ -62,27 +64,131 @@
 
     <!-- JSON-LD Structured Data -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "Auric Ledger",
-      "url": "https://auric--ledger.vercel.app",
-      "description": "Track live Gold, Silver, Platinum, Palladium and Copper prices in Indian Rupees. Daily price updates, charts, alerts, AI market summaries and portfolio tracker.",
-      "applicationCategory": "FinanceApplication",
-      "operatingSystem": "Web",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "INR"
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Auric Ledger",
+        "alternateName": ["Auric Ledger Metal Prices", "Gold Price Today India"],
+        "url": "https://auric--ledger.vercel.app",
+        "description": "Track live Gold, Silver, Platinum, Palladium and Copper prices in Indian Rupees.",
+        "inLanguage": "en-IN",
+        "publisher": {
+          "@type": "Organization",
+          "name": "Auric Ledger",
+          "url": "https://auric--ledger.vercel.app",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://auric--ledger.vercel.app/icons/icon-512x512.png",
+            "width": 512,
+            "height": 512
+          }
+        },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://auric--ledger.vercel.app/market?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
       },
-      "creator": {
+      {
+        "@context": "https://schema.org",
         "@type": "Organization",
         "name": "Auric Ledger",
-        "url": "https://auric--ledger.vercel.app"
+        "url": "https://auric--ledger.vercel.app",
+        "logo": "https://auric--ledger.vercel.app/icons/icon-512x512.png",
+        "sameAs": []
       },
-      "inLanguage": "en-IN",
-      "keywords": "gold price today, silver price, platinum price, metal prices India, INR"
-    }
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Auric Ledger",
+        "url": "https://auric--ledger.vercel.app",
+        "description": "Track live Gold, Silver, Platinum, Palladium and Copper prices in Indian Rupees. Daily price updates, charts, alerts, AI market summaries and portfolio tracker.",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "INR"
+        },
+        "creator": {
+          "@type": "Organization",
+          "name": "Auric Ledger",
+          "url": "https://auric--ledger.vercel.app"
+        },
+        "inLanguage": "en-IN",
+        "keywords": "gold price today, silver price, platinum price, metal prices India, INR"
+      },
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Home",
+            "url": "https://auric--ledger.vercel.app/"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Market",
+            "description": "Live metal prices, charts, and daily updates",
+            "url": "https://auric--ledger.vercel.app/market"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Portfolio",
+            "description": "Track your precious metal investments",
+            "url": "https://auric--ledger.vercel.app/portfolio"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Calculator",
+            "description": "Metal price and purity calculator",
+            "url": "https://auric--ledger.vercel.app/calculator"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Compare",
+            "description": "Compare metal prices side by side",
+            "url": "https://auric--ledger.vercel.app/compare"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "News",
+            "description": "Latest precious metal market news",
+            "url": "https://auric--ledger.vercel.app/news"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Summary",
+            "description": "AI-powered daily market summary",
+            "url": "https://auric--ledger.vercel.app/summary"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Dashboard",
+            "description": "Personal dashboard with alerts and analytics",
+            "url": "https://auric--ledger.vercel.app/dashboard"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Settings",
+            "description": "Customize your Auric Ledger experience",
+            "url": "https://auric--ledger.vercel.app/settings"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "FAQ",
+            "description": "Frequently asked questions",
+            "url": "https://auric--ledger.vercel.app/faq"
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "name": "Privacy Policy",
+            "url": "https://auric--ledger.vercel.app/privacy"
+          }
+        ]
+      }
+    ]
     </script>
   </body>
 </html>
