@@ -230,7 +230,27 @@ export default function Compare() {
       fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.05, stops: [0, 100] } },
       stroke: { curve: "smooth", width: 3 },
       markers: { size: 4, strokeColors: darkMode ? "#1c1a24" : "#ffffff", strokeWidth: 2 },
-      xaxis: { categories: chartLabels, labels: { style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" } }, axisBorder: { show: false }, axisTicks: { show: false } },
+      xaxis: {
+        categories: chartLabels,
+        labels: {
+          rotate: -45,
+          rotateAlways: false,
+          hideOverlappingLabels: true,
+          trim: true,
+          maxHeight: 60,
+          style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" },
+        },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+      },
+      responsive: [{
+        breakpoint: 600,
+        options: {
+          chart: { height: 280 },
+          xaxis: { labels: { rotate: -45, rotateAlways: true, style: { fontSize: "9px" }, maxHeight: 60 } },
+          markers: { size: 3 },
+        },
+      }],
       yaxis: {
         min: chartMode === "normalized" ? undefined : Math.max(0, mn - pad),
         max: chartMode === "normalized" ? undefined : mx + pad,

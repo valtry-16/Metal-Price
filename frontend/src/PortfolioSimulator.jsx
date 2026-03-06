@@ -291,7 +291,14 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
       },
       xaxis: {
         categories: snapshots.map((s) => s.time),
-        labels: { style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" } },
+        labels: {
+          rotate: -45,
+          rotateAlways: false,
+          hideOverlappingLabels: true,
+          trim: true,
+          maxHeight: 60,
+          style: { colors: darkMode ? "#a9adb8" : "#5d6b7a", fontSize: "11px" },
+        },
         axisBorder: { show: false },
         axisTicks: { show: false },
       },
@@ -312,6 +319,14 @@ export default function PortfolioSimulator({ apiBase, onClose, embedded = false 
         y: { formatter: (val) => fmt(val) },
       },
       dataLabels: { enabled: false },
+      responsive: [{
+        breakpoint: 600,
+        options: {
+          chart: { height: 240 },
+          xaxis: { labels: { rotate: -45, rotateAlways: true, style: { fontSize: "9px" }, maxHeight: 60 } },
+          markers: { size: 3 },
+        },
+      }],
     };
   }, [snapshots, darkMode]);
 
