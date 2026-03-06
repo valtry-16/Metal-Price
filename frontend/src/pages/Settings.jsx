@@ -377,6 +377,42 @@ export default function Settings() {
             </button>
           </div>
           {saved && <span className="al-settings__saved">Saved</span>}
+
+          {pushSupported && (
+            <>
+              <div className="al-settings__toggle-row" style={{ marginTop: 16 }}>
+                <span>Enable daily push notifications</span>
+                <button
+                  type="button"
+                  className={`al-toggle ${pushEnabled ? "al-toggle--on" : ""}`}
+                  onClick={handlePushToggle}
+                  disabled={pushLoading || !user}
+                  aria-label="Toggle push notifications"
+                >
+                  <span className="al-toggle__thumb" />
+                </button>
+              </div>
+              {!user && <p className="al-settings__desc" style={{ marginTop: 4, fontSize: 12 }}><strong>Sign in to enable push notifications.</strong></p>}
+              {pushMsg && <p className="al-settings__msg" style={{ marginTop: 8 }}>{pushMsg}</p>}
+              <div style={{ marginTop: 14 }}>
+                <label className="al-settings__label">Select metals for notifications</label>
+                <div className="al-settings__metal-grid">
+                  {ALL_METALS.map((m) => (
+                    <label key={m.symbol} className="al-settings__metal-check">
+                      <input
+                        type="checkbox"
+                        checked={pushMetals.includes(m.symbol)}
+                        onChange={() => handlePushMetalToggle(m.symbol)}
+                        disabled={!user}
+                      />
+                      <span>{m.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
           <div className="al-settings__field" style={{ marginTop: 14 }}>
             <label className="al-settings__label">Number format</label>
             <select
@@ -390,49 +426,6 @@ export default function Settings() {
           </div>
           <p className="al-settings__desc" style={{ marginTop: 10, fontSize: 12 }}>Prices are updated daily at 9:00 AM IST via our market data provider.</p>
         </div>
-
-        {/* Push Notifications */}
-        {pushSupported && (
-          <div className="al-settings__card">
-            <h3 className="al-settings__card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>
-              Daily Push Notifications
-            </h3>
-            <p className="al-settings__desc">
-              Get daily metal price updates as push notifications on your device at 9:00 AM IST.
-              {!user && <strong> Sign in to enable.</strong>}
-            </p>
-            <div className="al-settings__toggle-row">
-              <span>Enable daily push notifications</span>
-              <button
-                type="button"
-                className={`al-toggle ${pushEnabled ? "al-toggle--on" : ""}`}
-                onClick={handlePushToggle}
-                disabled={pushLoading || !user}
-                aria-label="Toggle push notifications"
-              >
-                <span className="al-toggle__thumb" />
-              </button>
-            </div>
-            {pushMsg && <p className="al-settings__msg" style={{ marginTop: 8 }}>{pushMsg}</p>}
-            <div style={{ marginTop: 14 }}>
-              <label className="al-settings__label">Select metals for notifications</label>
-              <div className="al-settings__metal-grid">
-                {ALL_METALS.map((m) => (
-                  <label key={m.symbol} className="al-settings__metal-check">
-                    <input
-                      type="checkbox"
-                      checked={pushMetals.includes(m.symbol)}
-                      onChange={() => handlePushMetalToggle(m.symbol)}
-                      disabled={!user}
-                    />
-                    <span>{m.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Email Subscription */}
         <div className="al-settings__card">

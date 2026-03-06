@@ -154,7 +154,7 @@ export default function Home() {
                 key={t.title}
                 className="al-tool-card"
                 onClick={() => {
-                  const fab = document.querySelector(".chat-fab");
+                  const fab = document.querySelector(".al-chat-fab");
                   if (fab) fab.click();
                 }}
               >
