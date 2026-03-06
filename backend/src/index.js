@@ -13,6 +13,7 @@ import rateLimit from "express-rate-limit";
 import { sendDailyPricesToTelegram } from "./telegram-bot.js";
 import bot from "./telegram-bot.js";
 import { askChatbot, streamChatbot } from "./chatbot.js";
+import webpush from "web-push";
 
 dotenv.config();
 dayjs.extend(utc);
@@ -216,7 +217,10 @@ const {
   GENERATE_SUMMARY_SECRET,
   NEWS_API_KEY,
   RUN_NEWS_SECRET,
-  GROQ_API_KEY
+  GROQ_API_KEY,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY,
+  VAPID_EMAIL = "mailto:auricledger@gmail.com"
 } = process.env;
 
 if (!METALS_API_KEY) {
@@ -228,6 +232,16 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL || "", SUPABASE_SERVICE_KEY || "");
+
+// ============================================
+// WEB PUSH: VAPID Configuration
+// ============================================
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+  console.log("🔔 Web Push VAPID configured");
+} else {
+  console.warn("Missing VAPID keys. Web Push notifications will be disabled.");
+}
 
 // Email configuration
 const {
@@ -2413,6 +2427,11 @@ const runDailyPipeline = async (sourceLabel = "cron") => {
 
     await sendDailyPricesToTelegram(metalPricesForTelegram);
 
+    // Send Web Push notifications to subscribers
+    console.log(`\n🔔 Sending Web Push notifications...`);
+    const pushResult = await sendDailyPushNotifications(result.rows);
+    console.log(`🔔 Push notifications: ${pushResult.sent} sent, ${pushResult.failed} failed`);
+
     console.log(`\n${"=".repeat(60)}\n`);
     return {
       date: result.date,
@@ -2431,6 +2450,199 @@ const runDailyPipeline = async (sourceLabel = "cron") => {
     console.error(`${"=".repeat(60)}\n`);
     throw error;
   }
+};
+
+// ============================================
+// WEB PUSH: Subscribe, Update Preferences, Unsubscribe
+// ============================================
+
+const METAL_NAMES = {
+  XAU: "Gold", XAG: "Silver", XPT: "Platinum", XPD: "Palladium",
+  XCU: "Copper", LEAD: "Lead", NI: "Nickel", ZNC: "Zinc", ALU: "Aluminium"
+};
+
+// Subscribe to push notifications
+app.post("/push/subscribe",
+  body("subscription").isObject().withMessage("subscription is required"),
+  body("subscription.endpoint").isURL().withMessage("valid endpoint required"),
+  body("userId").isUUID().withMessage("valid userId required"),
+  body("metals").isArray({ min: 1 }).withMessage("select at least one metal"),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
+
+    const { subscription, userId, metals } = req.body;
+    const validMetals = Object.keys(METAL_NAMES);
+    const filtered = metals.filter(m => validMetals.includes(m));
+    if (!filtered.length) return res.status(400).json({ error: "No valid metals selected" });
+
+    try {
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .upsert({
+          user_id: userId,
+          subscription,
+          metals: filtered,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "user_id,subscription" });
+
+      if (error) throw error;
+      res.json({ status: "success", message: "Push subscription saved", metals: filtered });
+    } catch (err) {
+      console.error("Push subscribe error:", err.message);
+      res.status(500).json({ error: "Failed to save push subscription" });
+    }
+  }
+);
+
+// Update metal preferences for push notifications
+app.put("/push/preferences",
+  body("userId").isUUID().withMessage("valid userId required"),
+  body("metals").isArray({ min: 1 }).withMessage("select at least one metal"),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
+
+    const { userId, metals } = req.body;
+    const validMetals = Object.keys(METAL_NAMES);
+    const filtered = metals.filter(m => validMetals.includes(m));
+    if (!filtered.length) return res.status(400).json({ error: "No valid metals selected" });
+
+    try {
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .update({ metals: filtered, updated_at: new Date().toISOString() })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      res.json({ status: "success", metals: filtered });
+    } catch (err) {
+      console.error("Push preferences error:", err.message);
+      res.status(500).json({ error: "Failed to update preferences" });
+    }
+  }
+);
+
+// Get push preferences for a user
+app.get("/push/preferences/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const { data, error } = await supabase
+      .from("push_subscriptions")
+      .select("metals")
+      .eq("user_id", userId)
+      .limit(1)
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    res.json({ status: "success", metals: data?.metals || [], subscribed: !!data });
+  } catch (err) {
+    console.error("Get push preferences error:", err.message);
+    res.status(500).json({ error: "Failed to get preferences" });
+  }
+});
+
+// Unsubscribe from push notifications
+app.post("/push/unsubscribe",
+  body("userId").isUUID().withMessage("valid userId required"),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
+
+    const { userId } = req.body;
+    try {
+      const { error } = await supabase
+        .from("push_subscriptions")
+        .delete()
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      res.json({ status: "success", message: "Unsubscribed from push notifications" });
+    } catch (err) {
+      console.error("Push unsubscribe error:", err.message);
+      res.status(500).json({ error: "Failed to unsubscribe" });
+    }
+  }
+);
+
+// Get VAPID public key
+app.get("/push/vapid-key", (req, res) => {
+  if (!VAPID_PUBLIC_KEY) return res.status(503).json({ error: "Push not configured" });
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+// Send push notifications to all subscribers after price fetch
+const sendDailyPushNotifications = async (priceRows) => {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    console.log("⏭️  Skipping push notifications (VAPID not configured)");
+    return { sent: 0, failed: 0 };
+  }
+
+  const priceMap = {};
+  priceRows.forEach(row => {
+    if (!row.price_1g) return;
+    if (row.metal_name === "XAU") {
+      if (row.carat === "22") priceMap.XAU = { price: row.price_1g, carat: "22K" };
+    } else if (!priceMap[row.metal_name]) {
+      priceMap[row.metal_name] = { price: row.price_1g };
+    }
+  });
+
+  const { data: subscribers, error } = await supabase
+    .from("push_subscriptions")
+    .select("id, subscription, metals");
+
+  if (error) {
+    console.error("Failed to fetch push subscribers:", error.message);
+    return { sent: 0, failed: 0 };
+  }
+
+  if (!subscribers?.length) {
+    console.log("📭 No push subscribers found");
+    return { sent: 0, failed: 0 };
+  }
+
+  let sent = 0, failed = 0;
+  const staleIds = [];
+
+  for (const sub of subscribers) {
+    const lines = sub.metals
+      .filter(m => priceMap[m])
+      .map(m => {
+        const info = priceMap[m];
+        const name = METAL_NAMES[m] || m;
+        const price = `\u20B9${info.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return `${name}${info.carat ? ` (${info.carat})` : ""}: ${price}/g`;
+      });
+
+    if (!lines.length) continue;
+
+    const payload = JSON.stringify({
+      title: "Auric Ledger \u2014 Today's Prices",
+      body: lines.join("\n"),
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-96x96.png",
+      url: "/market",
+      timestamp: Date.now()
+    });
+
+    try {
+      await webpush.sendNotification(sub.subscription, payload);
+      sent++;
+    } catch (err) {
+      failed++;
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        staleIds.push(sub.id);
+      }
+    }
+  }
+
+  if (staleIds.length) {
+    await supabase.from("push_subscriptions").delete().in("id", staleIds);
+    console.log(`\uD83E\uDDF9 Removed ${staleIds.length} expired push subscriptions`);
+  }
+
+  return { sent, failed };
 };
 
 // Endpoint to keep Render service awake (prevent sleep on free tier)

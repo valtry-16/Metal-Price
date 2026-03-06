@@ -82,3 +82,37 @@ self.addEventListener("message", (event) => {
     self.skipWaiting();
   }
 });
+
+// Push notification event
+self.addEventListener("push", (event) => {
+  let data = { title: "Auric Ledger", body: "Metal prices updated!" };
+  try {
+    if (event.data) data = event.data.json();
+  } catch (e) {
+    // use defaults
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Auric Ledger", {
+      body: data.body,
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-192x192.png",
+      data: { url: data.url || "/market" }
+    })
+  );
+});
+
+// Notification click – open or focus the app
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/market";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (new URL(client.url).pathname === targetUrl && "focus" in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(targetUrl);
+    })
+  );
+});

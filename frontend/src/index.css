@@ -4140,6 +4140,39 @@ select {
   border-color: var(--accent);
 }
 
+/* Settings – push notification metal checkboxes */
+.al-settings__metal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.al-settings__metal-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.al-settings__metal-check:hover {
+  border-color: var(--accent);
+}
+
+.al-settings__metal-check input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
 /* Settings – data management action buttons */
 .al-settings__actions-row {
   display: flex;

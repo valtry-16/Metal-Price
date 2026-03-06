@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { PROD_API_URL, goldCarats } from "../utils/constants";
+import {
+  subscribeToPush,
+  updatePushPreferences,
+  getPushPreferences,
+  unsubscribeFromPush,
+  isPushSubscribed,
+} from "../utils/pushNotifications";
 
 const TELEGRAM_BOT_URL = "https://t.me/AuricLedgerBot";
 
@@ -28,6 +35,24 @@ export default function Settings() {
   const [compactNumbers, setCompactNumbers] = useState(false);
   const [prefSaved, setPrefSaved] = useState(false);
 
+  // ─── Push notification states ────────────────────────────
+  const ALL_METALS = [
+    { symbol: "XAU", name: "Gold" },
+    { symbol: "XAG", name: "Silver" },
+    { symbol: "XPT", name: "Platinum" },
+    { symbol: "XPD", name: "Palladium" },
+    { symbol: "XCU", name: "Copper" },
+    { symbol: "LEAD", name: "Lead" },
+    { symbol: "NI", name: "Nickel" },
+    { symbol: "ZNC", name: "Zinc" },
+    { symbol: "ALU", name: "Aluminium" },
+  ];
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushMetals, setPushMetals] = useState(["XAU"]);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushMsg, setPushMsg] = useState("");
+  const [pushSupported] = useState(() => "serviceWorker" in navigator && "PushManager" in window);
+
   useEffect(() => {
     setDisplayName(getDisplayName());
     const savedEmail = localStorage.getItem("auric-alert-email");
@@ -42,6 +67,16 @@ export default function Settings() {
     setNumberFormat(localStorage.getItem("auric-numfmt") || "indian");
     setShowPurityBadge(localStorage.getItem("auric-purity-badge") !== "false");
     setCompactNumbers(localStorage.getItem("auric-compact-num") === "true");
+
+    // Load push notification preferences
+    if (user?.id && pushSupported) {
+      Promise.all([isPushSubscribed(), getPushPreferences(user.id)])
+        .then(([subscribed, prefs]) => {
+          setPushEnabled(subscribed && prefs.subscribed);
+          if (prefs.metals?.length) setPushMetals(prefs.metals);
+        })
+        .catch(() => {});
+    }
   }, [user]);
 
   const avatarUrl = getAvatarUrl();
@@ -95,6 +130,38 @@ export default function Settings() {
     localStorage.setItem("auric-alerts-enabled", String(next));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handlePushToggle = async () => {
+    if (!user?.id) { setPushMsg("Please sign in to enable push notifications"); return; }
+    setPushLoading(true);
+    setPushMsg("");
+    try {
+      if (pushEnabled) {
+        await unsubscribeFromPush(user.id);
+        setPushEnabled(false);
+        setPushMsg("Push notifications disabled");
+      } else {
+        await subscribeToPush(user.id, pushMetals);
+        setPushEnabled(true);
+        setPushMsg("Push notifications enabled!");
+      }
+    } catch (err) {
+      setPushMsg(err.message || "Failed to update push notifications");
+    }
+    setPushLoading(false);
+    setTimeout(() => setPushMsg(""), 4000);
+  };
+
+  const handlePushMetalToggle = async (symbol) => {
+    const next = pushMetals.includes(symbol)
+      ? pushMetals.filter(m => m !== symbol)
+      : [...pushMetals, symbol];
+    if (!next.length) { setPushMsg("Select at least one metal"); setTimeout(() => setPushMsg(""), 3000); return; }
+    setPushMetals(next);
+    if (pushEnabled && user?.id) {
+      try { await updatePushPreferences(user.id, next); } catch {}
+    }
   };
 
   const savePref = (key, value) => {
@@ -323,6 +390,49 @@ export default function Settings() {
           </div>
           <p className="al-settings__desc" style={{ marginTop: 10, fontSize: 12 }}>Prices are updated daily at 9:00 AM IST via our market data provider.</p>
         </div>
+
+        {/* Push Notifications */}
+        {pushSupported && (
+          <div className="al-settings__card">
+            <h3 className="al-settings__card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>
+              Daily Push Notifications
+            </h3>
+            <p className="al-settings__desc">
+              Get daily metal price updates as push notifications on your device at 9:00 AM IST.
+              {!user && <strong> Sign in to enable.</strong>}
+            </p>
+            <div className="al-settings__toggle-row">
+              <span>Enable daily push notifications</span>
+              <button
+                type="button"
+                className={`al-toggle ${pushEnabled ? "al-toggle--on" : ""}`}
+                onClick={handlePushToggle}
+                disabled={pushLoading || !user}
+                aria-label="Toggle push notifications"
+              >
+                <span className="al-toggle__thumb" />
+              </button>
+            </div>
+            {pushMsg && <p className="al-settings__msg" style={{ marginTop: 8 }}>{pushMsg}</p>}
+            <div style={{ marginTop: 14 }}>
+              <label className="al-settings__label">Select metals for notifications</label>
+              <div className="al-settings__metal-grid">
+                {ALL_METALS.map((m) => (
+                  <label key={m.symbol} className="al-settings__metal-check">
+                    <input
+                      type="checkbox"
+                      checked={pushMetals.includes(m.symbol)}
+                      onChange={() => handlePushMetalToggle(m.symbol)}
+                      disabled={!user}
+                    />
+                    <span>{m.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Email Subscription */}
         <div className="al-settings__card">
