@@ -114,7 +114,7 @@ app.use(express.urlencoded({
 
 // Timeout for slow clients (prevent slowloris attacks)
 app.use((req, res, next) => {
-  req.setTimeout(30000); // 30 second timeout per request
+  req.setTimeout(120000); // 120 second timeout per request
   next();
 });
 

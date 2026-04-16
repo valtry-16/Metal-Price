@@ -10,8 +10,8 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "dev": "NODE_ENV=development node --watch src/index.js",
-    "start": "NODE_ENV=production node src/index.js",
+    "dev": "cross-env NODE_ENV=development node --watch src/index.js",
+    "start": "cross-env NODE_ENV=production node src/index.js",
     "lint": "eslint src/ --fix"
   },
   "dependencies": {
@@ -27,5 +27,8 @@
     "node-cron": "^3.0.3",
     "node-telegram-bot-api": "^0.67.0",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0"
   }
 }

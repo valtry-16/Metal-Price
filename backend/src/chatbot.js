@@ -53,7 +53,7 @@ const getEmbeddings = async (inputs) => {
   const response = await axios.post(
     EMBEDDING_API_URL,
     { input: inputArray },
-    { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+    { headers: { "Content-Type": "application/json" }, timeout: 120000 }
   );
   // API returns { data: [{ embedding: [...] }, ...] }
   return response.data.data.map((d) => d.embedding);
@@ -599,7 +599,7 @@ export const askChatbot = async (question) => {
         max_tokens: 512,
         temperature: 0.1,
       },
-      { headers: { "Content-Type": "application/json" }, timeout: 60000 }
+      { headers: { "Content-Type": "application/json" }, timeout: 120000 }
     );
 
     const answer = response.data?.choices?.[0]?.message?.content || suggestedAnswer || "I could not generate a response. Please try again.";
@@ -637,7 +637,7 @@ export const askChatbotStream = async (question, onToken) => {
         max_tokens: 512,
         temperature: 0.1,
       },
-      { headers: { "Content-Type": "application/json" }, timeout: 60000, responseType: "stream" }
+      { headers: { "Content-Type": "application/json" }, timeout: 120000, responseType: "stream" }
     );
 
     let fullText = "";
@@ -722,7 +722,7 @@ export const streamChatbot = async (question, res) => {
         max_tokens: 512,
         temperature: 0.1,
       },
-      { headers: { "Content-Type": "application/json" }, timeout: 60000, responseType: "stream" }
+      { headers: { "Content-Type": "application/json" }, timeout: 120000, responseType: "stream" }
     );
 
     let buffer = "";
